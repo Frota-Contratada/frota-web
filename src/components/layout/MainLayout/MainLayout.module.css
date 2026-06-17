@@ -1,0 +1,37 @@
+.layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--color-gray-50);
+}
+
+.main {
+  flex: 1;
+  margin-left: 280px;
+  transition: margin-left var(--transition-base);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.main.sidebarCollapsed {
+  margin-left: 72px;
+}
+
+.content {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  overflow: auto;
+}
+
+@media (max-width: 768px) {
+  .main {
+    margin-left: 0;
+  }
+
+  .main.sidebarCollapsed {
+    margin-left: 0;
+  }
+}
