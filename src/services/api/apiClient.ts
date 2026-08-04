@@ -63,16 +63,22 @@ const getAuthHeaders = (skipAuth?: boolean): HeadersInit => {
 export const apiClient = {
   async request<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
     const { query, body, headers, skipAuth, ...fetchOptions } = options;
-    const response = await fetch(buildUrl(path, query), {
-      ...fetchOptions,
-      headers: {
-        Accept: 'application/json',
-        ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-        ...getAuthHeaders(skipAuth),
-        ...headers,
-      },
-      body: body instanceof FormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
-    });
+
+    let response: Response;
+    try {
+      response = await fetch(buildUrl(path, query), {
+        ...fetchOptions,
+        headers: {
+          Accept: 'application/json',
+          ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+          ...getAuthHeaders(skipAuth),
+          ...headers,
+        },
+        body: body instanceof FormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
+      });
+    } catch {
+      throw new ApiError('Serviço temporariamente indisponível. Tente novamente mais tarde.', 0);
+    }
 
     const data = await readResponse<T>(response);
 

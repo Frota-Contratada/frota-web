@@ -1,20 +1,26 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { authService } from '../services/auth/authService';
+import { authApi } from '../services/auth/authApi';
 import type { LoginCredentials } from '../types/auth.types';
 
 export const useAuth = () => {
   const navigate = useNavigate();
-  const { logout, setLoading, setError, ...authState } = useAuthStore();
+  const { logout: storeLogout, setLoading, setError, ...authState } = useAuthStore();
 
   const handleLogin = useCallback(
     async (credentials: LoginCredentials) => {
       try {
         setLoading(true);
         setError(null);
-        const response = await authService.login(credentials);
-        navigate('/two-factor', { state: { email: response.user.email }, replace: true });
+        const { response } = await authApi.login(credentials);
+        const { accessToken, refreshToken } = response;
+
+        localStorage.setItem('auth_token', accessToken);
+        localStorage.setItem('refresh_token', refreshToken);
+        localStorage.setItem('auth_email', credentials.email);
+
+        navigate('/two-factor', { replace: true });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Erro ao fazer login';
         setError(message);
@@ -26,15 +32,13 @@ export const useAuth = () => {
 
   const handleLogout = useCallback(async () => {
     try {
-      await authService.logout();
-      logout();
-      navigate('/login', { replace: true });
+      await authApi.logout();
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
-      logout();
-      navigate('/login', { replace: true });
     }
-  }, [logout, navigate]);
+    storeLogout();
+    navigate('/login', { replace: true });
+  }, [storeLogout, navigate]);
 
   return {
     ...authState,

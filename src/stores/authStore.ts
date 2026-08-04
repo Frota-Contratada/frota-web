@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { User, AuthState } from '../types/auth.types';
 
 interface AuthStore extends AuthState {
-  login: (user: User, token: string) => void;
+  login: (user: User, accessToken: string, refreshToken: string) => void;
   logout: () => void;
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
@@ -17,8 +17,9 @@ export const useAuthStore = create<AuthStore>()(
       isLoading: false,
       error: null,
 
-      login: (user: User, token: string) => {
-        localStorage.setItem('auth_token', token);
+      login: (user: User, accessToken: string, refreshToken: string) => {
+        localStorage.setItem('auth_token', accessToken);
+        localStorage.setItem('refresh_token', refreshToken);
         set({
           user,
           isAuthenticated: true,
@@ -29,6 +30,7 @@ export const useAuthStore = create<AuthStore>()(
 
       logout: () => {
         localStorage.removeItem('auth_token');
+        localStorage.removeItem('refresh_token');
         set({
           user: null,
           isAuthenticated: false,

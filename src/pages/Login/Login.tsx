@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { Button, Input, Card } from '../../components/common';
+import { Button, Input, Card, useToast } from '../../components/common';
 import emailIcon from '../../assets/icons/email.svg';
 import cadeadoIcon from '../../assets/icons/cadeado.svg';
 import searaJbsLogo from '../../assets/images/seara-jbs.svg';
@@ -15,7 +16,9 @@ const LockIcon = () => (
 );
 
 export const Login = () => {
-  const { login, isLoading, error } = useAuth();
+  const navigate = useNavigate();
+  const { login, isLoading } = useAuth();
+  const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [validationErrors, setValidationErrors] = useState<{ email?: string; password?: string }>({});
@@ -40,9 +43,10 @@ export const Login = () => {
     e.preventDefault();
     if (!validateForm()) return;
     try {
-      await login({ email, password });
+      await login({ email, senha: password, plataforma: 'WEB' });
     } catch (err) {
-      console.error('Login falhou:', err);
+      const message = err instanceof Error ? err.message : 'Erro ao fazer login';
+      showToast({ type: 'error', title: message });
     }
   };
 
@@ -59,9 +63,6 @@ export const Login = () => {
           </div>
 
           <form onSubmit={handleSubmit} className={styles.form}>
-            {error && (
-              <div className={styles.errorAlert} role="alert">{error}</div>
-            )}
             <Input
               type="email" label="Email" placeholder="seu@email.com"
               value={email}
@@ -77,7 +78,7 @@ export const Login = () => {
               required autoComplete="current-password" disabled={isLoading}
             />
             <div className={styles.forgotPassword}>
-              <button type="button" className={styles.linkButton} disabled={isLoading}>
+              <button type="button" className={styles.linkButton} onClick={() => navigate('/forgot-password')} disabled={isLoading}>
                 Esqueceu a senha?
               </button>
             </div>
@@ -88,7 +89,7 @@ export const Login = () => {
         </Card>
         <p className={styles.footer}>
           Não tem uma conta?{' '}
-          <button type="button" className={styles.linkButton} disabled={isLoading}>
+          <button type="button" className={styles.linkButton} onClick={() => navigate('/sign-up')} disabled={isLoading}>
             Solicite acesso
           </button>
         </p>

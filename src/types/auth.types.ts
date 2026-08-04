@@ -1,5 +1,7 @@
 import type { UserProfile } from './profile.types';
 
+export type Plataforma = 'WEB' | 'MOBILE';
+
 export interface User {
   id: string;
   name: string;
@@ -9,7 +11,14 @@ export interface User {
 
 export interface LoginCredentials {
   email: string;
-  password: string;
+  senha: string;
+  plataforma: Plataforma;
+}
+
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+  validade: string;
 }
 
 export interface AuthState {
@@ -20,6 +29,5 @@ export interface AuthState {
 }
 
 export interface AuthResponse {
-  user: User;
-  token: string;
+  response: AuthTokens;
 }
