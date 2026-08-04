@@ -27,6 +27,7 @@ interface MenuItem {
   icon: React.ReactNode;
   path?: string;
   submenu?: SubMenuItem[];
+  badge?: string;
 }
 
 interface SubMenuItem {
@@ -37,9 +38,9 @@ interface SubMenuItem {
 }
 
 const ArrowIcon = ({ className = '', size = 20 }: { className?: string; size?: number }) => (
-  <img
-    src={setaDireitaIcon}
-    alt=""
+  <img 
+    src={setaDireitaIcon} 
+    alt="" 
     width={size}
     height={size}
     className={className}
@@ -108,11 +109,26 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
+  const user = useAuthStore((state) => state.user);
+
+  const userName = user?.name || 'Usuário';
+  const userEmail = user?.email || 'usuario@email.com';
+  const userInitials = userName.split(' ').filter(Boolean).map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
 
   const toggleMenu = (menuId: string) => {
     setOpenMenus((prev) =>
       prev.includes(menuId) ? prev.filter((id) => id !== menuId) : [...prev, menuId]
     );
+  };
+
+  const handleMenuWithSubmenuClick = (menuId: string) => {
+    if (isCollapsed) {
+      setOpenMenus((prev) => (prev.includes(menuId) ? prev : [...prev, menuId]));
+      onToggle?.();
+      return;
+    }
+
+    toggleMenu(menuId);
   };
 
   const isActive = (path?: string) => {
@@ -133,8 +149,8 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
           <img src={searaJbsLogo} alt="Seara JBS" className={styles.logo} />
         </div>
         <p className={styles.subtitle}>Plataforma de gestão de frotas</p>
-
-        <button
+        
+        <button 
           className={styles.collapseButton}
           onClick={onToggle}
           aria-label="Recolher menu"
@@ -151,7 +167,7 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
                 <>
                   <button
                     className={`${styles.menuButton} ${openMenus.includes(item.id) ? styles.open : ''}`}
-                    onClick={() => toggleMenu(item.id)}
+                    onClick={() => handleMenuWithSubmenuClick(item.id)}
                   >
                     <span className={styles.menuIcon}>{item.icon}</span>
                     <span className={styles.menuLabel}>{item.label}</span>
@@ -195,14 +211,14 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
       <div className={styles.footer}>
         <div className={styles.userCard}>
           <div className={styles.avatarWrapper}>
-            <div className={styles.avatar} aria-label="Usuário">
-              U
+            <div className={styles.avatar} aria-label={userName}>
+              {userInitials}
             </div>
             <span className={styles.onlineIndicator}></span>
           </div>
           <div className={styles.userDetails}>
-            <p className={styles.userName}>Usuário</p>
-            <p className={styles.userEmail}>usuario@email.com</p>
+            <p className={styles.userName}>{userName}</p>
+            <p className={styles.userEmail}>{userEmail}</p>
           </div>
         </div>
 
@@ -232,10 +248,12 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
             <div className={styles.modalIcon} aria-hidden="true">
               <SairIcon width={22} height={22} />
             </div>
+
             <div className={styles.modalContent}>
               <h2 id="logout-title">Sair da plataforma?</h2>
-              <p id="logout-description">Você será redirecionado para a tela de login.</p>
+              <p id="logout-description">Você será redirecionada para a tela de login.</p>
             </div>
+
             <div className={styles.modalActions}>
               <Button type="button" variant="outline" onClick={() => setIsLogoutModalOpen(false)}>
                 Cancelar

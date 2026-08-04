@@ -1,0 +1,480 @@
+.container {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: var(--spacing-lg);
+  height: 100%;
+  min-height: 0;
+  padding: var(--spacing-lg);
+  overflow: hidden;
+  background-color: var(--color-gray-50);
+}
+
+.calendarCard,
+.detailsCard {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+}
+
+.calendarCard {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  align-self: stretch;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.calendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+}
+
+.subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-shrink: 0;
+}
+
+.viewToggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background-color: var(--surface-muted);
+}
+
+.viewButton,
+.viewButtonActive {
+  height: 36px;
+  padding: 0 0.875rem;
+  border: none;
+  border-radius: 10px;
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.viewButton {
+  background-color: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.viewButton:hover {
+  background-color: var(--white);
+  color: var(--brand-primary);
+}
+
+.viewButtonActive {
+  background-color: var(--brand-primary);
+  color: var(--white);
+  cursor: default;
+}
+
+.monthControls {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background-color: var(--surface-muted);
+}
+
+.monthButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background-color: var(--white);
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.monthButton:hover {
+  color: var(--brand-primary);
+  background-color: var(--color-primary-50);
+}
+
+.monthButton svg path {
+  stroke: currentColor;
+}
+
+.monthButtonPrev svg {
+  transform: rotate(180deg);
+}
+
+.monthLabel {
+  min-width: 180px;
+  text-align: center;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+}
+
+.legendPast {
+  background-color: var(--green-success);
+}
+
+.legendFuture {
+  background-color: var(--brand-primary);
+}
+
+.legendCanceled {
+  background-color: var(--danger);
+}
+
+.weekGrid,
+.daysGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.weekGrid {
+  border-bottom: 1px solid var(--border);
+}
+
+.weekDay {
+  padding: 0.5rem;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.daysGrid {
+  min-height: 0;
+  height: 100%;
+  background-color: var(--border);
+  gap: 1px;
+  grid-template-rows: repeat(var(--calendar-rows), minmax(0, 1fr));
+}
+
+.weekViewGrid {
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background-color: var(--surface-muted);
+}
+
+.dayCell {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  padding: 0.5rem;
+  border: none;
+  background-color: var(--surface);
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.weekDayCell {
+  display: flex;
+  flex-direction: column;
+  padding: 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.dayCell:hover {
+  background-color: var(--surface-muted);
+}
+
+.selectedDay {
+  box-shadow: inset 0 0 0 2px var(--brand-primary);
+}
+
+.weekDayCell.selectedDay {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.outsideMonth {
+  background-color: var(--gray-50);
+  color: var(--text-subtle);
+}
+
+.dayHeaderInline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+}
+
+.dayNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.weekDayName {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.selectedDay .dayNumber {
+  background-color: var(--brand-primary);
+  color: var(--white);
+}
+
+.dayRides {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.weekDayCell .dayRides {
+  gap: 0.5rem;
+  overflow-y: auto;
+  padding-right: 0.125rem;
+}
+
+.ridePill,
+.moreRides {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 7px;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weekDayCell .ridePill,
+.weekDayCell .moreRides {
+  border-radius: 10px;
+  padding: 0.5rem 0.625rem;
+  font-size: var(--font-size-xs);
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.realizada {
+  background-color: var(--green-success-light);
+  color: #065f46;
+}
+
+.agendada {
+  background-color: var(--color-primary-50);
+  color: var(--brand-primary);
+}
+
+.cancelada {
+  background-color: var(--danger-light);
+  color: var(--danger);
+}
+
+.moreRides {
+  background-color: var(--gray-100);
+  color: var(--text-muted);
+}
+
+.detailsCard {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-self: stretch;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.detailsHeader {
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.detailsDate {
+  display: block;
+  color: var(--brand-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.detailsTitle {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 2rem 1.25rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.emptyState strong {
+  color: var(--text-primary);
+}
+
+.rideList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  min-height: 0;
+  padding: 1.25rem;
+  overflow-y: auto;
+}
+
+.rideCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background-color: var(--surface);
+}
+
+.rideHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+.rideHeader strong {
+  color: var(--text-primary);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+}
+
+.requester {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.routeInfo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.375rem;
+  color: var(--text-muted);
+}
+
+.routeInfo div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.routeInfo div:last-child {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.routeInfo span {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.routeInfo strong {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.routeArrowWrapper {
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background-color: var(--surface-muted);
+  color: var(--text-subtle);
+}
+
+.routeArrow {
+  display: block;
+  flex-shrink: 0;
+  transform: rotate(-90deg);
+}
+
+.routeArrow path {
+  stroke: currentColor;
+}
+
+@media (max-width: 1100px) {
+  .container {
+    grid-template-columns: 1fr;
+  }
+}

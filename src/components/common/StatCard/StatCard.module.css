@@ -1,0 +1,70 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 1.25rem 1.5rem;
+  min-width: 0;
+}
+
+.title {
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.value {
+  font-family: var(--font-family);
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+/* Trend */
+.trend {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  margin-top: 0.25rem;
+}
+
+.trendIcon {
+  flex-shrink: 0;
+}
+
+.trendIcon path {
+  stroke: currentColor;
+}
+
+.trendValue {
+  font-weight: 600;
+}
+
+.trendLabel {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* Direções */
+.up {
+  color: var(--green-dark);
+}
+
+.up .trendIcon {
+  color: var(--green);
+}
+
+.down {
+  color: var(--danger);
+}
+
+.down .trendIcon {
+  color: var(--danger);
+  transform: scaleY(-1);
+}

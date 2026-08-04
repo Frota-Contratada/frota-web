@@ -88,12 +88,10 @@
 
 .collapseArrow {
   transition: transform var(--transition-base);
-  transform: rotate(180deg);
-}
+  transform: rotate(180deg); }
 
 .collapsed .collapseArrow {
-  transform: rotate(0deg);
-}
+  transform: rotate(0deg); }
 
 .nav {
   flex: 1;
@@ -271,6 +269,17 @@
   margin-bottom: 12px;
 }
 
+.connector {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 1.5px;
+  background-color: var(--gray-200);
+  border-radius: 2px;
+}
+
 .submenuLink {
   display: flex;
   align-items: center;
@@ -343,9 +352,10 @@
   border: 1px solid var(--color-gray-200);
   width: 100%;
   min-height: 64px;
-  transition: all var(--transition-base);
+  transition: background-color var(--transition-base), border-color var(--transition-base), border-radius var(--transition-base), min-height var(--transition-base), padding var(--transition-base);
   overflow: hidden;
 }
+
 
 .avatarWrapper {
   position: relative;
@@ -448,7 +458,7 @@
 .logoutButton:hover {
   border-color: var(--border);
   background-color: var(--surface-muted);
-  color: var(--danger);
+  color: var(--error);
 }
 
 .logoutButton:focus-visible {
@@ -520,7 +530,7 @@
   margin-bottom: var(--spacing-md);
   border-radius: 50%;
   background-color: rgba(239, 68, 68, 0.1);
-  color: var(--danger);
+  color: var(--error);
 }
 
 .modalIcon svg path {

@@ -1,5 +1,16 @@
 export { Button } from './Button/Button';
 export { Input } from './Input/Input';
+export { Select } from './Select/Select';
+export type { SelectOption } from './Select/Select';
 export { Card } from './Card/Card';
+export { Table } from './Table/Table';
+export type { ColumnDef, TableAction, PaginationProps, SortState, SortDirection } from './Table/Table';
+export { StatusBadge } from './StatusBadge/StatusBadge';
+export type { BadgeStatus } from './StatusBadge/StatusBadge';
+export { StatCard } from './StatCard/StatCard';
+export type { StatCardProps, StatCardTrend } from './StatCard/StatCard';
+export { TableToolbar } from './TableToolbar/TableToolbar';
+export { FilterDropdown } from './FilterDropdown/FilterDropdown';
+export type { DateRangeFilterValue, FilterOption, FilterSection } from './FilterDropdown/FilterDropdown';
 export { ToastProvider, useToast } from './Toast/Toast';
 export type { ToastType, ShowToastOptions } from './Toast/Toast';

@@ -1,0 +1,419 @@
+.wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.trigger {
+  display: inline-flex;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  z-index: var(--z-dropdown);
+  width: 520px;
+  background-color: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: dropdownIn var(--transition-fast);
+}
+
+.right {
+  right: 0;
+}
+
+.left {
+  left: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  display: block;
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  display: block;
+  margin-top: 0.125rem;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.counter,
+.tabBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary-50);
+  color: var(--brand-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.counter {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 0.4rem;
+}
+
+.body {
+  display: grid;
+  grid-template-columns: 158px 1fr;
+  min-height: 360px;
+  max-height: 460px;
+}
+
+.tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  border-right: 1px solid var(--border);
+  background-color: var(--surface-muted);
+}
+
+.tabButton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  width: 100%;
+  min-height: 40px;
+  padding: 0.625rem 0.75rem;
+  border: none;
+  border-radius: 10px;
+  background-color: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.tabButton:hover {
+  background-color: var(--white);
+  color: var(--text-primary);
+}
+
+.tabActive {
+  background-color: var(--white);
+  color: var(--brand-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.tabBadge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 0.35rem;
+}
+
+.panel {
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.panelSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding: 1rem;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.sectionTitle {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.sectionHint {
+  margin: 0.125rem 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.inlineClearButton {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--brand-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.inlineClearButton:hover {
+  text-decoration: underline;
+}
+
+.dateSummary {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background-color: var(--surface-muted);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  text-align: center;
+}
+
+.dateArrow {
+  color: var(--text-subtle);
+  transform: rotate(-90deg);
+}
+
+.dateArrow path {
+  stroke: currentColor;
+}
+
+.calendar {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.75rem;
+  background-color: var(--white);
+}
+
+.calendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.monthButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background-color: var(--white);
+  color: var(--text-secondary);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.monthButton:hover {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+  background-color: var(--color-primary-50);
+}
+
+.monthButton svg path {
+  stroke: currentColor;
+}
+
+.monthButtonPrev svg {
+  transform: rotate(180deg);
+}
+
+.monthLabel {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.weekGrid,
+.daysGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.weekGrid {
+  margin-bottom: 0.25rem;
+}
+
+.weekDay {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.dayButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border: none;
+  border-radius: 10px;
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.dayButton:hover {
+  background-color: var(--color-primary-50);
+  color: var(--brand-primary);
+}
+
+.dayOutside {
+  color: var(--text-subtle);
+}
+
+.dayInRange {
+  border-radius: 0;
+  background-color: var(--color-primary-50);
+  color: var(--brand-primary);
+}
+
+.dayRangeStart {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.dayRangeEnd {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.daySelected {
+  border-radius: 10px;
+  background-color: var(--brand-primary);
+  color: var(--white);
+  box-shadow: 0 4px 10px rgba(44, 44, 158, 0.18);
+}
+
+.daySelected:hover {
+  background-color: var(--brand-primary);
+  color: var(--white);
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 38px;
+  padding: 0.375rem 0.25rem;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.option:hover {
+  background-color: var(--surface-muted);
+}
+
+.option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 5px;
+  background-color: var(--white);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.checkbox::after {
+  content: '';
+  width: 8px;
+  height: 4px;
+  border-left: 2px solid var(--white);
+  border-bottom: 2px solid var(--white);
+  transform: rotate(-45deg) translateY(-1px);
+  opacity: 0;
+}
+
+.option input:checked + .checkbox {
+  background-color: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+.option input:checked + .checkbox::after {
+  opacity: 1;
+}
+
+.option input:focus-visible + .checkbox {
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.optionLabel {
+  flex: 1;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  padding: 0.875rem 1rem;
+  border-top: 1px solid var(--border);
+  background-color: var(--surface-muted);
+}
+
+.clearButton {
+  color: var(--text-muted) !important;
+}
+
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
