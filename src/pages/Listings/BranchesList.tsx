@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../components/common';
 import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
 import { branches, type Branch } from './listingsData';
@@ -63,6 +64,7 @@ const columns: ColumnDef<Branch>[] = [
 
 export const BranchesList = () => {
   const { showToast } = useToast();
+  const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(1);
   const [query, setQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
@@ -125,7 +127,7 @@ export const BranchesList = () => {
             setCurrentPage(1);
           }}
           onExport={() => showToast({ type: 'success', title: 'Exportação iniciada', description: 'A lista de filiais será preparada em instantes.' })}
-          rightActions={<Button onClick={() => showToast({ type: 'info', title: 'Cadastro de filial', description: 'Fluxo de cadastro será implementado na próxima etapa.' })}>Cadastrar filial</Button>}
+          rightActions={<Button onClick={() => navigate('/filiais/nova')}>Cadastrar filial</Button>}
           filterSections={filterSections}
           selectedFilters={selectedFilters}
           onFilterChange={(values) => {

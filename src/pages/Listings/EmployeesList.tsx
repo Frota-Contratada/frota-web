@@ -137,7 +137,7 @@ export const EmployeesList = () => {
             setCurrentPage(1);
           }}
           onExport={() => showToast({ type: 'success', title: 'Exportação iniciada', description: 'A lista de colaboradores será preparada em instantes.' })}
-          rightActions={<Button onClick={() => showToast({ type: 'info', title: 'Cadastro de colaborador', description: 'Fluxo de cadastro será implementado na próxima etapa.' })}>Cadastrar colaborador</Button>}
+          rightActions={<Button onClick={() => navigate('/colaboradores/novo')}>Cadastrar colaborador</Button>}
           filterSections={filterSections}
           selectedFilters={selectedFilters}
           onFilterChange={(values) => {

@@ -14,7 +14,9 @@ import { RideRequestsList } from '../pages/Listings/RideRequestsList';
 import { RideHistoryList } from '../pages/Listings/RideHistoryList';
 import { EmployeesList } from '../pages/Listings/EmployeesList';
 import { EmployeeDetails } from '../pages/Listings/EmployeeDetails';
+import { EmployeeCreate } from '../pages/Listings/EmployeeCreate';
 import { BranchesList } from '../pages/Listings/BranchesList';
+import { BranchCreate } from '../pages/Listings/BranchCreate';
 import { RideReview } from '../pages/Rides/RideReview';
 import { RideRequestCreate } from '../pages/Rides/RideRequestCreate';
 import { Placeholder } from '../pages/Placeholder';
@@ -54,8 +56,10 @@ export const AppRoutes = () => {
           <Route path="/terceiros/contratos/:contractId" element={<ContractDetails />} />
 
           <Route path="/colaboradores" element={<EmployeesList />} />
+          <Route path="/colaboradores/novo" element={<EmployeeCreate />} />
           <Route path="/colaboradores/:employeeId" element={<EmployeeDetails />} />
           <Route path="/filiais" element={<BranchesList />} />
+          <Route path="/filiais/nova" element={<BranchCreate />} />
         </Route>
 
         <Route path="/" element={<Navigate to={isAuthenticated ? "/home" : "/login"} replace />} />
