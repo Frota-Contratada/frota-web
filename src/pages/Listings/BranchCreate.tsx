@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select, useToast } from '../../components/common';
-import styles from './BranchCreate.module.css';
+import styles from '../Rides/RideReview.module.css';
 
 const stateOptions = [
   { label: 'São Paulo - SP', value: 'SP' },
@@ -66,7 +66,6 @@ export const BranchCreate = () => {
   };
 
   const handleCnpjChange = (val: string) => {
-    // Format mask as 99.999.999/9999-99
     const raw = val.replace(/\D/g, '').slice(0, 14);
     let formatted = raw;
     if (raw.length > 12) {
@@ -82,7 +81,6 @@ export const BranchCreate = () => {
   };
 
   const handleCepChange = (val: string) => {
-    // Format mask as 99999-999
     const raw = val.replace(/\D/g, '').slice(0, 8);
     let formatted = raw;
     if (raw.length > 5) {
@@ -90,7 +88,7 @@ export const BranchCreate = () => {
     }
     updateField('zipCode', formatted);
 
-    // Simulate autofill when CEP is full
+    // Autofill simulated values
     if (raw.length === 8) {
       if (raw === '89010000') {
         setForm((current) => ({
@@ -112,45 +110,41 @@ export const BranchCreate = () => {
     }
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validate()) {
       showToast({ type: 'error', title: 'Erro de validação', description: 'Por favor, preencha os campos obrigatórios.' });
       return;
     }
 
-    try {
-      setIsLoading(true);
-      // Simulate API saving delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
+    setIsLoading(true);
+    setTimeout(() => {
       showToast({
         type: 'success',
         title: 'Filial cadastrada',
         description: `A filial ${form.name} foi adicionada à base de dados.`,
       });
-      navigate('/filiais');
-    } catch {
-      showToast({ type: 'error', title: 'Falha no cadastro', description: 'Ocorreu um erro ao salvar a filial.' });
-    } finally {
       setIsLoading(false);
-    }
+      navigate('/filiais');
+    }, 800);
   };
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
+      <div className={styles.detailHeader}>
         <div>
           <h2>Cadastrar Filial</h2>
           <p>Adicione um novo polo operacional ou escritório administrativo da Seara JBS.</p>
         </div>
-      </header>
+      </div>
 
-      <form onSubmit={handleSubmit} className={styles.container}>
-        <article className={styles.card}>
+      <form onSubmit={handleSubmit} className={styles.reviewLayout}>
+        <article className={styles.mainCard}>
           <div className={styles.cardHeader}>
-            <h3>Identificação da Filial</h3>
-            <p>Preencha os dados institucionais e de registro.</p>
+            <div>
+              <h3>Identificação da Filial</h3>
+              <p>Preencha os dados institucionais e de registro.</p>
+            </div>
           </div>
 
           <div className={styles.formGrid}>
@@ -174,12 +168,12 @@ export const BranchCreate = () => {
               disabled={isLoading}
             />
           </div>
-        </article>
 
-        <article className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h3>Endereço</h3>
-            <p>Informe a localização física desta nova filial.</p>
+          <div className={styles.cardHeader} style={{ marginTop: '2.5rem' }}>
+            <div>
+              <h3>Endereço</h3>
+              <p>Informe a localização física desta nova filial.</p>
+            </div>
           </div>
 
           <div className={styles.formGrid}>
@@ -231,12 +225,12 @@ export const BranchCreate = () => {
               required
             />
           </div>
-        </article>
 
-        <article className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h3>Configuração de Frota e Custos</h3>
-            <p>Ajuste os parâmetros operacionais iniciais.</p>
+          <div className={styles.cardHeader} style={{ marginTop: '2.5rem' }}>
+            <div>
+              <h3>Configuração de Frota e Custos</h3>
+              <p>Ajuste os parâmetros operacionais iniciais.</p>
+            </div>
           </div>
 
           <div className={styles.formGrid}>
@@ -262,22 +256,23 @@ export const BranchCreate = () => {
           </div>
         </article>
 
-        <div className={styles.formActions}>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate('/filiais')}
-            disabled={isLoading}
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            isLoading={isLoading}
-          >
-            Salvar Filial
-          </Button>
-        </div>
+        <aside className={styles.sidePanel}>
+          <div className={styles.actionsCard}>
+            <span className={styles.actionsTitle}>Ações do cadastro</span>
+
+            <div className={styles.primaryActions}>
+              <Button type="submit" isLoading={isLoading}>Salvar Filial</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate('/filiais')}
+                disabled={isLoading}
+              >
+                Voltar
+              </Button>
+            </div>
+          </div>
+        </aside>
       </form>
     </div>
   );

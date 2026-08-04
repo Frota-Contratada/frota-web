@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select, useToast } from '../../components/common';
 import { branches } from './listingsData';
 import { suppliers } from '../Suppliers/suppliersData';
-import styles from './EmployeeCreate.module.css';
+import styles from '../Rides/RideReview.module.css';
+import localStyles from './EmployeeCreate.module.css';
 
 const roleOptions = [
   { label: 'Diretor', value: 'Diretor' },
@@ -32,7 +33,7 @@ export const EmployeeCreate = () => {
     email: '',
     cpf: '',
     role: '',
-    connectionType: 'filial', // 'filial' | 'fornecedor'
+    connectionType: 'filial',
     branch: '',
     supplier: '',
     searaCode: '',
@@ -95,7 +96,6 @@ export const EmployeeCreate = () => {
   };
 
   const handleCpfChange = (val: string) => {
-    // Format mask as 999.999.999-99
     const raw = val.replace(/\D/g, '').slice(0, 11);
     let formatted = raw;
     if (raw.length > 9) {
@@ -108,45 +108,41 @@ export const EmployeeCreate = () => {
     updateField('cpf', formatted);
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validate()) {
       showToast({ type: 'error', title: 'Erro de validação', description: 'Por favor, preencha os campos obrigatórios.' });
       return;
     }
 
-    try {
-      setIsLoading(true);
-      // Simulate API saving delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      
+    setIsLoading(true);
+    setTimeout(() => {
       showToast({
         type: 'success',
         title: 'Colaborador cadastrado',
         description: `${form.name} foi adicionado à plataforma com sucesso.`,
       });
-      navigate('/colaboradores');
-    } catch {
-      showToast({ type: 'error', title: 'Falha no cadastro', description: 'Ocorreu um erro ao salvar os dados.' });
-    } finally {
       setIsLoading(false);
-    }
+      navigate('/colaboradores');
+    }, 800);
   };
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
+      <div className={styles.detailHeader}>
         <div>
           <h2>Cadastrar Colaborador</h2>
           <p>Adicione um novo colaborador interno ou motorista parceiro no sistema.</p>
         </div>
-      </header>
+      </div>
 
-      <form onSubmit={handleSubmit} className={styles.container}>
-        <article className={styles.card}>
+      <form onSubmit={handleSubmit} className={styles.reviewLayout}>
+        <article className={styles.mainCard}>
           <div className={styles.cardHeader}>
-            <h3>Dados Cadastrais</h3>
-            <p>Preencha as informações básicas de identificação do profissional.</p>
+            <div>
+              <h3>Dados Cadastrais</h3>
+              <p>Preencha as informações básicas de identificação e alocação do profissional.</p>
+            </div>
           </div>
 
           <div className={styles.formGrid}>
@@ -196,16 +192,7 @@ export const EmployeeCreate = () => {
               onChange={(e) => updateField('searaCode', e.target.value)}
               disabled={isLoading}
             />
-          </div>
-        </article>
 
-        <article className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h3>Vínculo e Atribuição</h3>
-            <p>Defina o local ou fornecedor responsável pela alocação deste colaborador.</p>
-          </div>
-
-          <div className={styles.formGrid}>
             <Select
               label="Tipo de vínculo"
               value={form.connectionType}
@@ -238,16 +225,18 @@ export const EmployeeCreate = () => {
               />
             )}
           </div>
-        </article>
 
-        <article className={styles.card}>
-          <div className={styles.cardHeader}>
-            <h3>Perfis de Acesso</h3>
-            <p>Determine quais funções e telas o usuário poderá acessar na plataforma.</p>
+          <div className={localStyles.divider} />
+
+          <div className={styles.cardHeader} style={{ marginTop: '2rem' }}>
+            <div>
+              <h3>Perfis de Acesso</h3>
+              <p>Determine quais funções e telas o usuário poderá acessar na plataforma.</p>
+            </div>
           </div>
 
-          <div className={styles.profilesSection}>
-            <div className={styles.profilesGrid}>
+          <div className={localStyles.profilesSection}>
+            <div className={localStyles.profilesGrid}>
               {[
                 { id: 'Solicitante', title: 'Solicitante', desc: 'Pode solicitar corridas corporativas e consultar o próprio histórico.' },
                 { id: 'Aprovador', title: 'Aprovador', desc: 'Permite gerenciar solicitações, escolher fornecedores e auditar corridas.' },
@@ -259,41 +248,42 @@ export const EmployeeCreate = () => {
                   <button
                     key={p.id}
                     type="button"
-                    className={`${styles.profileOption} ${isSelected ? styles.profileSelected : ''}`}
+                    className={`${localStyles.profileOption} ${isSelected ? localStyles.profileSelected : ''}`}
                     onClick={() => handleProfileChange(p.id)}
                     disabled={isLoading}
                   >
-                    <span className={styles.profileOptionHeader}>
-                      <span className={styles.checkboxControl} aria-hidden="true" />
+                    <span className={localStyles.profileOptionHeader}>
+                      <span className={localStyles.checkboxControl} aria-hidden="true" />
                       <strong>{p.title}</strong>
                     </span>
-                    <span className={styles.profileOptionDesc}>{p.desc}</span>
+                    <span className={localStyles.profileOptionDesc}>{p.desc}</span>
                   </button>
                 );
               })}
             </div>
             {validationErrors.profiles && (
-              <p className={styles.errorAlert} role="alert">{validationErrors.profiles}</p>
+              <p className={localStyles.errorAlert} role="alert">{validationErrors.profiles}</p>
             )}
           </div>
         </article>
 
-        <div className={styles.formActions}>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate('/colaboradores')}
-            disabled={isLoading}
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            isLoading={isLoading}
-          >
-            Salvar Colaborador
-          </Button>
-        </div>
+        <aside className={styles.sidePanel}>
+          <div className={styles.actionsCard}>
+            <span className={styles.actionsTitle}>Ações do cadastro</span>
+
+            <div className={styles.primaryActions}>
+              <Button type="submit" isLoading={isLoading}>Salvar Colaborador</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate('/colaboradores')}
+                disabled={isLoading}
+              >
+                Voltar
+              </Button>
+            </div>
+          </div>
+        </aside>
       </form>
     </div>
   );
