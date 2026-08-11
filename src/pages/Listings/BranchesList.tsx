@@ -107,7 +107,7 @@ export const BranchesList = () => {
     {
       icon: <RedirecionarIcon width={18} height={18} />,
       label: 'Visualizar filial',
-      onClick: (row) => showToast({ type: 'info', title: row.name, description: 'Tela de visualização será implementada na próxima etapa.' }),
+      onClick: (row) => navigate(`/filiais/${row.id}`),
     },
   ];
 

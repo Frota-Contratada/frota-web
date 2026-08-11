@@ -21,9 +21,14 @@ export const SupplierDetails = () => {
           <h2>{supplier.name}</h2>
           <p>{formatDocument(supplier.document)}</p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/terceiros/fornecedores')}>
-          Voltar para fornecedores
-        </Button>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <Button variant="outline" onClick={() => navigate(`/terceiros/fornecedores/${supplier.id}/editar`)}>
+            Editar Fornecedor
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/terceiros/fornecedores')}>
+            Voltar para fornecedores
+          </Button>
+        </div>
       </section>
 
       <section className={styles.detailGrid} aria-label="Detalhes do fornecedor">

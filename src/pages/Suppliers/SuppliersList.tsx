@@ -135,7 +135,7 @@ export const SuppliersList = () => {
             setCurrentPage(1);
           }}
           onExport={() => showToast({ type: 'success', title: 'Exportação iniciada', description: 'A lista de fornecedores será preparada em instantes.' })}
-          rightActions={<Button onClick={() => showToast({ type: 'info', title: 'Cadastro de fornecedor', description: 'Fluxo de cadastro será implementado na próxima etapa.' })}>Cadastrar fornecedor</Button>}
+          rightActions={<Button onClick={() => navigate('/terceiros/fornecedores/novo')}>Cadastrar fornecedor</Button>}
           filterSections={filterSections}
           selectedFilters={selectedFilters}
           onFilterChange={(values) => {

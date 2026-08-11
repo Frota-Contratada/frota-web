@@ -62,6 +62,7 @@ export const EmployeeDetails = () => {
 
         <div className={styles.heroActions}>
           <StatusBadge status={employee.status} />
+          <Button variant="outline" onClick={() => navigate(`/colaboradores/${employee.id}/editar`)}>Editar dados cadastrais</Button>
           <Button variant="outline" onClick={() => navigate('/colaboradores')}>Voltar</Button>
           <Button>Salvar alterações</Button>
         </div>

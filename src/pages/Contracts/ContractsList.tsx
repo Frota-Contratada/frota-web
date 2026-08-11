@@ -122,7 +122,12 @@ export const ContractsList = () => {
             setCurrentPage(1);
           }}
           onExport={() => showToast({ type: 'success', title: 'Exportação iniciada', description: 'A lista de contratos será preparada em instantes.' })}
-          rightActions={<Button onClick={() => setIsModalOpen(true)}>Cadastrar</Button>}
+          rightActions={
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <Button variant="outline" onClick={() => setIsModalOpen(true)}>Anexar PDF</Button>
+              <Button onClick={() => navigate('/terceiros/contratos/novo')}>Novo contrato</Button>
+            </div>
+          }
           filterSections={contractFilters}
           selectedFilters={selectedFilters}
           onFilterChange={(values) => {

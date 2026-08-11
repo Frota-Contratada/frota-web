@@ -15,6 +15,8 @@ interface SelectProps {
   onChange: (value: string) => void;
   required?: boolean;
   disabled?: boolean;
+  error?: string;
+  helperText?: string;
 }
 
 export const Select = ({
@@ -25,12 +27,15 @@ export const Select = ({
   onChange,
   required = false,
   disabled = false,
+  error,
+  helperText,
 }: SelectProps) => {
   const generatedId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const selectedOption = options.find((option) => option.value === value);
   const listboxId = `${generatedId}-listbox`;
+  const hasError = Boolean(error);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -59,12 +64,13 @@ export const Select = ({
 
       <button
         type="button"
-        className={`${styles.trigger} ${isOpen ? styles.open : ''} ${!selectedOption ? styles.placeholder : ''}`}
+        className={`${styles.trigger} ${isOpen ? styles.open : ''} ${!selectedOption ? styles.placeholder : ''} ${hasError ? styles.error : ''}`}
         onClick={() => !disabled && setIsOpen((current) => !current)}
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-controls={listboxId}
+        aria-invalid={hasError}
       >
         <span>{selectedOption?.label ?? placeholder}</span>
         <SetaDireitaIcon className={styles.chevron} width={14} height={14} aria-hidden="true" />
@@ -89,6 +95,18 @@ export const Select = ({
             );
           })}
         </div>
+      )}
+
+      {error && (
+        <span className={styles.errorText} role="alert">
+          {error}
+        </span>
+      )}
+
+      {!error && helperText && (
+        <span className={styles.helperText}>
+          {helperText}
+        </span>
       )}
     </div>
   );

@@ -115,3 +115,23 @@
   color: var(--brand-primary);
   font-weight: 700;
 }
+
+.trigger.error {
+  border-color: var(--color-error);
+}
+
+.trigger.error:focus-visible,
+.trigger.error.open {
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 3px var(--danger-light);
+}
+
+.errorText {
+  font-size: var(--font-size-xs);
+  color: var(--color-error);
+}
+
+.helperText {
+  font-size: var(--font-size-xs);
+  color: var(--color-gray-500);
+}

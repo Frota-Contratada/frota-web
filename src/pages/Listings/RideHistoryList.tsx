@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../components/common';
 import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
 import { rideHistory, type RideHistory, type RideStatus } from './listingsData';
@@ -62,6 +63,7 @@ const columns: ColumnDef<RideHistory>[] = [
 ];
 
 export const RideHistoryList = () => {
+  const navigate = useNavigate();
   const { showToast } = useToast();
   const [currentPage, setCurrentPage] = useState(1);
   const [query, setQuery] = useState('');
@@ -98,7 +100,7 @@ export const RideHistoryList = () => {
     {
       icon: <RedirecionarIcon width={18} height={18} />,
       label: 'Visualizar corrida',
-      onClick: (row) => showToast({ type: 'info', title: `Corrida #${row.id}`, description: 'Tela de visualização será implementada na próxima etapa.' }),
+      onClick: (row) => navigate(`/corridas/historico/${row.id}`),
     },
   ];
 
