@@ -94,7 +94,7 @@ export function Table<T>({
   };
 
   const sortedData = useMemo(() => {
-    // Se tem onSortChange, assume que o consumidor ordena server-side
+
     if (!sort || onSortChange) return data;
 
     return [...data].sort((a, b) => {

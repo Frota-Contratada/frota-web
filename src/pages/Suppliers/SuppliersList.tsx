@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../components/common';
 import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
-import { formatDocument, suppliers, type Supplier } from './suppliersData';
+import { supplierApi } from '../../services';
+import { formatDocument, type Supplier } from './suppliersData';
 import styles from './Suppliers.module.css';
 
 const PAGE_SIZE = 5;
@@ -76,6 +77,32 @@ export const SuppliersList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [query, setQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [suppliersList, setSuppliersList] = useState<Supplier[]>([]);
+
+  useEffect(() => {
+    supplierApi.list()
+      .then((res) => {
+        if (res.response && Array.isArray(res.response)) {
+          const apiSuppliers: Supplier[] = res.response.map((s) => ({
+            id: s.id,
+            name: s.nome,
+            document: s.cnpjCpf,
+            filePath: null,
+            activatedAt: '01/01/2026',
+            deactivatedAt: null,
+            linkedBranches: 1,
+            linkedContracts: 1,
+            vehicles: 0,
+            status: 'aprovado',
+          }));
+          setSuppliersList(apiSuppliers);
+        }
+      })
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : 'Erro ao buscar fornecedores';
+        showToast({ type: 'error', title: message });
+      });
+  }, [showToast]);
 
   const filteredSuppliers = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
@@ -86,7 +113,7 @@ export const SuppliersList = () => {
       .filter((filter) => filter.startsWith('link:'))
       .map((filter) => filter.replace('link:', ''));
 
-    return suppliers.filter((supplier) => {
+    return suppliersList.filter((supplier) => {
       const matchesQuery =
         normalizedQuery.length === 0 ||
         supplier.name.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
@@ -102,12 +129,12 @@ export const SuppliersList = () => {
 
       return matchesQuery && matchesStatus && matchesLinks;
     });
-  }, [query, selectedFilters]);
+  }, [suppliersList, query, selectedFilters]);
 
-  const activeSuppliers = suppliers.filter((supplier) => !supplier.deactivatedAt).length;
-  const suppliersWithContracts = suppliers.filter((supplier) => supplier.linkedContracts > 0).length;
-  const totalVehicles = suppliers.reduce((total, supplier) => total + supplier.vehicles, 0);
-  const pendingDocuments = suppliers.filter((supplier) => !supplier.filePath).length;
+  const activeSuppliers = suppliersList.filter((supplier) => !supplier.deactivatedAt).length;
+  const suppliersWithContracts = suppliersList.filter((supplier) => supplier.linkedContracts > 0).length;
+  const totalVehicles = suppliersList.reduce((total, supplier) => total + supplier.vehicles, 0);
+  const pendingDocuments = suppliersList.filter((supplier) => !supplier.filePath).length;
   const totalPages = Math.max(1, Math.ceil(filteredSuppliers.length / PAGE_SIZE));
   const pageData = filteredSuppliers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 

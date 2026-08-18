@@ -24,7 +24,7 @@
   line-height: 1.2;
 }
 
-/* Trend */
+
 .trend {
   display: flex;
   align-items: center;
@@ -51,7 +51,7 @@
   color: var(--text-muted);
 }
 
-/* Direções */
+
 .up {
   color: var(--green-dark);
 }

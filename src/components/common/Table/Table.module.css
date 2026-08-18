@@ -83,7 +83,7 @@
   font-size: var(--font-size-sm);
 }
 
-/* Actions */
+
 .actionsCell {
   text-align: right;
 }
@@ -111,7 +111,7 @@
   stroke: currentColor;
 }
 
-/* Pagination */
+
 .pagination {
   display: flex;
   align-items: center;

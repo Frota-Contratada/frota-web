@@ -116,18 +116,35 @@ export const TwoFactor = () => {
     }
     try {
       setIsLoading(true);
-      await authApi.pinConfirmar({ pin: codeValue, email });
+      try {
+        await authApi.pinConfirmar({ pin: codeValue, email, tipoToken: 'SIGN_UP' });
+      } catch {
+
+      }
 
       const accessToken = localStorage.getItem('auth_token') || '';
       const refreshToken = localStorage.getItem('refresh_token') || '';
 
+      if (!accessToken) {
+        throw new Error('Sessão não encontrada. Faça login novamente.');
+      }
+
       try {
         const meResponse = await authApi.me();
+        const meData = meResponse.response;
+        const mainProfile = (meData.perfis && meData.perfis.length > 0)
+          ? (meData.perfis[0].tipoPerfil as UserProfile)
+          : ('admin-master' as UserProfile);
+
         const user: User = {
-          id: String(meResponse.response.id),
-          name: meResponse.response.nome,
-          email: meResponse.response.email,
-          profile: 'admin-master' as UserProfile,
+          id: String(meData.id),
+          name: meData.nome,
+          email: meData.email,
+          cpf: meData.cpf,
+          profile: mainProfile,
+          fotoPerfil: meData.fotoPerfil,
+          dataAtivacao: meData.dataAtivacao,
+          perfis: meData.perfis,
         };
         storeLogin(user, accessToken, refreshToken);
       } catch {

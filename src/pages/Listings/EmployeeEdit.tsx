@@ -1,50 +1,62 @@
-import { useState, type FormEvent } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState, type FormEvent } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Input, Select, useToast } from '../../components/common';
-import { branches, employees, formatCpf } from './listingsData';
-import { suppliers } from '../Suppliers/suppliersData';
+import { driverApi, supplierApi, type FornecedorDto } from '../../services';
+import { formatCpf } from './listingsData';
 import styles from '../Rides/RideReview.module.css';
 
 const roleOptions = [
-  { label: 'Diretor', value: 'Diretor' },
-  { label: 'Gerente', value: 'Gerente' },
-  { label: 'Coordenador', value: 'Coordenador' },
-  { label: 'Analista', value: 'Analista' },
   { label: 'Motorista', value: 'Motorista' },
-  { label: 'Assistente', value: 'Assistente' },
+  { label: 'Analista', value: 'Analista' },
+  { label: 'Coordenador', value: 'Coordenador' },
+  { label: 'Gerente', value: 'Gerente' },
 ];
-
-const connectionTypeOptions = [
-  { label: 'Filial (Interno)', value: 'filial' },
-  { label: 'Fornecedor (Terceirizado)', value: 'fornecedor' },
-];
-
-const branchOptions = branches.map((b) => ({ label: b.name, value: b.name }));
-const supplierOptions = suppliers.map((s) => ({ label: s.name, value: s.name }));
 
 export const EmployeeEdit = () => {
   const navigate = useNavigate();
   const { employeeId } = useParams();
   const { showToast } = useToast();
-  const employee = employees.find((item) => item.id === Number(employeeId));
 
   const [isLoading, setIsLoading] = useState(false);
+  const [suppliersList, setSuppliersList] = useState<FornecedorDto[]>([]);
   const [form, setForm] = useState({
-    name: employee?.name || '',
-    email: employee?.email || '',
-    cpf: employee ? formatCpf(employee.cpf) : '',
-    role: employee?.role || 'Analista',
-    connectionType: employee?.supplier ? 'fornecedor' : 'filial',
-    branch: employee?.branch || '',
-    supplier: employee?.supplier || '',
-    searaCode: employee?.searaCode || '',
+    name: '',
+    email: '',
+    cpf: '',
+    role: 'Motorista',
+    fornecedorId: '1',
   });
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  if (!employee) {
-    return <Navigate to="/colaboradores" replace />;
-  }
+  useEffect(() => {
+    supplierApi.list().then((res) => {
+      if (res.response && Array.isArray(res.response)) {
+        setSuppliersList(res.response);
+      }
+    }).catch(() => {});
+
+    if (employeeId && !isNaN(Number(employeeId))) {
+      driverApi.getById(Number(employeeId)).then((res) => {
+        if (res.response) {
+          const d = res.response;
+          setForm({
+            name: d.nome || '',
+            email: d.email || '',
+            cpf: d.cpf ? formatCpf(d.cpf) : '',
+            role: 'Motorista',
+            fornecedorId: String(d.fornecedorId || 1),
+          });
+        }
+      }).catch((err) => {
+        const message = err instanceof Error ? err.message : 'Erro ao carregar colaborador';
+        showToast({ type: 'error', title: message });
+        navigate('/colaboradores');
+      });
+    }
+  }, [employeeId, navigate, showToast]);
+
+  const supplierOptions = suppliersList.map((s) => ({ label: `${s.nome} (${s.cnpjCpf})`, value: String(s.id) }));
 
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -71,19 +83,19 @@ export const EmployeeEdit = () => {
       showToast({
         type: 'success',
         title: 'Dados cadastrais atualizados',
-        description: `As informações de ${form.name} foram salvas com sucesso.`,
+        description: `As informações de ${form.name} foram salvas.`,
       });
       setIsLoading(false);
-      navigate(`/colaboradores/${employee.id}`);
-    }, 800);
+      navigate(`/colaboradores/${employeeId}`);
+    }, 400);
   };
 
   return (
     <div className={styles.page}>
       <div className={styles.detailHeader}>
         <div>
-          <h2>Editar Dados Cadastrais — {employee.name}</h2>
-          <p>Atualize o e-mail, cargo, vínculo e identificadores corporativos do colaborador.</p>
+          <h2>Editar Dados Cadastrais — {form.name || 'Colaborador'}</h2>
+          <p>Atualize o e-mail, cargo e vínculo deste colaborador.</p>
         </div>
       </div>
 
@@ -120,7 +132,7 @@ export const EmployeeEdit = () => {
               label="CPF"
               value={form.cpf}
               onChange={(e) => updateField('cpf', e.target.value)}
-              disabled={isLoading}
+              disabled
             />
 
             <Select
@@ -131,38 +143,12 @@ export const EmployeeEdit = () => {
               required
             />
 
-            <Input
-              label="Código Seara"
-              value={form.searaCode}
-              onChange={(e) => updateField('searaCode', e.target.value)}
-              disabled={isLoading}
-            />
-
-            <Select
-              label="Tipo de vínculo"
-              value={form.connectionType}
-              options={connectionTypeOptions}
-              onChange={(val) => {
-                updateField('connectionType', val);
-                updateField('branch', '');
-                updateField('supplier', '');
-              }}
-              required
-            />
-
-            {form.connectionType === 'filial' ? (
+            {supplierOptions.length > 0 && (
               <Select
-                label="Filial de trabalho"
-                value={form.branch}
-                options={branchOptions}
-                onChange={(val) => updateField('branch', val)}
-              />
-            ) : (
-              <Select
-                label="Fornecedor associado"
-                value={form.supplier}
+                label="Fornecedor Vinculado"
+                value={form.fornecedorId}
                 options={supplierOptions}
-                onChange={(val) => updateField('supplier', val)}
+                onChange={(val) => updateField('fornecedorId', val)}
               />
             )}
           </div>
@@ -177,7 +163,7 @@ export const EmployeeEdit = () => {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate(`/colaboradores/${employee.id}`)}
+                onClick={() => navigate(`/colaboradores/${employeeId}`)}
                 disabled={isLoading}
               >
                 Voltar

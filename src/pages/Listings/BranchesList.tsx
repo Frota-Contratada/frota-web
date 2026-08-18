@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../components/common';
 import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
-import { branches, type Branch } from './listingsData';
+import { branchApi } from '../../services';
+import { type Branch } from './listingsData';
 import styles from './Listings.module.css';
 
 const PAGE_SIZE = 5;
@@ -68,6 +69,36 @@ export const BranchesList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [query, setQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [branchesList, setBranchesList] = useState<Branch[]>([]);
+
+  useEffect(() => {
+    branchApi.list()
+      .then((res) => {
+        if (res.response && Array.isArray(res.response)) {
+          const apiBranches: Branch[] = res.response.map((b) => ({
+            id: b.id,
+            name: b.nome,
+            cnpj: b.cnpj,
+            zipCode: b.endereco?.cep || '',
+            address: b.endereco?.logradouro || '',
+            neighborhood: b.endereco?.bairro || '',
+            city: b.endereco?.cidade || '',
+            state: b.endereco?.uf || 'SC',
+            costCenters: 1,
+            suppliers: 0,
+            requests: 0,
+            activatedAt: '2026-01-01',
+            deactivatedAt: null,
+            status: 'aprovado',
+          }));
+          setBranchesList(apiBranches);
+        }
+      })
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : 'Erro ao buscar filiais';
+        showToast({ type: 'error', title: message });
+      });
+  }, [showToast]);
 
   const filteredBranches = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
@@ -75,7 +106,7 @@ export const BranchesList = () => {
     const stateFilters = selectedFilters.filter((filter) => filter.startsWith('uf:')).map((filter) => filter.replace('uf:', ''));
     const linkFilters = selectedFilters.filter((filter) => filter.startsWith('vinculo:')).map((filter) => filter.replace('vinculo:', ''));
 
-    return branches.filter((branch) => {
+    return branchesList.filter((branch) => {
       const matchesQuery =
         normalizedQuery.length === 0 ||
         branch.name.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
@@ -94,12 +125,12 @@ export const BranchesList = () => {
 
       return matchesQuery && matchesStatus && matchesState && matchesLink;
     });
-  }, [query, selectedFilters]);
+  }, [branchesList, query, selectedFilters]);
 
-  const activeBranches = branches.filter((branch) => !branch.deactivatedAt).length;
-  const totalCostCenters = branches.reduce((total, branch) => total + branch.costCenters, 0);
-  const totalSuppliers = branches.reduce((total, branch) => total + branch.suppliers, 0);
-  const totalRequests = branches.reduce((total, branch) => total + branch.requests, 0);
+  const activeBranches = branchesList.filter((branch) => !branch.deactivatedAt).length;
+  const totalCostCenters = branchesList.reduce((total, branch) => total + branch.costCenters, 0);
+  const totalSuppliers = branchesList.reduce((total, branch) => total + branch.suppliers, 0);
+  const totalRequests = branchesList.reduce((total, branch) => total + branch.requests, 0);
   const totalPages = Math.max(1, Math.ceil(filteredBranches.length / PAGE_SIZE));
   const pageData = filteredBranches.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 

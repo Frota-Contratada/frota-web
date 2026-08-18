@@ -86,14 +86,14 @@ export const PriceAuditView = () => {
 
   return (
     <div className={styles.page}>
-      {/* Toolbar Padrão com Filtro */}
+      {}
       <TableToolbar
         filterSections={priceAuditFilterSections}
         selectedFilters={selectedFilters}
         onFilterChange={setSelectedFilters}
       />
 
-      {/* Stats Cards utilizando o componente padrão StatCard */}
+      {}
       <section className={styles.statsGrid}>
         <StatCard
           title="Sobrepreço total"
@@ -117,9 +117,9 @@ export const PriceAuditView = () => {
         />
       </section>
 
-      {/* Grid de Gráficos Recharts */}
+      {}
       <section className={styles.chartsGrid}>
-        {/* Double Bar Chart */}
+        {}
         <article className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <div>
@@ -143,7 +143,7 @@ export const PriceAuditView = () => {
           </div>
         </article>
 
-        {/* Line Chart Desvios Médios */}
+        {}
         <article className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <div>
@@ -166,7 +166,7 @@ export const PriceAuditView = () => {
         </article>
       </section>
 
-      {/* Tabela Padrão */}
+      {}
       <section className={styles.tableSection}>
         <Table
           columns={columns}

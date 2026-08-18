@@ -4,6 +4,8 @@ import CheckIcon from '../../assets/icons/check.svg?react';
 import ErroIcon from '../../assets/icons/erro.svg?react';
 import SetaSmIcon from '../../assets/icons/seta-sm.svg?react';
 import { Button, useToast } from '../../components/common';
+import { RouteMap } from '../../components/maps';
+import type { RoutePoint } from '../../services/maps/routingService';
 import { rideRequests } from '../Listings/listingsData';
 import { suppliers } from '../Suppliers/suppliersData';
 import styles from './RideReview.module.css';
@@ -50,6 +52,21 @@ export const RideReview = () => {
   const costCenter = '3144 - Conta 4442';
   const estimatedKm = `${request.estimatedDistanceKm.toLocaleString('pt-BR')} km`;
   const selectedSupplierName = selectedSupplier?.name ?? 'Fornecedor não selecionado';
+
+  const routePoints: RoutePoint[] = useMemo(() => [
+    {
+      lat: -23.518,
+      lng: -46.745,
+      label: `Origem: ${request.origin}`,
+      type: 'origin',
+    },
+    {
+      lat: -23.435,
+      lng: -46.473,
+      label: `Destino: ${request.destination}`,
+      type: 'destination',
+    },
+  ], [request.origin, request.destination]);
 
   const goNext = () => setCurrentStep((step) => Math.min(step + 1, 3) as ReviewStep);
   const goBack = () => setCurrentStep((step) => Math.max(step - 1, 1) as ReviewStep);
@@ -205,16 +222,8 @@ export const RideReview = () => {
         </article>
 
         <aside className={styles.sidePanel} aria-label="Resumo da revisão">
-          <div className={styles.mapCard}>
-            <div className={styles.mapHeader}>
-              <span>Trajeto</span>
-              <strong>{estimatedKm}</strong>
-            </div>
-            <div className={styles.mapPreview} aria-hidden="true">
-              <span className={styles.mapPinStart} />
-              <span className={styles.mapPinEnd} />
-              <span className={styles.mapRoute} />
-            </div>
+          <div style={{ marginBottom: '1.25rem' }}>
+            <RouteMap points={routePoints} height={260} />
           </div>
 
           <div className={styles.actionsCard}>

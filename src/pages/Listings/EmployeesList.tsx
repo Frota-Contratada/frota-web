@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../components/common';
 import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
-import { employees, formatCpf, type Employee } from './listingsData';
+import { driverApi } from '../../services';
+import { formatCpf, type Employee } from './listingsData';
 import styles from './Listings.module.css';
 
 const PAGE_SIZE = 5;
@@ -78,6 +79,35 @@ export const EmployeesList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [query, setQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [employeesList, setEmployeesList] = useState<Employee[]>([]);
+
+  useEffect(() => {
+    driverApi.list()
+      .then((res) => {
+        if (res.response && Array.isArray(res.response)) {
+          const apiEmployees: Employee[] = res.response.map((m) => ({
+            id: m.id,
+            name: m.nome,
+            email: m.email,
+            cpf: m.cpf,
+            searaCode: null,
+            role: 'Motorista',
+            branch: null,
+            supplier: 'Mobilidade Prime',
+            available: true,
+            activatedAt: '01/01/2026',
+            deactivatedAt: null,
+            profiles: ['Motorista'],
+            status: 'aprovado',
+          }));
+          setEmployeesList(apiEmployees);
+        }
+      })
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : 'Erro ao buscar motoristas';
+        showToast({ type: 'error', title: message });
+      });
+  }, [showToast]);
 
   const filteredEmployees = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
@@ -85,7 +115,7 @@ export const EmployeesList = () => {
     const profileFilters = selectedFilters.filter((filter) => filter.startsWith('perfil:')).map((filter) => filter.replace('perfil:', ''));
     const linkFilters = selectedFilters.filter((filter) => filter.startsWith('vinculo:')).map((filter) => filter.replace('vinculo:', ''));
 
-    return employees.filter((employee) => {
+    return employeesList.filter((employee) => {
       const matchesQuery =
         normalizedQuery.length === 0 ||
         employee.name.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
@@ -104,12 +134,12 @@ export const EmployeesList = () => {
 
       return matchesQuery && matchesStatus && matchesProfile && matchesLink;
     });
-  }, [query, selectedFilters]);
+  }, [employeesList, query, selectedFilters]);
 
-  const activeEmployees = employees.filter((employee) => !employee.deactivatedAt).length;
-  const drivers = employees.filter((employee) => employee.profiles.includes('Motorista')).length;
-  const availableEmployees = employees.filter((employee) => employee.available).length;
-  const supplierUsers = employees.filter((employee) => employee.supplier).length;
+  const activeEmployees = employeesList.filter((employee) => !employee.deactivatedAt).length;
+  const drivers = employeesList.filter((employee) => employee.profiles.includes('Motorista')).length;
+  const availableEmployees = employeesList.filter((employee) => employee.available).length;
+  const supplierUsers = employeesList.filter((employee) => employee.supplier).length;
   const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / PAGE_SIZE));
   const pageData = filteredEmployees.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 

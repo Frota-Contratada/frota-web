@@ -98,14 +98,14 @@ export const ExecutiveView = () => {
 
   return (
     <div className={styles.page}>
-      {/* Header com botão de filtro */}
+      {}
       <TableToolbar
         filterSections={executiveFilterSections}
         selectedFilters={selectedFilters}
         onFilterChange={setSelectedFilters}
       />
 
-      {/* Stats Cards utilizando o componente padrão StatCard */}
+      {}
       <section className={styles.statsGrid}>
         <StatCard
           title="Total de corridas"
@@ -125,9 +125,9 @@ export const ExecutiveView = () => {
         <StatCard title="Top 1 fornecedor por gasto" value="VIEX" />
       </section>
 
-      {/* Grid de Gráficos usando Recharts */}
+      {}
       <section className={styles.chartsGrid}>
-        {/* Gráfico de Área / Linha */}
+        {}
         <article className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <div>
@@ -163,7 +163,7 @@ export const ExecutiveView = () => {
           </div>
         </article>
 
-        {/* Gráfico de Donut / Pie */}
+        {}
         <article className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <div>
@@ -199,7 +199,7 @@ export const ExecutiveView = () => {
         </article>
       </section>
 
-      {/* Tabela Padrão */}
+      {}
       <section className={styles.tableSection}>
         <Table
           columns={columns}

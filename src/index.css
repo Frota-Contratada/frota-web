@@ -50,7 +50,7 @@ input {
   font-family: inherit;
 }
 
-/* Remover borda e contorno ao clicar em gráficos (Recharts) */
+
 .recharts-wrapper,
 .recharts-wrapper *:focus,
 .recharts-wrapper *:focus-visible,

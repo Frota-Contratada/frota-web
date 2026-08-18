@@ -1,11 +1,9 @@
-import { useState, type FormEvent } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState, type FormEvent } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Input, Select, useToast } from '../../components/common';
-import { formatDocument, suppliers } from './suppliersData';
-import { branches } from '../Listings/listingsData';
+import { branchApi, supplierApi, type FilialDto } from '../../services';
+import { formatDocument } from './suppliersData';
 import styles from '../Rides/RideReview.module.css';
-
-const branchOptions = branches.map((b) => ({ label: b.name, value: b.name }));
 
 const statusOptions = [
   { label: 'Aprovado / Ativo', value: 'aprovado' },
@@ -18,22 +16,47 @@ export const SupplierEdit = () => {
   const navigate = useNavigate();
   const { supplierId } = useParams();
   const { showToast } = useToast();
-  const supplier = suppliers.find((s) => s.id === Number(supplierId));
 
   const [isLoading, setIsLoading] = useState(false);
+  const [branchesList, setBranchesList] = useState<FilialDto[]>([]);
   const [form, setForm] = useState({
-    name: supplier?.name || '',
-    document: supplier ? formatDocument(supplier.document) : '',
-    vehicles: supplier ? String(supplier.vehicles) : '0',
-    status: supplier?.status || 'aprovado',
-    linkedBranch: branchOptions[0]?.value || '',
+    name: '',
+    document: '',
+    vehicles: '0',
+    status: 'aprovado',
+    linkedBranch: '',
   });
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  if (!supplier) {
-    return <Navigate to="/terceiros/fornecedores" replace />;
-  }
+  useEffect(() => {
+    branchApi.list().then((res) => {
+      if (res.response && Array.isArray(res.response)) {
+        setBranchesList(res.response);
+      }
+    }).catch(() => {});
+
+    if (supplierId && !isNaN(Number(supplierId))) {
+      supplierApi.getById(Number(supplierId)).then((res) => {
+        if (res.response) {
+          const s = res.response;
+          setForm({
+            name: s.nome || '',
+            document: s.cnpjCpf ? formatDocument(s.cnpjCpf) : '',
+            vehicles: '0',
+            status: 'aprovado',
+            linkedBranch: '',
+          });
+        }
+      }).catch((err) => {
+        const message = err instanceof Error ? err.message : 'Erro ao carregar fornecedor';
+        showToast({ type: 'error', title: message });
+        navigate('/terceiros/fornecedores');
+      });
+    }
+  }, [supplierId, navigate, showToast]);
+
+  const branchOptions = branchesList.map((b) => ({ label: `${b.nome} (${b.cnpj})`, value: String(b.id) }));
 
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -63,15 +86,15 @@ export const SupplierEdit = () => {
         description: `As informações de ${form.name} foram salvas.`,
       });
       setIsLoading(false);
-      navigate(`/terceiros/fornecedores/${supplier.id}`);
-    }, 800);
+      navigate(`/terceiros/fornecedores/${supplierId}`);
+    }, 400);
   };
 
   return (
     <div className={styles.page}>
       <div className={styles.detailHeader}>
         <div>
-          <h2>Editar Fornecedor — {supplier.name}</h2>
+          <h2>Editar Fornecedor — {form.name || 'Fornecedor'}</h2>
           <p>Altere os dados cadastrais e o status operacional deste fornecedor.</p>
         </div>
       </div>
@@ -117,15 +140,18 @@ export const SupplierEdit = () => {
               label="Status Operacional"
               value={form.status}
               options={statusOptions}
-              onChange={(val) => updateField('status', val as any)}
+              onChange={(val) => updateField('status', val)}
             />
 
-            <Select
-              label="Filial Principal"
-              value={form.linkedBranch}
-              options={branchOptions}
-              onChange={(val) => updateField('linkedBranch', val)}
-            />
+            {branchOptions.length > 0 && (
+              <Select
+                label="Filial Principal"
+                placeholder="Selecione a filial"
+                value={form.linkedBranch}
+                options={branchOptions}
+                onChange={(val) => updateField('linkedBranch', val)}
+              />
+            )}
           </div>
         </article>
 
@@ -138,7 +164,7 @@ export const SupplierEdit = () => {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate(`/terceiros/fornecedores/${supplier.id}`)}
+                onClick={() => navigate(`/terceiros/fornecedores/${supplierId}`)}
                 disabled={isLoading}
               >
                 Cancelar

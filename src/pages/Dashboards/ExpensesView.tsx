@@ -74,14 +74,14 @@ export const ExpensesView = () => {
 
   return (
     <div className={styles.page}>
-      {/* Toolbar Padrão com Filtro */}
+      {}
       <TableToolbar
         filterSections={expensesFilterSections}
         selectedFilters={selectedFilters}
         onFilterChange={setSelectedFilters}
       />
 
-      {/* Stats Cards utilizando o componente padrão StatCard */}
+      {}
       <section className={styles.statsGrid}>
         <StatCard
           title="Gasto total"
@@ -105,9 +105,9 @@ export const ExpensesView = () => {
         />
       </section>
 
-      {/* Grid de Gráficos */}
+      {}
       <section className={styles.chartsGrid}>
-        {/* Bar Chart Horizontal */}
+        {}
         <article className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <div>
@@ -136,7 +136,7 @@ export const ExpensesView = () => {
           </div>
         </article>
 
-        {/* Area Chart Evolução de Gastos */}
+        {}
         <article className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <div>
@@ -173,7 +173,7 @@ export const ExpensesView = () => {
         </article>
       </section>
 
-      {/* Tabela Padrão */}
+      {}
       <section className={styles.tableSection}>
         <Table
           columns={columns}

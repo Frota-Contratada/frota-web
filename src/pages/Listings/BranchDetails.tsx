@@ -1,23 +1,59 @@
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { Button, StatusBadge } from '../../components/common';
-import { branches } from './listingsData';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Button, StatusBadge, useToast } from '../../components/common';
+import { branchApi, type FilialDto } from '../../services';
 import styles from '../Suppliers/Suppliers.module.css';
 
 export const BranchDetails = () => {
   const navigate = useNavigate();
   const { branchId } = useParams();
-  const branch = branches.find((item) => item.id === Number(branchId));
+  const { showToast } = useToast();
+  const [branch, setBranch] = useState<FilialDto | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (branchId && !isNaN(Number(branchId))) {
+      branchApi
+        .getById(Number(branchId))
+        .then((res) => {
+          if (res.response) {
+            setBranch(res.response);
+          }
+        })
+        .catch((err) => {
+          const message = err instanceof Error ? err.message : 'Erro ao carregar filial';
+          showToast({ type: 'error', title: message });
+          navigate('/filiais');
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else {
+      setIsLoading(false);
+      navigate('/filiais');
+    }
+  }, [branchId, navigate, showToast]);
+
+  if (isLoading) {
+    return (
+      <div className={styles.page}>
+        <p style={{ padding: '2rem', color: 'var(--text-muted)' }}>Carregando dados da filial...</p>
+      </div>
+    );
+  }
 
   if (!branch) {
-    return <Navigate to="/filiais" replace />;
+    return null;
   }
+
+  const endereco = branch.endereco;
 
   return (
     <div className={styles.page}>
       <section className={styles.detailHeader}>
         <div>
-          <h2>{branch.name}</h2>
-          <p>{branch.city} - {branch.state} • CNPJ Ativo</p>
+          <h2>{branch.nome}</h2>
+          <p>{endereco?.cidade || '—'} - {endereco?.uf || '—'} • CNPJ: {branch.cnpj}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           <Button variant="outline" onClick={() => navigate(`/filiais/${branch.id}/editar`)}>
@@ -36,33 +72,33 @@ export const BranchDetails = () => {
               <h2>Informações Institucionais e Endereço</h2>
               <p>Localização geográfica e dados de registro da filial.</p>
             </div>
-            <StatusBadge status={branch.status} />
+            <StatusBadge status="aprovado" />
           </div>
 
           <div className={styles.infoGrid}>
             <div className={styles.infoItem}>
               <span>Nome da Filial</span>
-              <strong>{branch.name}</strong>
+              <strong>{branch.nome}</strong>
+            </div>
+            <div className={styles.infoItem}>
+              <span>CNPJ</span>
+              <strong>{branch.cnpj}</strong>
             </div>
             <div className={styles.infoItem}>
               <span>CEP</span>
-              <strong>{branch.zipCode}</strong>
+              <strong>{endereco?.cep || '—'}</strong>
             </div>
             <div className={styles.infoItem}>
               <span>Endereço</span>
-              <strong>{branch.address}</strong>
+              <strong>{endereco ? `${endereco.logradouro}, ${endereco.numero}` : '—'}</strong>
             </div>
             <div className={styles.infoItem}>
               <span>Bairro</span>
-              <strong>{branch.neighborhood}</strong>
+              <strong>{endereco?.bairro || '—'}</strong>
             </div>
             <div className={styles.infoItem}>
               <span>Cidade / UF</span>
-              <strong>{branch.city} / {branch.state}</strong>
-            </div>
-            <div className={styles.infoItem}>
-              <span>Data de Ativação</span>
-              <strong>{branch.activatedAt}</strong>
+              <strong>{endereco ? `${endereco.cidade} / ${endereco.uf}` : '—'}</strong>
             </div>
           </div>
         </article>
@@ -70,27 +106,23 @@ export const BranchDetails = () => {
         <aside className={styles.detailCard} aria-label="Resumo operacional">
           <div className={styles.detailHeader}>
             <div>
-              <h2>Operações & Custos</h2>
-              <p>Métricas consolidadas vinculadas à unidade.</p>
+              <h2>Operações & Coordenadas</h2>
+              <p>Geolocalização registrada da unidade.</p>
             </div>
           </div>
 
           <div className={styles.summaryList}>
             <div>
-              <span>Centros de Custo</span>
-              <strong>{branch.costCenters}</strong>
+              <span>Latitude</span>
+              <strong>{endereco?.latitude ?? '—'}</strong>
             </div>
             <div>
-              <span>Fornecedores Ativos</span>
-              <strong>{branch.suppliers}</strong>
-            </div>
-            <div>
-              <span>Solicitações Realizadas</span>
-              <strong>{branch.requests}</strong>
+              <span>Longitude</span>
+              <strong>{endereco?.longitude ?? '—'}</strong>
             </div>
             <div>
               <span>Status Operacional</span>
-              <strong>{branch.deactivatedAt ? `Desativado em ${branch.deactivatedAt}` : 'Operando normalmente'}</strong>
+              <strong>Operando normalmente</strong>
             </div>
           </div>
         </aside>

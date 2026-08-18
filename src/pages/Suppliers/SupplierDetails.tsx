@@ -1,25 +1,58 @@
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { Button, StatusBadge } from '../../components/common';
-import { formatDocument, suppliers } from './suppliersData';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Button, StatusBadge, useToast } from '../../components/common';
+import { supplierApi, type FornecedorDto } from '../../services';
+import { formatDocument } from './suppliersData';
 import styles from './Suppliers.module.css';
 
 export const SupplierDetails = () => {
   const navigate = useNavigate();
   const { supplierId } = useParams();
-  const supplier = suppliers.find((item) => item.id === Number(supplierId));
+  const { showToast } = useToast();
+  const [supplier, setSupplier] = useState<FornecedorDto | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (!supplier) {
-    return <Navigate to="/terceiros/fornecedores" replace />;
+  useEffect(() => {
+    if (supplierId && !isNaN(Number(supplierId))) {
+      supplierApi
+        .getById(Number(supplierId))
+        .then((res) => {
+          if (res.response) {
+            setSupplier(res.response);
+          }
+        })
+        .catch((err) => {
+          const message = err instanceof Error ? err.message : 'Erro ao carregar fornecedor';
+          showToast({ type: 'error', title: message });
+          navigate('/terceiros/fornecedores');
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else {
+      setIsLoading(false);
+      navigate('/terceiros/fornecedores');
+    }
+  }, [supplierId, navigate, showToast]);
+
+  if (isLoading) {
+    return (
+      <div className={styles.page}>
+        <p style={{ padding: '2rem', color: 'var(--text-muted)' }}>Carregando dados do fornecedor...</p>
+      </div>
+    );
   }
 
-  const supplierStatus = supplier.deactivatedAt ? 'Fornecedor inativo' : 'Fornecedor ativo';
+  if (!supplier) {
+    return null;
+  }
 
   return (
     <div className={styles.page}>
       <section className={styles.detailHeader}>
         <div>
-          <h2>{supplier.name}</h2>
-          <p>{formatDocument(supplier.document)}</p>
+          <h2>{supplier.nome}</h2>
+          <p>{formatDocument(supplier.cnpjCpf)}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           <Button variant="outline" onClick={() => navigate(`/terceiros/fornecedores/${supplier.id}/editar`)}>
@@ -38,33 +71,21 @@ export const SupplierDetails = () => {
               <h2>Dados cadastrais</h2>
               <p>Informações derivadas do cadastro base de fornecedor.</p>
             </div>
-            <StatusBadge status={supplier.status} />
+            <StatusBadge status="aprovado" />
           </div>
 
           <div className={styles.infoGrid}>
             <div className={styles.infoItem}>
               <span>Razão social / Nome</span>
-              <strong>{supplier.name}</strong>
+              <strong>{supplier.nome}</strong>
             </div>
             <div className={styles.infoItem}>
               <span>CNPJ/CPF</span>
-              <strong>{formatDocument(supplier.document)}</strong>
-            </div>
-            <div className={styles.infoItem}>
-              <span>Data de ativação</span>
-              <strong>{supplier.activatedAt}</strong>
-            </div>
-            <div className={styles.infoItem}>
-              <span>Data de desativação</span>
-              <strong>{supplier.deactivatedAt ?? 'Não informado'}</strong>
-            </div>
-            <div className={styles.infoItem}>
-              <span>Arquivo cadastral</span>
-              <strong>{supplier.filePath ?? 'Não enviado'}</strong>
+              <strong>{formatDocument(supplier.cnpjCpf)}</strong>
             </div>
             <div className={styles.infoItem}>
               <span>Situação operacional</span>
-              <strong>{supplierStatus}</strong>
+              <strong>Fornecedor ativo</strong>
             </div>
           </div>
         </article>
@@ -72,27 +93,19 @@ export const SupplierDetails = () => {
         <aside className={styles.detailCard} aria-label="Resumo de vínculos">
           <div className={styles.detailHeader}>
             <div>
-              <h2>Vínculos</h2>
-              <p>Relações úteis com filiais, contratos e veículos.</p>
+              <h2>Vínculos Operacionais</h2>
+              <p>Relações com a frota e operações corporativas.</p>
             </div>
           </div>
 
           <div className={styles.summaryList}>
             <div>
-              <span>Filiais vinculadas</span>
-              <strong>{supplier.linkedBranches}</strong>
+              <span>Status</span>
+              <strong>Ativo na plataforma</strong>
             </div>
             <div>
-              <span>Contratos associados</span>
-              <strong>{supplier.linkedContracts}</strong>
-            </div>
-            <div>
-              <span>Veículos cadastrados</span>
-              <strong>{supplier.vehicles}</strong>
-            </div>
-            <div>
-              <span>Documento cadastral</span>
-              <strong>{supplier.filePath ? 'Disponível' : 'Pendente'}</strong>
+              <span>Tipo de parceiro</span>
+              <strong>Prestador homologado</strong>
             </div>
           </div>
         </aside>

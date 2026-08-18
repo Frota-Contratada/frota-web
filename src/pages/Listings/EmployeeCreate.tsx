@@ -1,8 +1,7 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select, useToast } from '../../components/common';
-import { branches } from './listingsData';
-import { suppliers } from '../Suppliers/suppliersData';
+import { branchApi, driverApi, supplierApi, type FornecedorDto, type FilialDto } from '../../services';
 import styles from '../Rides/RideReview.module.css';
 import localStyles from './EmployeeCreate.module.css';
 
@@ -20,13 +19,31 @@ const connectionTypeOptions = [
   { label: 'Fornecedor (Terceirizado)', value: 'fornecedor' },
 ];
 
-const branchOptions = branches.map((b) => ({ label: b.name, value: b.name }));
-const supplierOptions = suppliers.map((s) => ({ label: s.name, value: s.name }));
-
 export const EmployeeCreate = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [suppliersList, setSuppliersList] = useState<FornecedorDto[]>([]);
+  const [branchesList, setBranchesList] = useState<FilialDto[]>([]);
+  const [selectedFornecedorId, setSelectedFornecedorId] = useState<number>(1);
+
+  useEffect(() => {
+    supplierApi.list().then((res) => {
+      if (res.response && Array.isArray(res.response) && res.response.length > 0) {
+        setSuppliersList(res.response);
+        setSelectedFornecedorId(res.response[0].id);
+      }
+    }).catch(() => {});
+
+    branchApi.list().then((res) => {
+      if (res.response && Array.isArray(res.response)) {
+        setBranchesList(res.response);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const supplierOptions = suppliersList.map((s) => ({ label: `${s.nome} (${s.cnpjCpf})`, value: String(s.id) }));
+  const branchOptions = branchesList.map((b) => ({ label: `${b.nome} (${b.cnpj})`, value: String(b.id) }));
 
   const [form, setForm] = useState({
     name: '',
@@ -79,14 +96,6 @@ export const EmployeeCreate = () => {
 
     if (!form.role) errors.role = 'Cargo é obrigatório';
 
-    if (form.connectionType === 'filial' && !form.branch) {
-      errors.branch = 'Filial é obrigatória para vínculo interno';
-    }
-
-    if (form.connectionType === 'fornecedor' && !form.supplier) {
-      errors.supplier = 'Fornecedor é obrigatório para vínculo terceirizado';
-    }
-
     if (form.profiles.length === 0) {
       errors.profiles = 'Selecione pelo menos um perfil de acesso';
     }
@@ -108,23 +117,34 @@ export const EmployeeCreate = () => {
     updateField('cpf', formatted);
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validate()) {
       showToast({ type: 'error', title: 'Erro de validação', description: 'Por favor, preencha os campos obrigatórios.' });
       return;
     }
 
-    setIsLoading(true);
-    setTimeout(() => {
+    try {
+      setIsLoading(true);
+      await driverApi.create({
+        nome: form.name,
+        email: form.email,
+        cpf: form.cpf.replace(/\D/g, ''),
+        fornecedorId: selectedFornecedorId || 1,
+      });
+
       showToast({
         type: 'success',
         title: 'Colaborador cadastrado',
-        description: `${form.name} foi adicionado à plataforma com sucesso.`,
+        description: `O colaborador ${form.name} foi adicionado com sucesso.`,
       });
-      setIsLoading(false);
       navigate('/colaboradores');
-    }, 800);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao cadastrar colaborador';
+      showToast({ type: 'error', title: message });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

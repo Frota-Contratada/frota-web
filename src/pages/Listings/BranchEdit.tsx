@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState, type FormEvent } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Input, Select, useToast } from '../../components/common';
-import { branches } from './listingsData';
+import { LocationPickerMap } from '../../components/maps';
+import { branchApi, geoService } from '../../services';
 import styles from '../Rides/RideReview.module.css';
 
 const stateOptions = [
@@ -12,35 +13,102 @@ const stateOptions = [
   { label: 'Rio de Janeiro - RJ', value: 'RJ' },
   { label: 'Minas Gerais - MG', value: 'MG' },
   { label: 'Rio Grande do Sul - RS', value: 'RS' },
+  { label: 'Mato Grosso do Sul - MS', value: 'MS' },
+  { label: 'Goiás - GO', value: 'GO' },
 ];
 
 export const BranchEdit = () => {
   const navigate = useNavigate();
   const { branchId } = useParams();
   const { showToast } = useToast();
-  const branch = branches.find((item) => item.id === Number(branchId));
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isSearchingCep, setIsSearchingCep] = useState(false);
   const [form, setForm] = useState({
-    name: branch?.name || '',
-    address: branch?.address || '',
-    neighborhood: branch?.neighborhood || '',
-    city: branch?.city || '',
-    state: branch?.state || 'SC',
-    zipCode: branch?.zipCode || '',
-    costCenters: branch ? String(branch.costCenters) : '1',
-    suppliers: branch ? String(branch.suppliers) : '1',
+    name: '',
+    address: '',
+    number: '100',
+    neighborhood: '',
+    city: '',
+    state: 'SC',
+    zipCode: '',
+    costCenters: '1',
+    suppliers: '1',
+    latitude: -26.9078,
+    longitude: -48.6619,
   });
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  if (!branch) {
-    return <Navigate to="/filiais" replace />;
-  }
+  useEffect(() => {
+    if (branchId && !isNaN(Number(branchId))) {
+      branchApi.getById(Number(branchId)).then((res) => {
+        if (res.response) {
+          const b = res.response;
+          setForm({
+            name: b.nome || '',
+            address: b.endereco?.logradouro || '',
+            number: b.endereco?.numero || '100',
+            neighborhood: b.endereco?.bairro || '',
+            city: b.endereco?.cidade || '',
+            state: b.endereco?.uf || 'SC',
+            zipCode: b.endereco?.cep || '',
+            costCenters: '1',
+            suppliers: '1',
+            latitude: b.endereco?.latitude || -26.9078,
+            longitude: b.endereco?.longitude || -48.6619,
+          });
+        }
+      }).catch(() => {});
+    }
+  }, [branchId]);
 
-  const updateField = (field: keyof typeof form, value: string) => {
+  const updateField = (field: keyof typeof form, value: string | number) => {
     setForm((current) => ({ ...current, [field]: value }));
     setValidationErrors((current) => ({ ...current, [field]: '' }));
+  };
+
+  const handleCepChange = async (val: string) => {
+    const raw = val.replace(/\D/g, '').slice(0, 8);
+    let formatted = raw;
+    if (raw.length > 5) {
+      formatted = `${raw.slice(0, 5)}-${raw.slice(5)}`;
+    }
+    updateField('zipCode', formatted);
+
+    if (raw.length === 8) {
+      setIsSearchingCep(true);
+      try {
+        const endereco = await geoService.buscarEnderecoPorCep(raw);
+        if (endereco) {
+          setForm((current) => ({
+            ...current,
+            address: endereco.logradouro || current.address,
+            neighborhood: endereco.bairro || current.neighborhood,
+            city: endereco.cidade || current.city,
+            state: endereco.uf || current.state,
+            latitude: endereco.latitude || current.latitude,
+            longitude: endereco.longitude || current.longitude,
+          }));
+        }
+      } finally {
+        setIsSearchingCep(false);
+      }
+    }
+  };
+
+  const handleLocationChange = async ({ latitude, longitude }: { latitude: number; longitude: number }) => {
+    updateField('latitude', latitude);
+    updateField('longitude', longitude);
+
+    const geoData = await geoService.geocodificarCoordenadas(latitude, longitude);
+    if (geoData) {
+      if (geoData.logradouro) updateField('address', geoData.logradouro);
+      if (geoData.bairro) updateField('neighborhood', geoData.bairro);
+      if (geoData.cidade) updateField('city', geoData.cidade);
+      if (geoData.uf) updateField('state', geoData.uf);
+      if (geoData.cep) updateField('zipCode', geoData.cep);
+    }
   };
 
   const validate = (): boolean => {
@@ -52,30 +120,50 @@ export const BranchEdit = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validate()) {
       showToast({ type: 'error', title: 'Erro de validação', description: 'Por favor, corrija os erros.' });
       return;
     }
 
-    setIsLoading(true);
-    setTimeout(() => {
+    try {
+      setIsLoading(true);
+      if (branchId && !isNaN(Number(branchId))) {
+        await branchApi.update(Number(branchId), {
+          nome: form.name,
+          endereco: {
+            logradouro: form.address,
+            numero: form.number || '100',
+            bairro: form.neighborhood,
+            cidade: form.city,
+            uf: form.state,
+            cep: form.zipCode.replace(/\D/g, ''),
+            latitude: form.latitude,
+            longitude: form.longitude,
+          },
+        });
+      }
+
       showToast({
         type: 'success',
         title: 'Filial atualizada',
         description: `As informações de ${form.name} foram atualizadas com sucesso.`,
       });
+      navigate(`/filiais/${branchId}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao atualizar filial';
+      showToast({ type: 'error', title: message });
+    } finally {
       setIsLoading(false);
-      navigate(`/filiais/${branch.id}`);
-    }, 800);
+    }
   };
 
   return (
     <div className={styles.page}>
       <div className={styles.detailHeader}>
         <div>
-          <h2>Editar Filial — {branch.name}</h2>
+          <h2>Editar Filial — {form.name || 'Filial'}</h2>
           <p>Altere o endereço, identificação ou configurações operacionais desta unidade.</p>
         </div>
       </div>
@@ -101,16 +189,26 @@ export const BranchEdit = () => {
 
             <Input
               label="CEP"
+              placeholder="00000-000"
               value={form.zipCode}
-              onChange={(e) => updateField('zipCode', e.target.value)}
+              onChange={(e) => handleCepChange(e.target.value)}
+              disabled={isLoading || isSearchingCep}
+              rightIcon={isSearchingCep ? <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>Buscando...</span> : undefined}
+            />
+
+            <Input
+              label="Endereço (Rua, Av.)"
+              value={form.address}
+              onChange={(e) => updateField('address', e.target.value)}
+              error={validationErrors.address}
+              required
               disabled={isLoading}
             />
 
             <Input
-              label="Endereço"
-              value={form.address}
-              onChange={(e) => updateField('address', e.target.value)}
-              error={validationErrors.address}
+              label="Número"
+              value={form.number}
+              onChange={(e) => updateField('number', e.target.value)}
               required
               disabled={isLoading}
             />
@@ -137,6 +235,19 @@ export const BranchEdit = () => {
               options={stateOptions}
               onChange={(val) => updateField('state', val)}
               required
+            />
+          </div>
+
+          <div style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
+            <span style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+              Localização da Filial no Mapa
+            </span>
+            <LocationPickerMap
+              latitude={form.latitude}
+              longitude={form.longitude}
+              label={form.name || 'Filial'}
+              height={300}
+              onChange={handleLocationChange}
             />
           </div>
 
@@ -177,7 +288,7 @@ export const BranchEdit = () => {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate(`/filiais/${branch.id}`)}
+                onClick={() => navigate(`/filiais/${branchId}`)}
                 disabled={isLoading}
               >
                 Cancelar

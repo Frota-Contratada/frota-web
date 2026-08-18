@@ -1,5 +1,8 @@
+import { useMemo } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Button, StatusBadge, useToast } from '../../components/common';
+import { RouteMap } from '../../components/maps';
+import type { RoutePoint } from '../../services/maps/routingService';
 import SetaSmIcon from '../../assets/icons/seta-sm.svg?react';
 import { rideHistory, rideRequests, type RideStatus } from '../Listings/listingsData';
 import styles from './RideReview.module.css';
@@ -21,6 +24,24 @@ export const RideDetails = () => {
   if (!ride) {
     return <Navigate to="/corridas/historico" replace />;
   }
+
+  const originText = associatedRequest?.origin || 'Seara Itajaí - SC';
+  const destinationText = associatedRequest?.destination || 'Aeroporto / Destino Final';
+
+  const routePoints: RoutePoint[] = useMemo(() => [
+    {
+      lat: -26.9078,
+      lng: -48.6619,
+      label: `Origem: ${originText}`,
+      type: 'origin',
+    },
+    {
+      lat: -26.8795,
+      lng: -48.6510,
+      label: `Destino: ${destinationText}`,
+      type: 'destination',
+    },
+  ], [originText, destinationText]);
 
   const handlePrintReceipt = () => {
     showToast({
@@ -52,7 +73,7 @@ export const RideDetails = () => {
           <div className={styles.cardHeader}>
             <div>
               <h3>Informações do Trajeto</h3>
-              <p>Origem, destino e horários registrados do percurso.</p>
+              <p>Origem, destino e traçado do percurso da corrida.</p>
             </div>
             <StatusBadge status={rideStatusBadgeMap[ride.status]} />
           </div>
@@ -63,7 +84,7 @@ export const RideDetails = () => {
                 <i className={styles.originDot} aria-hidden="true" />
                 Origem
               </span>
-              <strong>{associatedRequest?.origin || 'Seara Itajaí'}</strong>
+              <strong>{originText}</strong>
             </div>
 
             <span className={styles.routeArrowWrapper} aria-hidden="true">
@@ -75,11 +96,15 @@ export const RideDetails = () => {
                 <i className={styles.destinationDot} aria-hidden="true" />
                 Destino
               </span>
-              <strong>{associatedRequest?.destination || 'Aeroporto / Destino Final'}</strong>
+              <strong>{destinationText}</strong>
             </div>
           </div>
 
-          <div className={styles.cardHeader} style={{ marginTop: '2.5rem' }}>
+          <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+            <RouteMap points={routePoints} height={300} />
+          </div>
+
+          <div className={styles.cardHeader} style={{ marginTop: '2rem' }}>
             <div>
               <h3>Execução da Corrida</h3>
               <p>Horários de início/término e medição de distância.</p>
@@ -108,7 +133,7 @@ export const RideDetails = () => {
             </div>
           </div>
 
-          <div className={styles.cardHeader} style={{ marginTop: '2.5rem' }}>
+          <div className={styles.cardHeader} style={{ marginTop: '2rem' }}>
             <div>
               <h3>Motorista e Veículo</h3>
               <p>Identificação do condutor e placa associada.</p>

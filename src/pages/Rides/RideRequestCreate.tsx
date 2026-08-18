@@ -4,6 +4,9 @@ import CheckIcon from '../../assets/icons/check.svg?react';
 import ErroIcon from '../../assets/icons/erro.svg?react';
 import SetaSmIcon from '../../assets/icons/seta-sm.svg?react';
 import { Button, Input, Select, useToast } from '../../components/common';
+import { RouteMap, AddressAutocomplete } from '../../components/maps';
+import type { RoutePoint, RouteResult } from '../../services/maps/routingService';
+import type { SugestaoEndereco } from '../../services/maps/geoService';
 import { employees } from '../Listings/listingsData';
 import { suppliers } from '../Suppliers/suppliersData';
 import styles from './RideReview.module.css';
@@ -60,18 +63,35 @@ export const RideRequestCreate = () => {
   const availableSuppliers = suppliers.filter((supplier) => supplier.status === 'aprovado');
   const [currentStep, setCurrentStep] = useState<RequestStep>(1);
   const [selectedSupplierId, setSelectedSupplierId] = useState(0);
+
+
+  const [originLocation, setOriginLocation] = useState<{ address: string; lat: number; lng: number }>({
+    address: 'Av. Marginal Direita do Tietê, 500 - Vila Jaguara, São Paulo - SP',
+    lat: -23.518,
+    lng: -46.745,
+  });
+
+  const [destinationLocation, setDestinationLocation] = useState<{ address: string; lat: number; lng: number }>({
+    address: 'Aeroporto Internacional de Guarulhos - Rod. Hélio Smidt, Guarulhos - SP',
+    lat: -23.435,
+    lng: -46.473,
+  });
+
+  const [calculatedDistanceKm, setCalculatedDistanceKm] = useState<number>(31.4);
+  const [calculatedDurationMin, setCalculatedDurationMin] = useState<number>(45);
+
   const [form, setForm] = useState({
     requester: 'Marina Oliveira',
-    rideFor: '',
-    beneficiaryName: '',
-    origin: '',
-    destination: '',
-    rideAt: '',
-    rideType: '',
-    costCenter: '',
+    rideFor: 'Para mim',
+    beneficiaryName: 'Marina Oliveira',
+    origin: 'Av. Marginal Direita do Tietê, 500 - Vila Jaguara, São Paulo - SP',
+    destination: 'Aeroporto Internacional de Guarulhos - Rod. Hélio Smidt, Guarulhos - SP',
+    rideAt: new Date(Date.now() + 3600000).toISOString().slice(0, 16),
+    rideType: 'Executiva',
+    costCenter: 'CC-041 (Operações Logísticas)',
     passengers: '1',
-    passengerCpfs: [''],
-    reason: '',
+    passengerCpfs: ['123.456.789-00'],
+    reason: 'Reunião externa',
   });
 
   const selectedSupplier = useMemo(
@@ -79,8 +99,12 @@ export const RideRequestCreate = () => {
     [availableSuppliers, selectedSupplierId]
   );
 
-  const estimatedKm = '18,6 km';
-  const estimatedValue = 'R$ 148,90';
+  const estimatedKm = `${calculatedDistanceKm.toLocaleString('pt-BR')} km`;
+  const estimatedValue = `R$ ${(calculatedDistanceKm * 5.2 + 25).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
   const selectedSupplierName = selectedSupplier?.name ?? 'Fornecedor não selecionado';
   const requesterEmployee = employees.find((employee) => employee.name === form.requester);
   const selectedBeneficiary = employees.find((employee) => employee.name === form.beneficiaryName);
@@ -90,6 +114,34 @@ export const RideRequestCreate = () => {
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
+
+  const handleSelectOrigin = (sug: SugestaoEndereco) => {
+    setOriginLocation({ address: sug.displayName, lat: sug.latitude, lng: sug.longitude });
+    updateField('origin', sug.displayName);
+  };
+
+  const handleSelectDestination = (sug: SugestaoEndereco) => {
+    setDestinationLocation({ address: sug.displayName, lat: sug.latitude, lng: sug.longitude });
+    updateField('destination', sug.displayName);
+  };
+
+  const handleRouteCalculated = (res: RouteResult) => {
+    if (res.distanceKm > 0) {
+      setCalculatedDistanceKm(res.distanceKm);
+      setCalculatedDurationMin(res.durationMinutes);
+    }
+  };
+
+  const routePoints: RoutePoint[] = useMemo(() => {
+    const pts: RoutePoint[] = [];
+    if (originLocation.lat && originLocation.lng) {
+      pts.push({ lat: originLocation.lat, lng: originLocation.lng, label: 'Origem: ' + form.origin, type: 'origin' });
+    }
+    if (destinationLocation.lat && destinationLocation.lng) {
+      pts.push({ lat: destinationLocation.lat, lng: destinationLocation.lng, label: 'Destino: ' + form.destination, type: 'destination' });
+    }
+    return pts;
+  }, [originLocation, destinationLocation, form.origin, form.destination]);
 
   const updateRideFor = (value: string) => {
     setForm((current) => {
@@ -230,8 +282,25 @@ export const RideRequestCreate = () => {
                 <Select label="Corrida para" value={form.rideFor} options={rideForOptions} onChange={updateRideFor} required />
                 <Select label="Nome de quem vai usar" value={form.beneficiaryName} options={beneficiaryOptions} onChange={updateBeneficiary} disabled={isRideForSelf} required />
                 <Select label="Tipo de corrida" value={form.rideType} options={rideTypeOptions} onChange={(value) => updateField('rideType', value)} required />
-                <Input label="Local de partida" value={form.origin} onChange={(event) => updateField('origin', event.target.value)} required />
-                <Input label="Destino" value={form.destination} onChange={(event) => updateField('destination', event.target.value)} required />
+
+                <AddressAutocomplete
+                  label="Local de partida (Origem)"
+                  placeholder="Digite endereço, local ou CEP de partida"
+                  value={form.origin}
+                  onChange={(val) => updateField('origin', val)}
+                  onSelectAddress={handleSelectOrigin}
+                  required
+                />
+
+                <AddressAutocomplete
+                  label="Destino final"
+                  placeholder="Digite endereço, local ou CEP de destino"
+                  value={form.destination}
+                  onChange={(val) => updateField('destination', val)}
+                  onSelectAddress={handleSelectDestination}
+                  required
+                />
+
                 <Input label="Data e horário" type="datetime-local" value={form.rideAt} onChange={(event) => updateField('rideAt', event.target.value)} required />
                 <Input label="Passageiros" type="number" min="1" value={form.passengers} onChange={(event) => updatePassengers(event.target.value)} required />
                 <Input label="Centro de custo" value={form.costCenter} onChange={(event) => updateField('costCenter', event.target.value)} required />
@@ -302,7 +371,7 @@ export const RideRequestCreate = () => {
               <div className={styles.cardHeader}>
                 <div>
                   <h3>Revisar solicitação</h3>
-                  <p>Confira os dados antes de confirmar a solicitação.</p>
+                  <p>Confira os dados e o trajeto antes de confirmar a solicitação.</p>
                 </div>
               </div>
 
@@ -315,6 +384,7 @@ export const RideRequestCreate = () => {
                 <InfoItem label="Data e horário" value={form.rideAt.replace('T', ' ')} />
                 <InfoItem label="Valor estimado" value={estimatedValue} />
                 <InfoItem label="Distância estimada" value={estimatedKm} />
+                <InfoItem label="Tempo estimado" value={`${calculatedDurationMin} minutos`} />
                 <InfoItem label="Passageiros" value={form.passengers} />
               </div>
 
@@ -359,16 +429,12 @@ export const RideRequestCreate = () => {
         </article>
 
         <aside className={styles.sidePanel} aria-label="Ações da solicitação">
-          <div className={styles.mapCard}>
-            <div className={styles.mapHeader}>
-              <span>Estimativa</span>
-              <strong>{estimatedKm}</strong>
-            </div>
-            <div className={styles.mapPreview} aria-hidden="true">
-              <span className={styles.mapPinStart} />
-              <span className={styles.mapPinEnd} />
-              <span className={styles.mapRoute} />
-            </div>
+          <div style={{ marginBottom: '1.25rem' }}>
+            <RouteMap
+              points={routePoints}
+              height={260}
+              onRouteCalculated={handleRouteCalculated}
+            />
           </div>
 
           <div className={styles.actionsCard}>

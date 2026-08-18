@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select, useToast } from '../../components/common';
+import { LocationPickerMap } from '../../components/maps';
+import { branchApi, geoService } from '../../services';
 import styles from '../Rides/RideReview.module.css';
 
 const stateOptions = [
@@ -11,28 +13,34 @@ const stateOptions = [
   { label: 'Rio de Janeiro - RJ', value: 'RJ' },
   { label: 'Minas Gerais - MG', value: 'MG' },
   { label: 'Rio Grande do Sul - RS', value: 'RS' },
+  { label: 'Mato Grosso do Sul - MS', value: 'MS' },
+  { label: 'Goiás - GO', value: 'GO' },
 ];
 
 export const BranchCreate = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isSearchingCep, setIsSearchingCep] = useState(false);
 
   const [form, setForm] = useState({
     name: '',
     cnpj: '',
     zipCode: '',
     address: '',
+    number: '100',
     neighborhood: '',
     city: '',
     state: '',
     costCentersCount: '1',
     suppliersCount: '0',
+    latitude: -26.9078,
+    longitude: -48.6619,
   });
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  const updateField = (field: keyof typeof form, value: string) => {
+  const updateField = (field: keyof typeof form, value: string | number) => {
     setForm((current) => ({ ...current, [field]: value }));
     setValidationErrors((current) => ({ ...current, [field]: '' }));
   };
@@ -41,7 +49,7 @@ export const BranchCreate = () => {
     const errors: Record<string, string> = {};
 
     if (!form.name.trim()) errors.name = 'Nome da filial é obrigatório';
-    
+
     const cleanCnpj = form.cnpj.replace(/\D/g, '');
     if (!cleanCnpj) {
       errors.cnpj = 'CNPJ é obrigatório';
@@ -80,7 +88,7 @@ export const BranchCreate = () => {
     updateField('cnpj', formatted);
   };
 
-  const handleCepChange = (val: string) => {
+  const handleCepChange = async (val: string) => {
     const raw = val.replace(/\D/g, '').slice(0, 8);
     let formatted = raw;
     if (raw.length > 5) {
@@ -88,45 +96,83 @@ export const BranchCreate = () => {
     }
     updateField('zipCode', formatted);
 
-    // Autofill simulated values
     if (raw.length === 8) {
-      if (raw === '89010000') {
-        setForm((current) => ({
-          ...current,
-          address: 'Rua XV de Novembro',
-          neighborhood: 'Centro',
-          city: 'Blumenau',
-          state: 'SC',
-        }));
-      } else if (raw === '01310000') {
-        setForm((current) => ({
-          ...current,
-          address: 'Avenida Paulista',
-          neighborhood: 'Bela Vista',
-          city: 'São Paulo',
-          state: 'SP',
-        }));
+      setIsSearchingCep(true);
+      try {
+        const endereco = await geoService.buscarEnderecoPorCep(raw);
+        if (endereco) {
+          setForm((current) => ({
+            ...current,
+            address: endereco.logradouro || current.address,
+            neighborhood: endereco.bairro || current.neighborhood,
+            city: endereco.cidade || current.city,
+            state: endereco.uf || current.state,
+            latitude: endereco.latitude || current.latitude,
+            longitude: endereco.longitude || current.longitude,
+          }));
+          showToast({
+            type: 'success',
+            title: 'Endereço localizado',
+            description: `${endereco.cidade} - ${endereco.uf}`,
+          });
+        }
+      } finally {
+        setIsSearchingCep(false);
       }
     }
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleLocationChange = async ({ latitude, longitude }: { latitude: number; longitude: number }) => {
+    updateField('latitude', latitude);
+    updateField('longitude', longitude);
+
+    const geoData = await geoService.geocodificarCoordenadas(latitude, longitude);
+    if (geoData) {
+      if (geoData.logradouro) updateField('address', geoData.logradouro);
+      if (geoData.bairro) updateField('neighborhood', geoData.bairro);
+      if (geoData.cidade) updateField('city', geoData.cidade);
+      if (geoData.uf) updateField('state', geoData.uf);
+      if (geoData.cep) updateField('zipCode', geoData.cep);
+    }
+  };
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validate()) {
       showToast({ type: 'error', title: 'Erro de validação', description: 'Por favor, preencha os campos obrigatórios.' });
       return;
     }
 
-    setIsLoading(true);
-    setTimeout(() => {
+    try {
+      setIsLoading(true);
+      await branchApi.create({
+        nome: form.name,
+        cnpj: form.cnpj.replace(/\D/g, ''),
+        administradorId: 1,
+        endereco: {
+          cep: form.zipCode.replace(/\D/g, ''),
+          logradouro: form.address,
+          numero: form.number || '100',
+          bairro: form.neighborhood,
+          cidade: form.city,
+          uf: form.state,
+          latitude: form.latitude,
+          longitude: form.longitude,
+        },
+      });
+
       showToast({
         type: 'success',
         title: 'Filial cadastrada',
         description: `A filial ${form.name} foi adicionada à base de dados.`,
       });
-      setIsLoading(false);
       navigate('/filiais');
-    }, 800);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao cadastrar filial';
+      showToast({ type: 'error', title: message });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -171,8 +217,8 @@ export const BranchCreate = () => {
 
           <div className={styles.cardHeader} style={{ marginTop: '2.5rem' }}>
             <div>
-              <h3>Endereço</h3>
-              <p>Informe a localização física desta nova filial.</p>
+              <h3>Endereço e Localização</h3>
+              <p>Informe o CEP para autopreenchimento e ajuste o pin no mapa.</p>
             </div>
           </div>
 
@@ -184,7 +230,8 @@ export const BranchCreate = () => {
               onChange={(e) => handleCepChange(e.target.value)}
               error={validationErrors.zipCode}
               required
-              disabled={isLoading}
+              disabled={isLoading || isSearchingCep}
+              rightIcon={isSearchingCep ? <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>Buscando...</span> : undefined}
             />
 
             <Input
@@ -193,6 +240,15 @@ export const BranchCreate = () => {
               value={form.address}
               onChange={(e) => updateField('address', e.target.value)}
               error={validationErrors.address}
+              required
+              disabled={isLoading}
+            />
+
+            <Input
+              label="Número"
+              placeholder="100"
+              value={form.number}
+              onChange={(e) => updateField('number', e.target.value)}
               required
               disabled={isLoading}
             />
@@ -223,6 +279,19 @@ export const BranchCreate = () => {
               options={stateOptions}
               onChange={(val) => updateField('state', val)}
               required
+            />
+          </div>
+
+          <div style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
+            <span style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+              Ponto da Filial no Mapa
+            </span>
+            <LocationPickerMap
+              latitude={form.latitude}
+              longitude={form.longitude}
+              label={form.name || 'Nova Filial'}
+              height={300}
+              onChange={handleLocationChange}
             />
           </div>
 

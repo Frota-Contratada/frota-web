@@ -1,16 +1,27 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select, useToast } from '../../components/common';
-import { branches } from '../Listings/listingsData';
+import { branchApi, supplierApi, type FilialDto } from '../../services';
 import styles from '../Rides/RideReview.module.css';
 import contractsStyles from '../Contracts/Contracts.module.css';
-
-const branchOptions = branches.map((b) => ({ label: b.name, value: b.name }));
 
 export const SupplierCreate = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [branchesList, setBranchesList] = useState<FilialDto[]>([]);
+  const [selectedFilialId, setSelectedFilialId] = useState<number>(1);
+
+  useEffect(() => {
+    branchApi.list().then((res) => {
+      if (res.response && Array.isArray(res.response) && res.response.length > 0) {
+        setBranchesList(res.response);
+        setSelectedFilialId(res.response[0].id);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const branchOptions = branchesList.map((b) => ({ label: `${b.nome} (${b.cnpj})`, value: String(b.id) }));
 
   const [form, setForm] = useState({
     name: '',
@@ -58,23 +69,33 @@ export const SupplierCreate = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validate()) {
       showToast({ type: 'error', title: 'Erro de validação', description: 'Por favor, preencha os campos obrigatórios.' });
       return;
     }
 
-    setIsLoading(true);
-    setTimeout(() => {
+    try {
+      setIsLoading(true);
+      await supplierApi.create({
+        nome: form.name,
+        cnpjCpf: form.document.replace(/\D/g, ''),
+        filialId: selectedFilialId || 1,
+      });
+
       showToast({
         type: 'success',
         title: 'Fornecedor cadastrado',
         description: `O fornecedor ${form.name} foi cadastrado com sucesso.`,
       });
-      setIsLoading(false);
       navigate('/terceiros/fornecedores');
-    }, 800);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao cadastrar fornecedor';
+      showToast({ type: 'error', title: message });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

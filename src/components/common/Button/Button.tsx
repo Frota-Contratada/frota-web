@@ -40,6 +40,7 @@ export const Button = ({
     <button
       className={classNames}
       disabled={disabled || isLoading}
+      aria-busy={isLoading ? 'true' : undefined}
       {...props}
     >
       {isLoading && <span className={styles.spinner} />}

@@ -99,6 +99,8 @@ export const ResetPassword = () => {
     }
   };
 
+  const [resetToken, setResetToken] = useState('');
+
   const handlePinSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (codeValue.length !== CODE_LENGTH) {
@@ -107,7 +109,8 @@ export const ResetPassword = () => {
     }
     try {
       setIsLoading(true);
-      await authApi.pinConfirmar({ pin: codeValue, email });
+      const res = await authApi.pinConfirmar({ pin: codeValue, email, tipoToken: 'REDEFINIR_SENHA' });
+      setResetToken(res.response.token);
       setStep('password');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Código inválido. Tente novamente.';
@@ -129,7 +132,7 @@ export const ResetPassword = () => {
     }
     try {
       setIsLoading(true);
-      await authApi.signUp({ token: codeValue, senha: password });
+      await authApi.redefinirSenha({ token: resetToken || codeValue, senha: password });
       showToast({ type: 'success', title: 'Senha redefinida com sucesso.' });
       navigate('/login', { replace: true });
     } catch (err) {

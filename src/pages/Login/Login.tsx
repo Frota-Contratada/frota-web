@@ -62,7 +62,7 @@ export const Login = () => {
             <p className={styles.subtitle}>Entre com suas credenciais</p>
           </div>
 
-          <form onSubmit={handleSubmit} className={styles.form}>
+          <form onSubmit={handleSubmit} noValidate className={styles.form}>
             <Input
               type="email" label="Email" placeholder="seu@email.com"
               value={email}

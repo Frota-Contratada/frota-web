@@ -17,7 +17,7 @@
   flex-shrink: 0;
 }
 
-/* Pendente — laranja suave */
+
 .pendente {
   background-color: #fff4e5;
   color: #b45309;
@@ -26,7 +26,7 @@
   background-color: #f59e0b;
 }
 
-/* Aprovado — verde suave */
+
 .aprovado {
   background-color: var(--green-success-light);
   color: #065f46;
@@ -35,7 +35,7 @@
   background-color: var(--green-success);
 }
 
-/* Rejeitado — vermelho suave */
+
 .rejeitado {
   background-color: var(--danger-light);
   color: #b91c1c;
@@ -44,7 +44,7 @@
   background-color: var(--danger);
 }
 
-/* Em andamento — azul suave */
+
 .em_andamento {
   background-color: rgba(59, 130, 246, 0.1);
   color: #1d4ed8;
@@ -53,7 +53,7 @@
   background-color: var(--info);
 }
 
-/* Cancelado — vermelho suave */
+
 .cancelado {
   background-color: var(--danger-light);
   color: #b91c1c;
