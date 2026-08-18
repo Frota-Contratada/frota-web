@@ -1,12 +1,22 @@
 import type { UserProfile } from './profile.types';
 
+export type { UserProfile };
+
 export type Plataforma = 'WEB' | 'MOBILE';
 
 export interface User {
   id: string;
   name: string;
   email: string;
+  cpf?: string;
   profile: UserProfile;
+  fotoPerfil?: string;
+  dataAtivacao?: string;
+  perfis?: Array<{
+    tipoPerfil: string;
+    dataInicioVigencia: string;
+    dataFimVigencia?: string;
+  }>;
 }
 
 export interface LoginCredentials {

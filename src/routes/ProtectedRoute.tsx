@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, login } = useAuthStore();
 
-  // Se não houver usuário logado no localStorage, injeta um usuário mock
+
   if (!user) {
     setTimeout(() => {
       login(

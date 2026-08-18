@@ -9,13 +9,12 @@ export interface PinEnviarParams {
 export interface PinConfirmarParams {
   pin: string;
   email: string;
+  tipoToken: 'SIGN_UP' | 'REDEFINIR_SENHA';
 }
 
 export interface PinConfirmarResponse {
   response: {
     token: string;
-    tipoToken: 'SIGN_UP' | 'REDEFINIR_SENHA';
-    expirationDate: string;
   };
 }
 
@@ -23,11 +22,19 @@ export interface RefreshTokenParams {
   refreshToken: string;
 }
 
-export interface MeResponse {
+export interface RedefinirSenhaParams {
+  token: string;
+  senha: string;
+}
+
+export interface SignUpParams {
+  token: string;
+  senha: string;
+}
+
+export interface PrimeiroAcessoResponse {
   response: {
-    id: number;
-    nome: string;
-    email: string;
+    primeiroAcesso: boolean;
   };
 }
 
@@ -40,8 +47,16 @@ export const authApi = {
     return apiClient.post<AuthResponse>('/autenticacao/refresh', params, { skipAuth: true });
   },
 
-  signUp(data: { token: string; senha: string }) {
+  signUp(data: SignUpParams) {
     return apiClient.post<void>('/autenticacao/sign-up', data, { skipAuth: true });
+  },
+
+  redefinirSenha(data: RedefinirSenhaParams) {
+    return apiClient.post<void>('/autenticacao/redefinir-senha', data, { skipAuth: true });
+  },
+
+  verificarPrimeiroAcesso(email: string) {
+    return apiClient.get<PrimeiroAcessoResponse>(`/autenticacao/primeiro-acesso/${encodeURIComponent(email)}`, { skipAuth: true });
   },
 
   pinEnviar(params: PinEnviarParams) {
@@ -53,10 +68,11 @@ export const authApi = {
   },
 
   me() {
-    return apiClient.get<MeResponse>('/autenticacao/me');
+    return apiClient.get<{ response: import('../user/userApi').UserMe }>('/usuario/me');
   },
 
   logout() {
     return apiClient.post<void>('/autenticacao/logout');
   },
 };
+

@@ -1,8 +1,23 @@
 export { apiClient, ApiError } from './api/apiClient';
 export type { ApiQueryParams, ApiRequestOptions, ApiQueryValue } from './api/apiClient';
 export { authApi } from './auth/authApi';
-export type { PinEnviarParams, PinConfirmarParams, PinConfirmarResponse, RefreshTokenParams } from './auth/authApi';
+export type { PinEnviarParams, PinConfirmarParams, PinConfirmarResponse, RefreshTokenParams, RedefinirSenhaParams, SignUpParams, PrimeiroAcessoResponse } from './auth/authApi';
+export { userApi } from './user/userApi';
+export type { UserMe, UserMeResponse, UsuarioPerfilDto } from './user/userApi';
+export { driverApi } from './driver/driverApi';
+export type { MotoristaDto, CriarMotoristaParams, BuscarMotoristasQueryParams, MotoristaResponse, MotoristasListResponse } from './driver/driverApi';
+export { branchApi } from './branch/branchApi';
+export type { FilialDto, CriarFilialParams, AtualizarFilialParams, BuscarFiliaisQueryParams, EnderecoDto, FilialResponse, FiliaisListResponse, SubstituirAdministradoresParams } from './branch/branchApi';
+export { supplierApi } from './supplier/supplierApi';
+export type { FornecedorDto, CriarFornecedorParams, BuscarFornecedoresQueryParams, FornecedorResponse, FornecedoresListResponse } from './supplier/supplierApi';
+export { costCenterApi } from './costCenter/costCenterApi';
+export type { VincularAprovadorParams, AprovadorCentroCustoDto, VincularAprovadorResponse } from './costCenter/costCenterApi';
 export { ridesApi } from './rides/ridesApi';
 export type { PaginatedResponse, RideRequestDto, RideRequestPayload, RideReviewPayload } from './rides/ridesApi';
 export { branchesApi, contractsApi, employeesApi, suppliersApi } from './platform/platformApi';
 export type { BranchDto, ContractDto, EmployeeDto, SupplierDto } from './platform/platformApi';
+export { geoService } from './maps/geoService';
+export type { EnderecoDetalhado, SugestaoEndereco } from './maps/geoService';
+export { routingService } from './maps/routingService';
+export type { RoutePoint, RouteResult } from './maps/routingService';
+

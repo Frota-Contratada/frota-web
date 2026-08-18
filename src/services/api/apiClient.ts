@@ -5,6 +5,7 @@ export interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
   query?: ApiQueryParams;
   body?: unknown;
   skipAuth?: boolean;
+  _retry?: boolean;
 }
 
 export class ApiError<T = unknown> extends Error {
@@ -60,52 +61,115 @@ const getAuthHeaders = (skipAuth?: boolean): HeadersInit => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-export const apiClient = {
-  async request<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
-    const { query, body, headers, skipAuth, ...fetchOptions } = options;
+let refreshPromise: Promise<string | null> | null = null;
 
-    let response: Response;
-    try {
-      response = await fetch(buildUrl(path, query), {
-        ...fetchOptions,
-        headers: {
-          Accept: 'application/json',
-          ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-          ...getAuthHeaders(skipAuth),
-          ...headers,
-        },
-        body: body instanceof FormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
-      });
-    } catch {
-      throw new ApiError('Serviço temporariamente indisponível. Tente novamente mais tarde.', 0);
-    }
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = localStorage.getItem('refresh_token');
+  if (!refreshToken) {
+    return null;
+  }
 
-    const data = await readResponse<T>(response);
+  try {
+    const response = await fetch(buildUrl('/autenticacao/refresh'), {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
 
     if (!response.ok) {
-      const message =
-        data && typeof data === 'object' && 'message' in data
-          ? String((data as { message: unknown }).message)
-          : 'Erro ao comunicar com a API.';
-      throw new ApiError(message, response.status, data);
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('refresh_token');
+      return null;
     }
 
-    return data as T;
-  },
+    const data = await response.json();
+    const newAccessToken = data?.response?.accessToken;
+    const newRefreshToken = data?.response?.refreshToken;
 
-  get<T>(path: string, options?: ApiRequestOptions) {
-    return this.request<T>(path, { ...options, method: 'GET' });
+    if (newAccessToken) {
+      localStorage.setItem('auth_token', newAccessToken);
+      if (newRefreshToken) {
+        localStorage.setItem('refresh_token', newRefreshToken);
+      }
+      return newAccessToken;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function request<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  const { query, body, headers, skipAuth, _retry, ...fetchOptions } = options;
+
+  let response: Response;
+  try {
+    response = await fetch(buildUrl(path, query), {
+      ...fetchOptions,
+      headers: {
+        Accept: 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+        ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+        ...getAuthHeaders(skipAuth),
+        ...headers,
+      },
+      body: body instanceof FormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new ApiError('Serviço temporariamente indisponível. Tente novamente mais tarde.', 0);
+  }
+
+
+  if (response.status === 401 && !skipAuth && !_retry && !path.includes('/autenticacao/login') && !path.includes('/autenticacao/refresh')) {
+    if (!refreshPromise) {
+      refreshPromise = refreshAccessToken().finally(() => {
+        refreshPromise = null;
+      });
+    }
+
+    const newToken = await refreshPromise;
+    if (newToken) {
+
+      return request<T>(path, {
+        ...options,
+        _retry: true,
+      });
+    }
+  }
+
+  const data = await readResponse<T>(response);
+
+  if (!response.ok) {
+    const message =
+      data && typeof data === 'object' && 'message' in data
+        ? String((data as { message: unknown }).message)
+        : 'Erro ao comunicar com a API.';
+    throw new ApiError(message, response.status, data);
+  }
+
+  return data as T;
+}
+
+export const apiClient = {
+  request,
+  get<T>(path: string, options?: ApiRequestOptions): Promise<T> {
+    return request<T>(path, { ...options, method: 'GET' });
   },
-  post<T>(path: string, body?: unknown, options?: ApiRequestOptions) {
-    return this.request<T>(path, { ...options, method: 'POST', body });
+  post<T>(path: string, body?: unknown, options?: ApiRequestOptions): Promise<T> {
+    return request<T>(path, { ...options, method: 'POST', body });
   },
-  patch<T>(path: string, body?: unknown, options?: ApiRequestOptions) {
-    return this.request<T>(path, { ...options, method: 'PATCH', body });
+  patch<T>(path: string, body?: unknown, options?: ApiRequestOptions): Promise<T> {
+    return request<T>(path, { ...options, method: 'PATCH', body });
   },
-  put<T>(path: string, body?: unknown, options?: ApiRequestOptions) {
-    return this.request<T>(path, { ...options, method: 'PUT', body });
+  put<T>(path: string, body?: unknown, options?: ApiRequestOptions): Promise<T> {
+    return request<T>(path, { ...options, method: 'PUT', body });
   },
-  delete<T>(path: string, options?: ApiRequestOptions) {
-    return this.request<T>(path, { ...options, method: 'DELETE' });
+  delete<T>(path: string, options?: ApiRequestOptions): Promise<T> {
+    return request<T>(path, { ...options, method: 'DELETE' });
   },
 };
