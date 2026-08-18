@@ -3,7 +3,7 @@
   left: 0;
   top: 0;
   height: 100vh;
-  width: 220px;
+  width: 280px;
   background-color: white;
   border-right: 1px solid var(--color-gray-200);
   display: flex;
@@ -14,7 +14,7 @@
 }
 
 .sidebar.collapsed {
-  width: 56px;
+  width: 75px;
 }
 
 .header {
@@ -88,10 +88,12 @@
 
 .collapseArrow {
   transition: transform var(--transition-base);
-  transform: rotate(180deg); }
+  transform: rotate(180deg);
+}
 
 .collapsed .collapseArrow {
-  transform: rotate(0deg); }
+  transform: rotate(0deg);
+}
 
 .nav {
   flex: 1;
@@ -246,6 +248,7 @@
     opacity: 0;
     transform: translateY(-8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -585,7 +588,7 @@
   }
 
   .sidebar.collapsed {
-    width: 220px;
+    width: 280px;
     transform: translateX(-100%);
   }
 
