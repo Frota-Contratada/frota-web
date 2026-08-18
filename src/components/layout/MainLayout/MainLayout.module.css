@@ -6,7 +6,7 @@
 
 .main {
   flex: 1;
-  margin-left: 280px;
+  margin-left: 220px;
   transition: margin-left var(--transition-base);
   display: flex;
   flex-direction: column;
@@ -16,7 +16,7 @@
 }
 
 .main.sidebarCollapsed {
-  margin-left: 72px;
+  margin-left: 56px;
 }
 
 .content {
