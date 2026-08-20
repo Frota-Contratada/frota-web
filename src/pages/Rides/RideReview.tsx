@@ -71,22 +71,34 @@ export const RideReview = () => {
   const goNext = () => setCurrentStep((step) => Math.min(step + 1, 3) as ReviewStep);
   const goBack = () => setCurrentStep((step) => Math.max(step - 1, 1) as ReviewStep);
 
-  const finishReview = () => {
-    showToast({
-      type: 'success',
-      title: 'Solicitação aprovada',
-      description: `${selectedSupplierName} foi vinculado à solicitação #${request.id}.`,
-    });
-    navigate('/corridas/solicitacoes');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const finishReview = async () => {
+    try {
+      setIsSubmitting(true);
+      showToast({
+        type: 'success',
+        title: 'Solicitação aprovada',
+        description: `${selectedSupplierName} foi vinculado à solicitação #${request.id}.`,
+      });
+      navigate('/corridas/solicitacoes');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const rejectReview = () => {
-    showToast({
-      type: 'warning',
-      title: 'Solicitação reprovada',
-      description: `A solicitação #${request.id} foi devolvida para ajustes.`,
-    });
-    navigate('/corridas/solicitacoes');
+  const rejectReview = async () => {
+    try {
+      setIsSubmitting(true);
+      showToast({
+        type: 'warning',
+        title: 'Solicitação reprovada',
+        description: `A solicitação #${request.id} foi devolvida para ajustes.`,
+      });
+      navigate('/corridas/solicitacoes');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -233,16 +245,16 @@ export const RideReview = () => {
               {currentStep < 3 ? (
                 <Button onClick={goNext}>Próximo</Button>
               ) : (
-                <Button leftIcon={<CheckIcon width={16} height={16} />} onClick={finishReview}>Finalizar revisão</Button>
+                <Button leftIcon={<CheckIcon width={16} height={16} />} onClick={finishReview} isLoading={isSubmitting}>Finalizar revisão</Button>
               )}
-              {currentStep > 1 && <Button variant="outline" onClick={goBack}>Voltar</Button>}
+              {currentStep > 1 && <Button variant="outline" onClick={goBack} disabled={isSubmitting}>Voltar</Button>}
             </div>
 
             <div className={styles.dangerZone}>
-              <Button className={styles.rejectButton} variant="outline" leftIcon={<ErroIcon width={14} height={14} />} onClick={rejectReview}>
+              <Button className={styles.rejectButton} variant="outline" leftIcon={<ErroIcon width={14} height={14} />} onClick={rejectReview} isLoading={isSubmitting}>
                 Reprovar solicitação
               </Button>
-              <Button variant="ghost" onClick={() => navigate('/corridas/solicitacoes')}>
+              <Button variant="ghost" onClick={() => navigate('/corridas/solicitacoes')} disabled={isSubmitting}>
                 Cancelar revisão
               </Button>
             </div>
