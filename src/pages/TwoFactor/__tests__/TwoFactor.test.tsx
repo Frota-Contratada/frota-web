@@ -31,7 +31,7 @@ describe('TwoFactor page', () => {
     expect(screen.getByLabelText('Dígito 6')).toBeInTheDocument();
   });
 
-  it('submits code, fetches current user and navigates to /home', async () => {
+  it('submits code, fetches current user and navigates to /visao-executiva', async () => {
     vi.spyOn(authApi, 'pinEnviar').mockResolvedValue(undefined);
     vi.spyOn(authApi, 'pinConfirmar').mockResolvedValue({
       response: { token: 'validated' },
@@ -51,7 +51,7 @@ describe('TwoFactor page', () => {
         <MemoryRouter initialEntries={['/two-factor']}>
           <Routes>
             <Route path="/two-factor" element={<TwoFactor />} />
-            <Route path="/home" element={<div>Home Principal</div>} />
+            <Route path="/visao-executiva" element={<div>Visão Executiva Principal</div>} />
           </Routes>
         </MemoryRouter>
       </ToastProvider>
@@ -64,7 +64,7 @@ describe('TwoFactor page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Verificar código' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Home Principal')).toBeInTheDocument();
+      expect(screen.getByText('Visão Executiva Principal')).toBeInTheDocument();
     });
   });
 });

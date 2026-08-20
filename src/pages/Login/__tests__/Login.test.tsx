@@ -42,7 +42,7 @@ describe('Login page', () => {
     expect(screen.getByText('Senha é obrigatória')).toBeInTheDocument();
   });
 
-  it('navigates to /home upon successful login', async () => {
+  it('navigates to /visao-executiva upon successful login', async () => {
     vi.spyOn(authApi, 'login').mockResolvedValue({
       response: {
         accessToken: 'valid-access',
@@ -72,7 +72,7 @@ describe('Login page', () => {
         <MemoryRouter initialEntries={['/login']}>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/home" element={<div>Tela Home Principal</div>} />
+            <Route path="/visao-executiva" element={<div>Visão Executiva Principal</div>} />
           </Routes>
         </MemoryRouter>
       </ToastProvider>
@@ -83,7 +83,7 @@ describe('Login page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Entrar' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Tela Home Principal')).toBeInTheDocument();
+      expect(screen.getByText('Visão Executiva Principal')).toBeInTheDocument();
     });
     expect(localStorage.getItem('auth_token')).toBe('valid-access');
   });

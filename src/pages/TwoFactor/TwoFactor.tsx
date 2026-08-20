@@ -159,7 +159,7 @@ export const TwoFactor = () => {
       }
 
       localStorage.removeItem('auth_email');
-      navigate('/home', { replace: true });
+      navigate('/visao-executiva', { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Código inválido. Tente novamente.';
       showToast({ type: 'error', title: message });

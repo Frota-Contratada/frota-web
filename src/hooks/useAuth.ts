@@ -47,7 +47,7 @@ export const useAuth = () => {
         }
 
         storeLogin(user, accessToken, refreshToken);
-        navigate('/home', { replace: true });
+        navigate('/visao-executiva', { replace: true });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Erro ao fazer login';
         setError(message);
