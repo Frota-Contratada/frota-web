@@ -1,4 +1,5 @@
 import SetaTendenciaIcon from '../../../assets/icons/seta-tendencia.svg?react';
+import { Skeleton } from '../Skeleton/Skeleton';
 import styles from './StatCard.module.css';
 
 export interface StatCardTrend {
@@ -11,9 +12,20 @@ export interface StatCardProps {
   title: string;
   value: string;
   trend?: StatCardTrend;
+  isLoading?: boolean;
 }
 
-export function StatCard({ title, value, trend }: StatCardProps) {
+export function StatCard({ title, value, trend, isLoading = false }: StatCardProps) {
+  if (isLoading) {
+    return (
+      <div className={styles.card}>
+        <Skeleton width="60%" height={14} />
+        <Skeleton width="40%" height={28} style={{ margin: '6px 0' }} />
+        {trend && <Skeleton width="50%" height={14} />}
+      </div>
+    );
+  }
+
   return (
     <div className={styles.card}>
       <span className={styles.title}>{title}</span>

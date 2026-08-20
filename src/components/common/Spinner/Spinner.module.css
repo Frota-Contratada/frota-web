@@ -1,0 +1,122 @@
+.spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  vertical-align: middle;
+}
+
+.svg {
+  animation: spin 0.85s cubic-bezier(0.4, 0.15, 0.2, 0.9) infinite;
+  transform-origin: center center;
+}
+
+.track {
+  opacity: 0.2;
+}
+
+.head {
+  stroke-dasharray: 80, 200;
+  stroke-dashoffset: 0;
+  animation: dash 1.4s ease-in-out infinite;
+  stroke-linecap: round;
+}
+
+/* Sizes */
+.xs {
+  width: 14px;
+  height: 14px;
+}
+.xs .svg {
+  width: 14px;
+  height: 14px;
+}
+
+.sm {
+  width: 18px;
+  height: 18px;
+}
+.sm .svg {
+  width: 18px;
+  height: 18px;
+}
+
+.md {
+  width: 24px;
+  height: 24px;
+}
+.md .svg {
+  width: 24px;
+  height: 24px;
+}
+
+.lg {
+  width: 36px;
+  height: 36px;
+}
+.lg .svg {
+  width: 36px;
+  height: 36px;
+}
+
+.xl {
+  width: 48px;
+  height: 48px;
+}
+.xl .svg {
+  width: 48px;
+  height: 48px;
+}
+
+/* Variants */
+.primary {
+  color: var(--brand-primary);
+}
+
+.brand {
+  color: var(--brand-primary-strong);
+}
+
+.white {
+  color: #ffffff;
+}
+
+.muted {
+  color: var(--color-gray-400);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dash {
+  0% {
+    stroke-dasharray: 1, 200;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90, 200;
+    stroke-dashoffset: -35px;
+  }
+  100% {
+    stroke-dasharray: 90, 200;
+    stroke-dashoffset: -125px;
+  }
+}

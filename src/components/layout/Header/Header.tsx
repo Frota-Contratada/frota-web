@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import homeIcon from '../../../assets/icons/home.svg';
 import dashboardsIcon from '../../../assets/icons/dashboards.svg';
 import alvoIcon from '../../../assets/icons/alvo.svg';
 import gastosIcon from '../../../assets/icons/gastos.svg';
@@ -19,7 +18,6 @@ import notificacoesIcon from '../../../assets/icons/notificacoes.svg';
 import styles from './Header.module.css';
 
 const pageTitles: Record<string, string> = {
-  '/home': 'Home',
   '/visao-executiva': 'Visão Executiva',
   '/gastos': 'Gastos',
   '/preco-auditoria': 'Preço & Auditoria',
@@ -39,54 +37,43 @@ interface BreadcrumbItem {
 }
 
 const breadcrumbMap: Record<string, BreadcrumbItem[]> = {
-  '/home': [{ label: 'Home', icon: homeIcon }],
   '/visao-executiva': [
-    { label: 'Home', path: '/home', icon: homeIcon },
-    { label: 'Dashboards', icon: dashboardsIcon },
+    { label: 'Dashboards', icon: dashboardsIcon, path: '/visao-executiva' },
     { label: 'Visão Executiva', icon: alvoIcon },
   ],
   '/gastos': [
-    { label: 'Home', path: '/home', icon: homeIcon },
-    { label: 'Dashboards', icon: dashboardsIcon },
+    { label: 'Dashboards', path: '/visao-executiva', icon: dashboardsIcon },
     { label: 'Gastos', icon: gastosIcon },
   ],
   '/preco-auditoria': [
-    { label: 'Home', path: '/home', icon: homeIcon },
-    { label: 'Dashboards', icon: dashboardsIcon },
+    { label: 'Dashboards', path: '/visao-executiva', icon: dashboardsIcon },
     { label: 'Preço & Auditoria', icon: precoAuditoriaIcon },
   ],
   '/corridas/solicitacoes': [
-    { label: 'Home', path: '/home', icon: homeIcon },
-    { label: 'Corridas', icon: corridasIcon },
+    { label: 'Corridas', icon: corridasIcon, path: '/corridas/solicitacoes' },
     { label: 'Solicitações', icon: solicitacoesIcon },
   ],
   '/corridas/calendario': [
-    { label: 'Home', path: '/home', icon: homeIcon },
-    { label: 'Corridas', icon: corridasIcon },
+    { label: 'Corridas', path: '/corridas/solicitacoes', icon: corridasIcon },
     { label: 'Calendário', icon: calendarioIcon },
   ],
   '/corridas/historico': [
-    { label: 'Home', path: '/home', icon: homeIcon },
-    { label: 'Corridas', icon: corridasIcon },
+    { label: 'Corridas', path: '/corridas/solicitacoes', icon: corridasIcon },
     { label: 'Histórico', icon: historicoIcon },
   ],
   '/terceiros/fornecedores': [
-    { label: 'Home', path: '/home', icon: homeIcon },
-    { label: 'Terceiros', icon: terceirosIcon },
+    { label: 'Terceiros', icon: terceirosIcon, path: '/terceiros/fornecedores' },
     { label: 'Fornecedores', icon: fornecedoresIcon },
   ],
   '/terceiros/contratos': [
-    { label: 'Home', path: '/home', icon: homeIcon },
-    { label: 'Terceiros', icon: terceirosIcon },
+    { label: 'Terceiros', path: '/terceiros/fornecedores', icon: terceirosIcon },
     { label: 'Contratos', icon: contratosIcon },
   ],
   '/colaboradores': [
-    { label: 'Home', path: '/home', icon: homeIcon },
-    { label: 'Colaboradores', icon: colaboradoresIcon },
+    { label: 'Colaboradores', icon: colaboradoresIcon, path: '/colaboradores' },
   ],
   '/filiais': [
-    { label: 'Home', path: '/home', icon: homeIcon },
-    { label: 'Filiais', icon: filiaisIcon },
+    { label: 'Filiais', icon: filiaisIcon, path: '/filiais' },
   ],
 };
 
@@ -133,43 +120,37 @@ export const Header = () => {
           ? 'Revisar Solicitação'
           : isRideCreate
             ? 'Cadastrar Solicitação'
-            : pageTitles[location.pathname] || 'Home';
+            : pageTitles[location.pathname] || 'Dashboard';
   const breadcrumbs = isContractDetails
     ? [
-        { label: 'Home', path: '/home', icon: homeIcon },
-        { label: 'Terceiros', icon: terceirosIcon },
+        { label: 'Terceiros', path: '/terceiros/fornecedores', icon: terceirosIcon },
         { label: 'Contratos', path: '/terceiros/contratos', icon: contratosIcon },
         { label: 'Visualizar Contrato', icon: contratosIcon },
       ]
     : isSupplierDetails
       ? [
-          { label: 'Home', path: '/home', icon: homeIcon },
-          { label: 'Terceiros', icon: terceirosIcon },
+          { label: 'Terceiros', path: '/terceiros/fornecedores', icon: terceirosIcon },
           { label: 'Fornecedores', path: '/terceiros/fornecedores', icon: fornecedoresIcon },
           { label: 'Visualizar Fornecedor', icon: fornecedoresIcon },
         ]
       : isEmployeeDetails
         ? [
-            { label: 'Home', path: '/home', icon: homeIcon },
             { label: 'Colaboradores', path: '/colaboradores', icon: colaboradoresIcon },
             { label: 'Editar Permissões', icon: colaboradoresIcon },
           ]
         : isRideReview
         ? [
-            { label: 'Home', path: '/home', icon: homeIcon },
-            { label: 'Corridas', icon: corridasIcon },
+            { label: 'Corridas', path: '/corridas/solicitacoes', icon: corridasIcon },
             { label: 'Solicitações', path: '/corridas/solicitacoes', icon: solicitacoesIcon },
             { label: 'Revisar Solicitação', icon: solicitacoesIcon },
           ]
         : isRideCreate
           ? [
-              { label: 'Home', path: '/home', icon: homeIcon },
-              { label: 'Corridas', icon: corridasIcon },
+              { label: 'Corridas', path: '/corridas/solicitacoes', icon: corridasIcon },
               { label: 'Solicitações', path: '/corridas/solicitacoes', icon: solicitacoesIcon },
               { label: 'Cadastrar Solicitação', icon: solicitacoesIcon },
             ]
           : breadcrumbMap[location.pathname] ?? [
-            { label: 'Home', path: '/home', icon: homeIcon },
             { label: pageTitle },
           ];
 

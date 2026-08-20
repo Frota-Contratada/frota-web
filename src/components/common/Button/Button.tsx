@@ -1,4 +1,5 @@
 import { type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { Spinner } from '../Spinner/Spinner';
 import styles from './Button.module.css';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
@@ -36,6 +37,10 @@ export const Button = ({
     .filter(Boolean)
     .join(' ');
 
+  const spinnerVariant =
+    variant === 'primary' || variant === 'secondary' ? 'white' : 'primary';
+  const spinnerSize = size === 'lg' ? 'md' : size === 'sm' ? 'xs' : 'sm';
+
   return (
     <button
       className={classNames}
@@ -43,7 +48,11 @@ export const Button = ({
       aria-busy={isLoading ? 'true' : undefined}
       {...props}
     >
-      {isLoading && <span className={styles.spinner} />}
+      {isLoading && (
+        <span className={styles.spinnerWrapper}>
+          <Spinner size={spinnerSize} variant={spinnerVariant} />
+        </span>
+      )}
       {!isLoading && leftIcon && <span className={styles.icon}>{leftIcon}</span>}
       <span className={styles.content}>{children}</span>
       {!isLoading && rightIcon && <span className={styles.icon}>{rightIcon}</span>}

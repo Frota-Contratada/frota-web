@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { Input } from '../common/Input/Input';
+import { useEffect, useRef, useState } from 'react';
+import { Input, Spinner } from '../common';
 import { geoService, type SugestaoEndereco } from '../../services/maps/geoService';
 import styles from './AddressAutocomplete.module.css';
 
 interface AddressAutocompleteProps {
-  label: string;
+  label?: string;
   placeholder?: string;
   value: string;
   onChange: (value: string) => void;
@@ -17,7 +17,7 @@ interface AddressAutocompleteProps {
 
 export const AddressAutocomplete = ({
   label,
-  placeholder,
+  placeholder = 'Buscar endereço...',
   value,
   onChange,
   onSelectAddress,
@@ -30,7 +30,7 @@ export const AddressAutocomplete = ({
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -38,34 +38,47 @@ export const AddressAutocomplete = ({
         setIsOpen(false);
       }
     };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     onChange(query);
 
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
 
-    if (query.trim().length >= 3) {
-      setIsLoading(true);
-      debounceRef.current = setTimeout(async () => {
-        const results = await geoService.buscarSugestoesEndereco(query);
-        setSuggestions(results);
-        setIsOpen(results.length > 0);
-        setIsLoading(false);
-      }, 350);
-    } else {
+    if (query.trim().length < 3) {
       setSuggestions([]);
       setIsOpen(false);
       setIsLoading(false);
+      return;
     }
+
+    setIsLoading(true);
+    debounceTimerRef.current = setTimeout(async () => {
+      try {
+        const results = await geoService.buscarSugestoesEndereco(query);
+        setSuggestions(results);
+        setIsOpen(results.length > 0);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 400);
   };
 
-  const handleSelect = (item: SugestaoEndereco) => {
-    onChange(item.displayName);
-    onSelectAddress?.(item);
+  const handleSelect = (suggestion: SugestaoEndereco) => {
+    const mainText = [suggestion.logradouro, suggestion.bairro, suggestion.cidade]
+      .filter(Boolean)
+      .join(', ') || suggestion.displayName;
+
+    onChange(mainText);
+    onSelectAddress?.(suggestion);
     setIsOpen(false);
   };
 
@@ -81,7 +94,7 @@ export const AddressAutocomplete = ({
           disabled={disabled}
           error={error}
           leftIcon={leftIcon}
-          rightIcon={isLoading ? <div className={styles.loadingSpinner} /> : undefined}
+          rightIcon={isLoading ? <Spinner size="xs" variant="primary" /> : undefined}
           autoComplete="off"
         />
 

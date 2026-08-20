@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../common';
 import { useAuthStore } from '../../../stores/authStore';
+import { usePermissions } from '../../../hooks/usePermissions';
+import type { UserProfile } from '../../../types/profile.types';
 import styles from './Sidebar.module.css';
 import CorridasIcon from '../../../assets/icons/corridas.svg?react';
 import ContratosIcon from '../../../assets/icons/contratos.svg?react';
@@ -14,7 +16,6 @@ import PrecoAuditoriaIcon from '../../../assets/icons/preco-auditoria.svg?react'
 import SolicitacoesIcon from '../../../assets/icons/solicitacoes.svg?react';
 import CalendarioIcon from '../../../assets/icons/calendario.svg?react';
 import HistoricoIcon from '../../../assets/icons/historico.svg?react';
-import HomeIcon from '../../../assets/icons/home.svg?react';
 import TerceirosIcon from '../../../assets/icons/terceiros.svg?react';
 import FornecedoresIcon from '../../../assets/icons/fornecedores.svg?react';
 import SairIcon from '../../../assets/icons/sair.svg?react';
@@ -28,6 +29,7 @@ interface MenuItem {
   path?: string;
   submenu?: SubMenuItem[];
   badge?: string;
+  allowedProfiles?: UserProfile[];
 }
 
 interface SubMenuItem {
@@ -35,6 +37,7 @@ interface SubMenuItem {
   label: string;
   icon?: React.ReactNode;
   path: string;
+  allowedProfiles?: UserProfile[];
 }
 
 const ArrowIcon = ({ className = '', size = 20 }: { className?: string; size?: number }) => (
@@ -48,21 +51,16 @@ const ArrowIcon = ({ className = '', size = 20 }: { className?: string; size?: n
   />
 );
 
-const menuItems: MenuItem[] = [
-  {
-    id: 'home',
-    label: 'Home',
-    icon: <HomeIcon />,
-    path: '/home',
-  },
+const allMenuItems: MenuItem[] = [
   {
     id: 'dashboards',
     label: 'Dashboards',
     icon: <DashboardsIcon />,
+    allowedProfiles: ['admin-master', 'admin-filial', 'admin', 'aprovador'],
     submenu: [
-      { id: 'visao-executiva', label: 'Visão executiva', icon: <AlvoIcon />, path: '/visao-executiva' },
-      { id: 'gastos', label: 'Gastos', icon: <GastosIcon />, path: '/gastos' },
-      { id: 'preco-auditoria', label: 'Preço & Auditoria', icon: <PrecoAuditoriaIcon />, path: '/preco-auditoria' },
+      { id: 'visao-executiva', label: 'Visão executiva', icon: <AlvoIcon />, path: '/visao-executiva', allowedProfiles: ['admin-master', 'admin-filial', 'admin'] },
+      { id: 'gastos', label: 'Gastos', icon: <GastosIcon />, path: '/gastos', allowedProfiles: ['admin-master', 'admin-filial', 'admin', 'aprovador'] },
+      { id: 'preco-auditoria', label: 'Preço & Auditoria', icon: <PrecoAuditoriaIcon />, path: '/preco-auditoria', allowedProfiles: ['admin-master', 'admin-filial', 'admin'] },
     ],
   },
   {
@@ -79,6 +77,7 @@ const menuItems: MenuItem[] = [
     id: 'terceiros',
     label: 'Terceiros',
     icon: <TerceirosIcon />,
+    allowedProfiles: ['admin-master', 'admin-filial', 'admin-fornecedor', 'admin', 'fornecedor'],
     submenu: [
       { id: 'fornecedores', label: 'Fornecedores', icon: <FornecedoresIcon />, path: '/terceiros/fornecedores' },
       { id: 'contratos-terceiros', label: 'Contratos', icon: <ContratosIcon />, path: '/terceiros/contratos' },
@@ -88,12 +87,14 @@ const menuItems: MenuItem[] = [
     id: 'colaboradores',
     label: 'Colaboradores',
     icon: <ColaboradoresIcon />,
+    allowedProfiles: ['admin-master', 'admin-filial', 'admin'],
     path: '/colaboradores',
   },
   {
     id: 'filiais',
     label: 'Filiais',
     icon: <FiliaisIcon />,
+    allowedProfiles: ['admin-master', 'admin'],
     path: '/filiais',
   },
 ];
@@ -104,13 +105,30 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
-  const [openMenus, setOpenMenus] = useState<string[]>(['dashboards']);
+  const { hasProfile, isRequester } = usePermissions();
+  const [openMenus, setOpenMenus] = useState<string[]>(() => isRequester ? ['corridas'] : ['dashboards']);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
 
+  const visibleMenuItems = useMemo(() => {
+    return allMenuItems.filter((item) => {
+      if (item.allowedProfiles && !hasProfile(item.allowedProfiles)) {
+        return false;
+      }
+      return true;
+    }).map((item) => {
+      if (item.submenu) {
+        return {
+          ...item,
+          submenu: item.submenu.filter((sub) => !sub.allowedProfiles || hasProfile(sub.allowedProfiles)),
+        };
+      }
+      return item;
+    });
+  }, [hasProfile]);
   const userName = user?.name || 'Usuário';
   const userEmail = user?.email || 'usuario@email.com';
   const userInitials = userName.split(' ').filter(Boolean).map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
@@ -161,7 +179,7 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
 
       <nav className={styles.nav}>
         <ul className={styles.menuList}>
-          {menuItems.map((item) => (
+          {visibleMenuItems.map((item) => (
             <li key={item.id} className={styles.menuItem}>
               {item.submenu ? (
                 <>

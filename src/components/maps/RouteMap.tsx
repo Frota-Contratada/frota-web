@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import { Spinner } from '../common';
 import { originIcon, destinationIcon, stopIcon } from './mapIcons';
 import { routingService, type RoutePoint, type RouteResult } from '../../services/maps/routingService';
 import styles from './RouteMap.module.css';
@@ -110,7 +111,7 @@ export const RouteMap = ({
 
       {isLoading && (
         <div className={styles.loadingOverlay}>
-          <div className={styles.spinner} />
+          <Spinner size="sm" variant="primary" />
           <span>Calculando melhor rota...</span>
         </div>
       )}

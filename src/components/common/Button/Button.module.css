@@ -95,7 +95,18 @@
 
 .loading {
   position: relative;
-  color: transparent;
+  color: transparent !important;
+  pointer-events: none;
+}
+
+.spinnerWrapper {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .spinner {

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import SetaSmIcon from '../../../assets/icons/seta-sm.svg?react';
+import { Skeleton } from '../Skeleton/Skeleton';
 import styles from './Table.module.css';
 
 export type SortDirection = 'asc' | 'desc';
@@ -37,6 +38,8 @@ interface TableProps<T> {
   pagination?: PaginationProps;
   onSortChange?: (sort: SortState | null) => void;
   emptyMessage?: string;
+  isLoading?: boolean;
+  loadingRows?: number;
 }
 
 function buildPages(current: number, total: number): (number | '...')[] {
@@ -76,6 +79,8 @@ export function Table<T>({
   pagination,
   onSortChange,
   emptyMessage = 'Nenhum registro encontrado.',
+  isLoading = false,
+  loadingRows = 5,
 }: TableProps<T>) {
   const [sort, setSort] = useState<SortState | null>(null);
 
@@ -94,7 +99,6 @@ export function Table<T>({
   };
 
   const sortedData = useMemo(() => {
-
     if (!sort || onSortChange) return data;
 
     return [...data].sort((a, b) => {
@@ -139,7 +143,27 @@ export function Table<T>({
           </tr>
         </thead>
         <tbody>
-          {sortedData.length === 0 ? (
+          {isLoading ? (
+            Array.from({ length: loadingRows }, (_, rowIndex) => (
+              <tr key={`skeleton-row-${rowIndex}`} className={styles.tr}>
+                {columns.map((_, colIndex) => {
+                  // Varied widths for realistic skeleton feel
+                  const widths = ['80%', '60%', '90%', '45%', '70%'];
+                  const width = widths[(rowIndex + colIndex) % widths.length];
+                  return (
+                    <td key={`skeleton-cell-${colIndex}`} className={styles.td}>
+                      <Skeleton width={width} height={16} />
+                    </td>
+                  );
+                })}
+                {hasActions && (
+                  <td className={`${styles.td} ${styles.actionsCell}`}>
+                    <Skeleton variant="circular" width={28} height={28} />
+                  </td>
+                )}
+              </tr>
+            ))
+          ) : sortedData.length === 0 ? (
             <tr>
               <td colSpan={totalCols} className={styles.empty}>
                 {emptyMessage}
