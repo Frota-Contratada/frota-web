@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Input, Select, useToast } from '../../components/common';
-import { branchApi, supplierApi, type FilialDto } from '../../services';
+import { Button, Input, LoadingState, Select, useToast } from '../../components/common';
+import { branchApi, supplierApi, extractListData, type FilialDto } from '../../services';
 import { formatDocument } from './suppliersData';
 import styles from '../Rides/RideReview.module.css';
 
@@ -18,6 +18,7 @@ export const SupplierEdit = () => {
   const { showToast } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [branchesList, setBranchesList] = useState<FilialDto[]>([]);
   const [form, setForm] = useState({
     name: '',
@@ -30,9 +31,11 @@ export const SupplierEdit = () => {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    setIsInitialLoading(true);
     branchApi.list().then((res) => {
-      if (res.response && Array.isArray(res.response)) {
-        setBranchesList(res.response);
+      const branches = extractListData<FilialDto>(res);
+      if (branches.length > 0) {
+        setBranchesList(branches);
       }
     }).catch(() => {});
 
@@ -52,7 +55,11 @@ export const SupplierEdit = () => {
         const message = err instanceof Error ? err.message : 'Erro ao carregar fornecedor';
         showToast({ type: 'error', title: message });
         navigate('/terceiros/fornecedores');
+      }).finally(() => {
+        setIsInitialLoading(false);
       });
+    } else {
+      setIsInitialLoading(false);
     }
   }, [supplierId, navigate, showToast]);
 
@@ -89,6 +96,18 @@ export const SupplierEdit = () => {
       navigate(`/terceiros/fornecedores/${supplierId}`);
     }, 400);
   };
+
+  if (isInitialLoading) {
+    return (
+      <div className={styles.page}>
+        <LoadingState
+          variant="card"
+          message="Carregando dados do fornecedor"
+          submessage="Preparando formulário de edição..."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>

@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import CheckIcon from '../../assets/icons/check.svg?react';
 import IaIcon from '../../assets/icons/ia.svg?react';
-import { contracts } from './contractsData';
+import { LoadingState, useToast, type BadgeStatus } from '../../components/common';
+import { contractApi, type ContratoDto } from '../../services';
+import { contracts, type Contract } from './contractsData';
 import styles from './Contracts.module.css';
 
 type ExtractedField = {
@@ -21,13 +23,91 @@ const buildPreviewPages = (current: number, total: number): (number | '...')[] =
   return [1, '...', current - 1, current, current + 1, '...', total];
 };
 
+const mapContractStatus = (status?: string): BadgeStatus => {
+  const s = status?.toLowerCase();
+  if (s === 'ativo' || s === 'aprovado') return 'aprovado';
+  if (s === 'pendente') return 'pendente';
+  if (s === 'cancelado' || s === 'inativo') return 'cancelado';
+  return 'em_andamento';
+};
+
 export const ContractDetails = () => {
   const { contractId } = useParams();
-  const contract = contracts.find((item) => item.id === Number(contractId));
+  const navigate = useNavigate();
+  const { showToast } = useToast();
   const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [contract, setContract] = useState<Contract | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const localContract = contracts.find((item) => String(item.id) === String(contractId));
+
+    if (contractId && !isNaN(Number(contractId))) {
+      contractApi
+        .getById(Number(contractId))
+        .then((res) => {
+          if (!isMounted) return;
+          if (res.response) {
+            const c: ContratoDto = res.response;
+            setContract({
+              id: c.id,
+              codigo: `CTR-${String(c.id).padStart(4, '0')}`,
+              fornecedor: c.fornecedorNome || `Fornecedor #${c.fornecedorId}`,
+              tipo: c.tipoContrato || 'Transporte executivo',
+              inicio: c.dataInicioVigencia ? new Date(c.dataInicioVigencia).toLocaleDateString('pt-BR') : '01/01/2026',
+              vencimento: c.dataFimVigencia ? new Date(c.dataFimVigencia).toLocaleDateString('pt-BR') : 'Indeterminado',
+              valorMensal: c.valorMensal ? `R$ ${Number(c.valorMensal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00',
+              responsavel: 'Gestor de Contratos',
+              status: mapContractStatus(c.status),
+              arquivo: c.nomeArquivo || (c.arquivoUrl ? c.arquivoUrl.split('/').pop() || 'contrato.pdf' : 'contrato.pdf'),
+              escopo: c.descricao || 'Prestação de serviços de transporte e mobilidade.',
+              sla: '95% de atendimento no prazo combinado.',
+              reajuste: 'IPCA anual.',
+            });
+          } else if (localContract) {
+            setContract(localContract);
+          }
+        })
+        .catch(() => {
+          if (!isMounted) return;
+          if (localContract) {
+            setContract(localContract);
+          } else {
+            showToast({ type: 'warning', title: 'Contrato não encontrado', description: 'Redirecionando para a lista de contratos.' });
+            navigate('/terceiros/contratos', { replace: true });
+          }
+        })
+        .finally(() => {
+          if (isMounted) setIsLoading(false);
+        });
+    } else if (localContract) {
+      setContract(localContract);
+      setIsLoading(false);
+    } else {
+      setIsLoading(false);
+      navigate('/terceiros/contratos', { replace: true });
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [contractId, navigate, showToast]);
+
+  if (isLoading) {
+    return (
+      <div className={styles.contractReaderPage}>
+        <LoadingState
+          variant="card"
+          message="Carregando contrato"
+          submessage="Buscando arquivo e parâmetros..."
+        />
+      </div>
+    );
+  }
 
   if (!contract) {
-    return <Navigate to="/terceiros/contratos" replace />;
+    return null;
   }
 
   const previewPages = buildPreviewPages(currentPage, TOTAL_PREVIEW_PAGES);

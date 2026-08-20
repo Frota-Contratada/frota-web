@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, StatusBadge, useToast } from '../../components/common';
+import { Button, LoadingState, StatusBadge, useToast } from '../../components/common';
 import { supplierApi, type FornecedorDto } from '../../services';
 import { formatDocument } from './suppliersData';
 import styles from './Suppliers.module.css';
@@ -38,7 +38,11 @@ export const SupplierDetails = () => {
   if (isLoading) {
     return (
       <div className={styles.page}>
-        <p style={{ padding: '2rem', color: 'var(--text-muted)' }}>Carregando dados do fornecedor...</p>
+        <LoadingState
+          variant="card"
+          message="Carregando dados do fornecedor"
+          submessage="Buscando histórico e vínculos..."
+        />
       </div>
     );
   }

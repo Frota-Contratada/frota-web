@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Input, Select, useToast } from '../../components/common';
+import { Button, Input, LoadingState, Select, useToast } from '../../components/common';
 import { LocationPickerMap } from '../../components/maps';
 import { branchApi, geoService } from '../../services';
 import styles from '../Rides/RideReview.module.css';
@@ -23,6 +23,7 @@ export const BranchEdit = () => {
   const { showToast } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isSearchingCep, setIsSearchingCep] = useState(false);
   const [form, setForm] = useState({
     name: '',
@@ -42,6 +43,7 @@ export const BranchEdit = () => {
 
   useEffect(() => {
     if (branchId && !isNaN(Number(branchId))) {
+      setIsInitialLoading(true);
       branchApi.getById(Number(branchId)).then((res) => {
         if (res.response) {
           const b = res.response;
@@ -59,9 +61,16 @@ export const BranchEdit = () => {
             longitude: b.endereco?.longitude || -48.6619,
           });
         }
-      }).catch(() => {});
+      }).catch((err) => {
+        const message = err instanceof Error ? err.message : 'Erro ao carregar filial';
+        showToast({ type: 'error', title: message });
+      }).finally(() => {
+        setIsInitialLoading(false);
+      });
+    } else {
+      setIsInitialLoading(false);
     }
-  }, [branchId]);
+  }, [branchId, showToast]);
 
   const updateField = (field: keyof typeof form, value: string | number) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -158,6 +167,18 @@ export const BranchEdit = () => {
       setIsLoading(false);
     }
   };
+
+  if (isInitialLoading) {
+    return (
+      <div className={styles.page}>
+        <LoadingState
+          variant="card"
+          message="Carregando dados da filial"
+          submessage="Preparando formulário de edição..."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>

@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select, useToast } from '../../components/common';
-import { branchApi, driverApi, supplierApi, type FornecedorDto, type FilialDto } from '../../services';
+import { branchApi, driverApi, supplierApi, extractListData, type FornecedorDto, type FilialDto } from '../../services';
 import styles from '../Rides/RideReview.module.css';
 import localStyles from './EmployeeCreate.module.css';
 
@@ -14,11 +14,6 @@ const roleOptions = [
   { label: 'Assistente', value: 'Assistente' },
 ];
 
-const connectionTypeOptions = [
-  { label: 'Filial (Interno)', value: 'filial' },
-  { label: 'Fornecedor (Terceirizado)', value: 'fornecedor' },
-];
-
 export const EmployeeCreate = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -29,15 +24,17 @@ export const EmployeeCreate = () => {
 
   useEffect(() => {
     supplierApi.list().then((res) => {
-      if (res.response && Array.isArray(res.response) && res.response.length > 0) {
-        setSuppliersList(res.response);
-        setSelectedFornecedorId(res.response[0].id);
+      const suppliers = extractListData<FornecedorDto>(res);
+      if (suppliers.length > 0) {
+        setSuppliersList(suppliers);
+        setSelectedFornecedorId(suppliers[0].id);
       }
     }).catch(() => {});
 
     branchApi.list().then((res) => {
-      if (res.response && Array.isArray(res.response)) {
-        setBranchesList(res.response);
+      const branches = extractListData<FilialDto>(res);
+      if (branches.length > 0) {
+        setBranchesList(branches);
       }
     }).catch(() => {});
   }, []);
@@ -213,34 +210,22 @@ export const EmployeeCreate = () => {
               disabled={isLoading}
             />
 
-            <Select
-              label="Tipo de vínculo"
-              value={form.connectionType}
-              options={connectionTypeOptions}
-              onChange={(val) => {
-                updateField('connectionType', val);
-                updateField('branch', '');
-                updateField('supplier', '');
-              }}
-              required
-            />
-
-            {form.connectionType === 'filial' ? (
-              <Select
-                label="Filial de trabalho"
-                placeholder="Selecione a filial"
-                value={form.branch}
-                options={branchOptions}
-                onChange={(val) => updateField('branch', val)}
-                required
-              />
-            ) : (
+            {form.role === 'Motorista' ? (
               <Select
                 label="Fornecedor associado"
                 placeholder="Selecione o fornecedor"
                 value={form.supplier}
                 options={supplierOptions}
                 onChange={(val) => updateField('supplier', val)}
+                required
+              />
+            ) : (
+              <Select
+                label="Filial de trabalho"
+                placeholder="Selecione a filial"
+                value={form.branch}
+                options={branchOptions}
+                onChange={(val) => updateField('branch', val)}
                 required
               />
             )}

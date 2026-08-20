@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select, useToast } from '../../components/common';
-import { branchApi, supplierApi, type FilialDto } from '../../services';
+import { branchApi, supplierApi, extractListData, type FilialDto } from '../../services';
 import styles from '../Rides/RideReview.module.css';
 import contractsStyles from '../Contracts/Contracts.module.css';
 
@@ -14,9 +14,10 @@ export const SupplierCreate = () => {
 
   useEffect(() => {
     branchApi.list().then((res) => {
-      if (res.response && Array.isArray(res.response) && res.response.length > 0) {
-        setBranchesList(res.response);
-        setSelectedFilialId(res.response[0].id);
+      const branches = extractListData<FilialDto>(res);
+      if (branches.length > 0) {
+        setBranchesList(branches);
+        setSelectedFilialId(branches[0].id);
       }
     }).catch(() => {});
   }, []);

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../components/common';
+import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction, type BadgeStatus } from '../../components/common';
 import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
-import { supplierApi } from '../../services';
+import { supplierApi, extractListData, type FornecedorDto, type FornecedorBigNumbers } from '../../services';
 import { formatDocument, type Supplier } from './suppliersData';
 import styles from './Suppliers.module.css';
 
@@ -78,30 +78,72 @@ export const SuppliersList = () => {
   const [query, setQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [suppliersList, setSuppliersList] = useState<Supplier[]>([]);
+  const [bigNumbers, setBigNumbers] = useState<FornecedorBigNumbers | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    supplierApi.list()
-      .then((res) => {
-        if (res.response && Array.isArray(res.response)) {
-          const apiSuppliers: Supplier[] = res.response.map((s) => ({
-            id: s.id,
-            name: s.nome,
-            document: s.cnpjCpf,
-            filePath: null,
-            activatedAt: '01/01/2026',
-            deactivatedAt: null,
-            linkedBranches: 1,
-            linkedContracts: 1,
-            vehicles: 0,
-            status: 'aprovado',
-          }));
+    let isMounted = true;
+    setIsLoading(true);
+
+    Promise.allSettled([
+      supplierApi.list(),
+      supplierApi.getAdminBigNumbers().catch(() => supplierApi.getFilialBigNumbers()),
+    ])
+      .then(([suppliersRes, bigNumbersRes]) => {
+        if (!isMounted) return;
+
+        if (bigNumbersRes.status === 'fulfilled' && bigNumbersRes.value.response) {
+          setBigNumbers(bigNumbersRes.value.response);
+        }
+
+        if (suppliersRes.status === 'fulfilled') {
+          const apiSuppliersData = extractListData<FornecedorDto>(suppliersRes.value);
+          const apiSuppliers: Supplier[] = apiSuppliersData.map((s) => {
+            let badgeStatus: BadgeStatus = 'em_andamento';
+            if (s.ativo === true) {
+              badgeStatus = 'aprovado';
+            } else if (s.ativo === false) {
+              badgeStatus = 'cancelado';
+            } else if (s.status) {
+              const raw = s.status.toLowerCase();
+              if (raw === 'ativo' || raw === 'aprovado') badgeStatus = 'aprovado';
+              else if (raw === 'pendente') badgeStatus = 'pendente';
+              else if (raw === 'cancelado' || raw === 'inativo') badgeStatus = 'cancelado';
+            }
+
+            const activeContractsCount = s.contratosVigentes ? s.contratosVigentes.length : (s.totalContratos ?? 0);
+            const vehiclesCount = s.quantidadeVeiculosAtivos ?? s.totalMotoristas ?? 0;
+            const activationDate = s.dataAtivacao
+              ? new Date(s.dataAtivacao).toLocaleDateString('pt-BR')
+              : '—';
+
+            return {
+              id: s.id,
+              name: s.nome,
+              document: s.cnpjCpf,
+              filePath: s.foto || null,
+              activatedAt: activationDate,
+              deactivatedAt: s.ativo === false ? 'Sim' : null,
+              linkedBranches: s.contratosVigentes ? s.contratosVigentes.length : 1,
+              linkedContracts: activeContractsCount,
+              vehicles: vehiclesCount,
+              status: badgeStatus,
+            };
+          });
           setSuppliersList(apiSuppliers);
         }
       })
       .catch((err) => {
         const message = err instanceof Error ? err.message : 'Erro ao buscar fornecedores';
         showToast({ type: 'error', title: message });
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
       });
+
+    return () => {
+      isMounted = false;
+    };
   }, [showToast]);
 
   const filteredSuppliers = useMemo(() => {
@@ -149,10 +191,28 @@ export const SuppliersList = () => {
   return (
     <div className={styles.page}>
       <section className={styles.statsGrid} aria-label="Resumo de fornecedores">
-        <StatCard title="Fornecedores ativos" value={String(activeSuppliers)} trend={{ value: 6, direction: 'up', label: 'vs. mês anterior' }} />
-        <StatCard title="Com contrato" value={String(suppliersWithContracts)} />
-        <StatCard title="Veículos vinculados" value={String(totalVehicles)} trend={{ value: 4.5, direction: 'up', label: 'vs. mês anterior' }} />
-        <StatCard title="Documentos pendentes" value={String(pendingDocuments)} />
+        <StatCard
+          title="Fornecedores ativos"
+          value={String(bigNumbers?.fornecedoresAtivos ?? bigNumbers?.totalFornecedores ?? activeSuppliers)}
+          trend={{ value: 6, direction: 'up', label: 'vs. mês anterior' }}
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Contratos ativos"
+          value={String(bigNumbers?.fornecedoresComContratoVigente ?? bigNumbers?.totalContratosAtivos ?? suppliersWithContracts)}
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Motoristas vinculados"
+          value={String(bigNumbers?.veiculosAtivos ?? bigNumbers?.totalMotoristas ?? totalVehicles)}
+          trend={{ value: 4.5, direction: 'up', label: 'vs. mês anterior' }}
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Documentos pendentes"
+          value={String(pendingDocuments)}
+          isLoading={isLoading}
+        />
       </section>
 
       <section className={styles.tableSection}>
@@ -183,6 +243,7 @@ export const SuppliersList = () => {
           keyExtractor={(supplier) => supplier.id}
           actions={actions}
           emptyMessage="Nenhum fornecedor encontrado."
+          isLoading={isLoading}
           pagination={{ currentPage, totalPages, onPageChange: setCurrentPage }}
         />
       </section>

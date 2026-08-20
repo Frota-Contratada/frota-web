@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../components/common';
 import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
-import { branchApi } from '../../services';
+import { branchApi, extractListData, type FilialDto } from '../../services';
 import { type Branch } from './listingsData';
 import styles from './Listings.module.css';
 
@@ -70,33 +70,37 @@ export const BranchesList = () => {
   const [query, setQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [branchesList, setBranchesList] = useState<Branch[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    setIsLoading(true);
     branchApi.list()
       .then((res) => {
-        if (res.response && Array.isArray(res.response)) {
-          const apiBranches: Branch[] = res.response.map((b) => ({
-            id: b.id,
-            name: b.nome,
-            cnpj: b.cnpj,
-            zipCode: b.endereco?.cep || '',
-            address: b.endereco?.logradouro || '',
-            neighborhood: b.endereco?.bairro || '',
-            city: b.endereco?.cidade || '',
-            state: b.endereco?.uf || 'SC',
-            costCenters: 1,
-            suppliers: 0,
-            requests: 0,
-            activatedAt: '2026-01-01',
-            deactivatedAt: null,
-            status: 'aprovado',
-          }));
-          setBranchesList(apiBranches);
-        }
+        const branches = extractListData<FilialDto>(res);
+        const apiBranches: Branch[] = branches.map((b) => ({
+          id: b.id,
+          name: b.nome,
+          cnpj: b.cnpj,
+          zipCode: b.endereco?.cep || '',
+          address: b.endereco?.logradouro ? `${b.endereco.logradouro}${b.endereco.numero ? `, ${b.endereco.numero}` : ''}` : '',
+          neighborhood: b.endereco?.bairro || '',
+          city: b.endereco?.cidade || '',
+          state: b.endereco?.uf || 'SC',
+          costCenters: 0,
+          suppliers: 0,
+          requests: 0,
+          activatedAt: '—',
+          deactivatedAt: null,
+          status: 'aprovado',
+        }));
+        setBranchesList(apiBranches);
       })
       .catch((err) => {
         const message = err instanceof Error ? err.message : 'Erro ao buscar filiais';
         showToast({ type: 'error', title: message });
+      })
+      .finally(() => {
+        setIsLoading(false);
       });
   }, [showToast]);
 
@@ -145,10 +149,10 @@ export const BranchesList = () => {
   return (
     <div className={styles.page}>
       <section className={styles.statsGrid} aria-label="Resumo de filiais">
-        <StatCard title="Filiais ativas" value={String(activeBranches)} />
-        <StatCard title="Centros de custo" value={String(totalCostCenters)} trend={{ value: 4.4, direction: 'up', label: 'vs. mês anterior' }} />
-        <StatCard title="Fornecedores vinculados" value={String(totalSuppliers)} />
-        <StatCard title="Solicitações" value={String(totalRequests)} />
+        <StatCard title="Filiais ativas" value={String(activeBranches)} isLoading={isLoading} />
+        <StatCard title="Centros de custo" value={String(totalCostCenters)} trend={{ value: 4.4, direction: 'up', label: 'vs. mês anterior' }} isLoading={isLoading} />
+        <StatCard title="Fornecedores vinculados" value={String(totalSuppliers)} isLoading={isLoading} />
+        <StatCard title="Solicitações" value={String(totalRequests)} isLoading={isLoading} />
       </section>
 
       <section className={styles.tableSection}>
@@ -179,6 +183,7 @@ export const BranchesList = () => {
           keyExtractor={(branch) => branch.id}
           actions={actions}
           emptyMessage="Nenhuma filial encontrada."
+          isLoading={isLoading}
           pagination={{ currentPage, totalPages, onPageChange: setCurrentPage }}
         />
       </section>

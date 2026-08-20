@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../components/common';
 import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
-import { rideHistory, type RideHistory, type RideStatus } from './listingsData';
+import { type RideHistory, type RideStatus } from './listingsData';
+import { ridesApi, extractListData, type SolicitacaoDto } from '../../services';
 import styles from './Listings.module.css';
 
 const PAGE_SIZE = 5;
@@ -68,13 +69,75 @@ export const RideHistoryList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [query, setQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [historyList, setHistoryList] = useState<RideHistory[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+
+    ridesApi.getViagens()
+      .then((res) => {
+        if (!isMounted) return;
+        const apiData = extractListData<SolicitacaoDto>(res);
+        const mapped: RideHistory[] = apiData.map((s, idx) => {
+          const rawStatus = (s.corrida?.status || s.status || 'FINALIZADA').toUpperCase();
+          let status: RideStatus = 'F';
+          if (rawStatus.includes('INIC') || rawStatus.includes('ANDAMENTO') || s.emAndamento) status = 'I';
+          else if (rawStatus.includes('CANCEL')) status = 'C';
+
+          const driverName = s.corrida?.motoristaNome || '—';
+          const supplierName = s.fornecedorNome || (s.fornecedorId ? `Fornecedor #${s.fornecedorId}` : '—');
+          const plate = s.corrida?.placaVeiculo || '—';
+          const vehicleName = s.tipoVeiculo?.nome || s.tipoCorrida?.nome || 'Veículo Padrão';
+          const startTime = s.corrida?.dataInicio
+            ? new Date(s.corrida.dataInicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+            : s.dataCorrida
+            ? new Date(s.dataCorrida).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+            : '—';
+          const finishTime = s.corrida?.dataFim
+            ? new Date(s.corrida.dataFim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+            : null;
+          const distance = s.corrida?.kmPercorrido ?? s.distanciaEstimadaKm ?? s.distanciaKm ?? 0;
+          const totalVal = s.corrida?.valorFinal ?? s.valorEstimado ?? 0;
+          const formattedVal = totalVal ? `R$ ${Number(totalVal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00';
+
+          return {
+            id: s.corrida?.id || s.id || idx + 1,
+            requestId: s.id || idx + 1,
+            driver: driverName,
+            supplier: supplierName,
+            vehiclePlate: plate,
+            vehicleType: vehicleName,
+            startedAt: startTime,
+            finishedAt: finishTime,
+            distanceKm: distance,
+            finalValue: formattedVal,
+            extraExpenses: 'R$ 0,00',
+            status,
+          };
+        });
+        setHistoryList(mapped);
+      })
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : 'Erro ao buscar histórico de viagens';
+        showToast({ type: 'error', title: message });
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [showToast]);
 
   const filteredRides = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
     const statusFilters = selectedFilters.filter((filter) => filter.startsWith('status:')).map((filter) => filter.replace('status:', ''));
     const vehicleFilters = selectedFilters.filter((filter) => filter.startsWith('veiculo:')).map((filter) => filter.replace('veiculo:', ''));
 
-    return rideHistory.filter((ride) => {
+    return historyList.filter((ride) => {
       const matchesQuery =
         normalizedQuery.length === 0 ||
         String(ride.id).includes(normalizedQuery) ||
@@ -87,12 +150,12 @@ export const RideHistoryList = () => {
 
       return matchesQuery && matchesStatus && matchesVehicle;
     });
-  }, [query, selectedFilters]);
+  }, [historyList, query, selectedFilters]);
 
-  const activeRides = rideHistory.filter((ride) => ride.status === 'I').length;
-  const finishedRides = rideHistory.filter((ride) => ride.status === 'F').length;
-  const totalKm = rideHistory.reduce((total, ride) => total + ride.distanceKm, 0);
-  const ridesWithExpenses = rideHistory.filter((ride) => ride.extraExpenses !== 'R$ 0,00').length;
+  const activeRides = historyList.filter((ride) => ride.status === 'I').length;
+  const finishedRides = historyList.filter((ride) => ride.status === 'F').length;
+  const totalKm = historyList.reduce((total, ride) => total + ride.distanceKm, 0);
+  const ridesWithExpenses = historyList.filter((ride) => ride.extraExpenses !== 'R$ 0,00').length;
   const totalPages = Math.max(1, Math.ceil(filteredRides.length / PAGE_SIZE));
   const pageData = filteredRides.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
@@ -107,10 +170,10 @@ export const RideHistoryList = () => {
   return (
     <div className={styles.page}>
       <section className={styles.statsGrid} aria-label="Resumo do histórico de corridas">
-        <StatCard title="Em andamento" value={String(activeRides)} />
-        <StatCard title="Finalizadas" value={String(finishedRides)} trend={{ value: 5.2, direction: 'up', label: 'vs. mês anterior' }} />
-        <StatCard title="KM percorridos" value={totalKm.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} />
-        <StatCard title="Com despesas" value={String(ridesWithExpenses)} />
+        <StatCard title="Em andamento" value={String(activeRides)} isLoading={isLoading} />
+        <StatCard title="Finalizadas" value={String(finishedRides)} trend={{ value: 5.2, direction: 'up', label: 'vs. mês anterior' }} isLoading={isLoading} />
+        <StatCard title="KM percorridos" value={totalKm.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} isLoading={isLoading} />
+        <StatCard title="Com despesas" value={String(ridesWithExpenses)} isLoading={isLoading} />
       </section>
 
       <section className={styles.tableSection}>
@@ -140,6 +203,7 @@ export const RideHistoryList = () => {
           keyExtractor={(ride) => ride.id}
           actions={actions}
           emptyMessage="Nenhuma corrida encontrada."
+          isLoading={isLoading}
           pagination={{ currentPage, totalPages, onPageChange: setCurrentPage }}
         />
       </section>

@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StatusBadge, type BadgeStatus } from '../../components/common';
 import SetaDireitaIcon from '../../assets/icons/seta-direita.svg?react';
 import SetaSmIcon from '../../assets/icons/seta-sm.svg?react';
+import { ridesApi, extractListData, type SolicitacaoDto } from '../../services';
 import styles from './Calendar.module.css';
 
 type CalendarView = 'month' | 'week';
@@ -34,80 +35,7 @@ const MONTH_LABELS = [
   'Dezembro',
 ];
 
-const rides: Ride[] = [
-  {
-    id: 1,
-    date: '2026-04-02',
-    time: '08:30',
-    requester: 'Lara Jean',
-    origin: 'Filial Centro',
-    destination: 'Residência',
-    status: 'realizada',
-  },
-  {
-    id: 2,
-    date: '2026-04-05',
-    time: '14:00',
-    requester: 'Juliana Cardoso',
-    origin: 'Seara JBS',
-    destination: 'Cliente externo',
-    status: 'realizada',
-  },
-  {
-    id: 3,
-    date: '2026-04-11',
-    time: '09:15',
-    requester: 'Brenda Carvalho',
-    origin: 'Filial Norte',
-    destination: 'Filial Sul',
-    status: 'agendada',
-  },
-  {
-    id: 4,
-    date: '2026-04-11',
-    time: '13:30',
-    requester: 'Marcelo Modolo',
-    origin: 'Filial Centro',
-    destination: 'Farmácia credenciada',
-    status: 'agendada',
-  },
-  {
-    id: 5,
-    date: '2026-04-11',
-    time: '17:45',
-    requester: 'Clara Leão',
-    origin: 'Seara JBS',
-    destination: 'Residência',
-    status: 'agendada',
-  },
-  {
-    id: 6,
-    date: '2026-04-13',
-    time: '11:40',
-    requester: 'Maria Julia',
-    origin: 'Seara JBS',
-    destination: 'Aeroporto',
-    status: 'agendada',
-  },
-  {
-    id: 7,
-    date: '2026-04-18',
-    time: '16:10',
-    requester: 'Ana Paula',
-    origin: 'Filial Oeste',
-    destination: 'Reunião externa',
-    status: 'agendada',
-  },
-  {
-    id: 8,
-    date: '2026-04-22',
-    time: '10:20',
-    requester: 'Carlos Henrique',
-    origin: 'Seara JBS',
-    destination: 'Fornecedor',
-    status: 'cancelada',
-  },
-];
+
 
 const toIsoDate = (date: Date) => {
   const year = date.getFullYear();
@@ -166,13 +94,46 @@ export const Calendar = () => {
   const [visibleDate, setVisibleDate] = useState(today);
   const [selectedDate, setSelectedDate] = useState(() => toIsoDate(today));
   const [viewMode, setViewMode] = useState<CalendarView>('month');
+  const [ridesList, setRidesList] = useState<Ride[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    ridesApi.list()
+      .then((res) => {
+        if (!isMounted) return;
+        const apiData = extractListData<SolicitacaoDto>(res);
+        const mapped: Ride[] = apiData.map((s) => {
+          const rideDate = s.dataCorrida ? new Date(s.dataCorrida) : new Date();
+          const rawStatus = (s.status || 'PENDENTE').toUpperCase();
+          let status: RideStatus = 'agendada';
+          if (rawStatus.includes('FINALIZ') || rawStatus.includes('CONCLU')) status = 'realizada';
+          else if (rawStatus.includes('CANCEL')) status = 'cancelada';
+
+          return {
+            id: s.id,
+            date: toIsoDate(rideDate),
+            time: rideDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            requester: s.solicitanteNome || 'Solicitante',
+            origin: s.origem?.logradouro || 'Origem',
+            destination: s.destino?.logradouro || 'Destino',
+            status,
+          };
+        });
+        setRidesList(mapped);
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const calendarDays = useMemo(
     () => (viewMode === 'month' ? buildCalendarDays(visibleDate) : buildWeekDays(visibleDate)),
     [viewMode, visibleDate]
   );
   const calendarRows = viewMode === 'month' ? calendarDays.length / 7 : 1;
-  const selectedRides = rides.filter((ride) => ride.date === selectedDate);
+  const selectedRides = ridesList.filter((ride) => ride.date === selectedDate);
   const periodLabel = viewMode === 'month'
     ? `${MONTH_LABELS[visibleDate.getMonth()]} ${visibleDate.getFullYear()}`
     : formatWeekLabel(calendarDays);
@@ -253,7 +214,7 @@ export const Calendar = () => {
         >
           {calendarDays.map((date) => {
             const isoDate = toIsoDate(date);
-            const dayRides = rides.filter((ride) => ride.date === isoDate);
+            const dayRides = ridesList.filter((ride) => ride.date === isoDate);
             const isOutsideMonth = viewMode === 'month' && date.getMonth() !== visibleDate.getMonth();
             const isSelected = selectedDate === isoDate;
 

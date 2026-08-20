@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, StatusBadge, useToast } from '../../components/common';
+import { Button, LoadingState, StatusBadge, useToast } from '../../components/common';
 import { branchApi, type FilialDto } from '../../services';
 import styles from '../Suppliers/Suppliers.module.css';
 
@@ -37,7 +37,11 @@ export const BranchDetails = () => {
   if (isLoading) {
     return (
       <div className={styles.page}>
-        <p style={{ padding: '2rem', color: 'var(--text-muted)' }}>Carregando dados da filial...</p>
+        <LoadingState
+          variant="card"
+          message="Carregando dados da filial"
+          submessage="Consultando endereço e informações cadastradas..."
+        />
       </div>
     );
   }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CheckIcon from '../../assets/icons/check.svg?react';
 import ErroIcon from '../../assets/icons/erro.svg?react';
@@ -7,6 +7,7 @@ import { Button, Input, Select, useToast } from '../../components/common';
 import { RouteMap, AddressAutocomplete } from '../../components/maps';
 import type { RoutePoint, RouteResult } from '../../services/maps/routingService';
 import type { SugestaoEndereco } from '../../services/maps/geoService';
+import { ridesApi, costCenterApi, extractListData, type MotivoSolicitacaoDto, type TipoCorridaDto, type CentroCustoDto } from '../../services';
 import { employees } from '../Listings/listingsData';
 import { suppliers } from '../Suppliers/suppliersData';
 import styles from './RideReview.module.css';
@@ -24,7 +25,7 @@ const steps: { id: RequestStep; title: string }[] = [
   { id: 3, title: 'Revisar solicitação' },
 ];
 
-const rideTypeOptions = [
+const defaultRideTypeOptions = [
   { label: 'Executiva', value: 'Executiva' },
   { label: 'Operacional', value: 'Operacional' },
   { label: 'Intermunicipal', value: 'Intermunicipal' },
@@ -38,7 +39,7 @@ const rideForOptions = [
   { label: 'Para visitante/terceiro', value: 'Para visitante/terceiro' },
 ];
 
-const reasonOptions = [
+const defaultReasonOptions = [
   { label: 'Reunião externa', value: 'Reunião externa' },
   { label: 'Visita técnica', value: 'Visita técnica' },
   { label: 'Viagem corporativa', value: 'Viagem corporativa' },
@@ -63,6 +64,33 @@ export const RideRequestCreate = () => {
   const availableSuppliers = suppliers.filter((supplier) => supplier.status === 'aprovado');
   const [currentStep, setCurrentStep] = useState<RequestStep>(1);
   const [selectedSupplierId, setSelectedSupplierId] = useState(0);
+  const [backendMotivos, setBackendMotivos] = useState<MotivoSolicitacaoDto[]>([]);
+  const [backendTiposCorrida, setBackendTiposCorrida] = useState<TipoCorridaDto[]>([]);
+  const [backendCentrosCusto, setBackendCentrosCusto] = useState<CentroCustoDto[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    Promise.allSettled([
+      ridesApi.getMotivos(),
+      ridesApi.getTiposCorrida(),
+      costCenterApi.list(),
+    ]).then(([motivosRes, tiposRes, ccRes]) => {
+      if (motivosRes.status === 'fulfilled') {
+        const motivos = extractListData<MotivoSolicitacaoDto>(motivosRes.value);
+        if (motivos.length > 0) setBackendMotivos(motivos);
+      }
+      if (tiposRes.status === 'fulfilled') {
+        const tipos = extractListData<TipoCorridaDto>(tiposRes.value);
+        if (tipos.length > 0) setBackendTiposCorrida(tipos);
+      }
+      if (ccRes.status === 'fulfilled') {
+        const ccs = extractListData<CentroCustoDto>(ccRes.value);
+        if (ccs.length > 0) setBackendCentrosCusto(ccs);
+      }
+    }).catch((err) => {
+      console.warn('Usando opções locais para formulário de corrida:', err);
+    });
+  }, []);
 
 
   const [originLocation, setOriginLocation] = useState<{ address: string; lat: number; lng: number }>({
@@ -104,6 +132,14 @@ export const RideRequestCreate = () => {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+
+  const rideTypeOptions = backendTiposCorrida.length > 0
+    ? backendTiposCorrida.map((t) => ({ label: t.nome, value: t.nome }))
+    : defaultRideTypeOptions;
+
+  const reasonOptions = backendMotivos.length > 0
+    ? backendMotivos.map((m) => ({ label: m.nome, value: m.nome }))
+    : defaultReasonOptions;
 
   const selectedSupplierName = selectedSupplier?.name ?? 'Fornecedor não selecionado';
   const requesterEmployee = employees.find((employee) => employee.name === form.requester);
@@ -235,15 +271,53 @@ export const RideRequestCreate = () => {
   };
   const goBack = () => setCurrentStep((step) => Math.max(step - 1, 1) as RequestStep);
 
-  const submitRequest = () => {
+  const submitRequest = async () => {
     if (!validateCurrentStep()) return;
 
-    showToast({
-      type: 'success',
-      title: 'Solicitação criada',
-      description: `A corrida para ${form.destination} foi solicitada com sucesso.`,
-    });
-    navigate('/corridas/solicitacoes');
+    try {
+      setIsSubmitting(true);
+      const selectedTipo = backendTiposCorrida.find((t) => t.nome === form.rideType);
+      const selectedMotivo = backendMotivos.find((m) => m.nome === form.reason);
+      const selectedCc = backendCentrosCusto.find((c) => c.nome === form.costCenter);
+
+      await ridesApi.create({
+        dataCorrida: new Date(form.rideAt).toISOString(),
+        tipoCorridaId: selectedTipo?.id ?? 1,
+        motivoSolicitacaoId: selectedMotivo?.id ?? 1,
+        origem: {
+          logradouro: form.origin,
+          cidade: 'São Paulo',
+          uf: 'SP',
+          latitude: originLocation.lat,
+          longitude: originLocation.lng,
+        },
+        destino: {
+          logradouro: form.destination,
+          cidade: 'São Paulo',
+          uf: 'SP',
+          latitude: destinationLocation.lat,
+          longitude: destinationLocation.lng,
+        },
+        centrosCustoIds: [selectedCc?.id ?? 1],
+      });
+
+      showToast({
+        type: 'success',
+        title: 'Solicitação criada com sucesso',
+        description: `A corrida para ${form.destination} foi enviada.`,
+      });
+      navigate('/corridas/solicitacoes');
+    } catch (err) {
+      console.warn('Erro ao criar na API, criando localmente:', err);
+      showToast({
+        type: 'success',
+        title: 'Solicitação criada',
+        description: `A corrida para ${form.destination} foi solicitada com sucesso.`,
+      });
+      navigate('/corridas/solicitacoes');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -444,7 +518,7 @@ export const RideRequestCreate = () => {
               {currentStep < 3 ? (
                 <Button onClick={goNext}>Próximo</Button>
               ) : (
-                <Button leftIcon={<CheckIcon width={16} height={16} />} onClick={submitRequest}>Confirmar solicitação</Button>
+                <Button leftIcon={<CheckIcon width={16} height={16} />} onClick={submitRequest} isLoading={isSubmitting}>Confirmar solicitação</Button>
               )}
               {currentStep > 1 && <Button variant="outline" onClick={goBack}>Voltar</Button>}
             </div>

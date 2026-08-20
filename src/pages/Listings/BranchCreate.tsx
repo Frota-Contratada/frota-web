@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select, useToast } from '../../components/common';
 import { LocationPickerMap } from '../../components/maps';
-import { branchApi, geoService } from '../../services';
+import { branchApi, collaboratorApi, geoService, extractListData, type ColaboradorDto } from '../../services';
+import { useAuthStore } from '../../stores/authStore';
 import styles from '../Rides/RideReview.module.css';
 
 const stateOptions = [
@@ -20,12 +21,15 @@ const stateOptions = [
 export const BranchCreate = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const currentUser = useAuthStore((state) => state.user);
   const [isLoading, setIsLoading] = useState(false);
   const [isSearchingCep, setIsSearchingCep] = useState(false);
+  const [collaboratorsList, setCollaboratorsList] = useState<ColaboradorDto[]>([]);
 
   const [form, setForm] = useState({
     name: '',
     cnpj: '',
+    administradorId: currentUser?.id ? String(currentUser.id) : '',
     zipCode: '',
     address: '',
     number: '100',
@@ -37,6 +41,28 @@ export const BranchCreate = () => {
     latitude: -26.9078,
     longitude: -48.6619,
   });
+
+  useEffect(() => {
+    collaboratorApi.list().then((res) => {
+      const collabs = extractListData<ColaboradorDto>(res);
+      if (collabs.length > 0) {
+        setCollaboratorsList(collabs);
+        setForm((prev) => ({
+          ...prev,
+          administradorId: prev.administradorId || String(collabs[0].id),
+        }));
+      }
+    }).catch(() => {});
+  }, []);
+
+  const adminOptions = [
+    ...(currentUser?.id
+      ? [{ label: `${currentUser.name} (Você - Atual)`, value: String(currentUser.id) }]
+      : []),
+    ...collaboratorsList
+      .filter((c) => String(c.id) !== String(currentUser?.id))
+      .map((c) => ({ label: `${c.nome} (${c.email})`, value: String(c.id) })),
+  ];
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
@@ -143,12 +169,14 @@ export const BranchCreate = () => {
       return;
     }
 
+    const adminId = Number(form.administradorId || currentUser?.id || 1);
+
     try {
       setIsLoading(true);
       await branchApi.create({
         nome: form.name,
         cnpj: form.cnpj.replace(/\D/g, ''),
-        administradorId: 1,
+        administradorId: adminId,
         endereco: {
           cep: form.zipCode.replace(/\D/g, ''),
           logradouro: form.address,
@@ -213,6 +241,16 @@ export const BranchCreate = () => {
               required
               disabled={isLoading}
             />
+
+            {adminOptions.length > 0 && (
+              <Select
+                label="Administrador Responsável da Filial"
+                value={form.administradorId}
+                options={adminOptions}
+                onChange={(val) => updateField('administradorId', val)}
+                required
+              />
+            )}
           </div>
 
           <div className={styles.cardHeader} style={{ marginTop: '2.5rem' }}>

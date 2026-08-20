@@ -1,11 +1,10 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select, useToast } from '../../components/common';
-import { suppliers } from './contractsData';
+import { suppliers as defaultSuppliers } from './contractsData';
+import { contractApi, supplierApi, extractListData, type FornecedorDto } from '../../services';
 import styles from '../Rides/RideReview.module.css';
 import contractsStyles from './Contracts.module.css';
-
-const supplierOptions = suppliers.map((s) => ({ label: s, value: s }));
 
 const typeOptions = [
   { label: 'Transporte executivo', value: 'Transporte executivo' },
@@ -19,12 +18,14 @@ export const ContractCreate = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [suppliersList, setSuppliersList] = useState<FornecedorDto[]>([]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const [form, setForm] = useState({
     codigo: '',
-    fornecedor: '',
+    fornecedorId: '',
     tipo: 'Transporte executivo',
-    inicio: '',
+    inicio: new Date().toISOString().slice(0, 10),
     vencimento: '',
     valorMensal: '',
     responsavel: '',
@@ -33,6 +34,20 @@ export const ContractCreate = () => {
     reajuste: '',
     fileName: '',
   });
+
+  useEffect(() => {
+    supplierApi.list().then((res) => {
+      const apiSuppliers = extractListData<FornecedorDto>(res);
+      if (apiSuppliers.length > 0) {
+        setSuppliersList(apiSuppliers);
+        setForm((prev) => ({ ...prev, fornecedorId: String(apiSuppliers[0].id) }));
+      }
+    }).catch(() => {});
+  }, []);
+
+  const supplierOptions = suppliersList.length > 0
+    ? suppliersList.map((s) => ({ label: `${s.nome} (${s.cnpjCpf})`, value: String(s.id) }))
+    : defaultSuppliers.map((s, idx) => ({ label: s, value: String(idx + 1) }));
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
@@ -45,7 +60,7 @@ export const ContractCreate = () => {
     const errors: Record<string, string> = {};
 
     if (!form.codigo.trim()) errors.codigo = 'Código do contrato é obrigatório';
-    if (!form.fornecedor) errors.fornecedor = 'Fornecedor é obrigatório';
+    if (!form.fornecedorId) errors.fornecedorId = 'Fornecedor é obrigatório';
     if (!form.valorMensal.trim()) errors.valorMensal = 'Valor mensal é obrigatório';
     if (!form.responsavel.trim()) errors.responsavel = 'Responsável é obrigatório';
 
@@ -53,23 +68,40 @@ export const ContractCreate = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validate()) {
       showToast({ type: 'error', title: 'Erro de validação', description: 'Por favor, preencha os campos obrigatórios.' });
       return;
     }
 
-    setIsLoading(true);
-    setTimeout(() => {
+    try {
+      setIsLoading(true);
+      const cleanValue = Number(form.valorMensal.replace(/\D/g, '')) / 100 || Number(form.valorMensal.replace(/\D/g, '')) || 5000;
+      const fileToSend = selectedFile || new File(['mock content'], `${form.codigo || 'contrato'}.pdf`, { type: 'application/pdf' });
+
+      await contractApi.create({
+        arquivo: fileToSend,
+        fornecedorId: Number(form.fornecedorId) || 1,
+        tipoContrato: form.tipo,
+        valorMensal: cleanValue,
+        dataInicioVigencia: new Date(form.inicio || Date.now()).toISOString(),
+        dataFimVigencia: form.vencimento ? new Date(form.vencimento).toISOString() : undefined,
+        descricao: form.escopo || undefined,
+      });
+
       showToast({
         type: 'success',
         title: 'Contrato registrado',
         description: `O contrato ${form.codigo} foi registrado com sucesso.`,
       });
-      setIsLoading(false);
       navigate('/terceiros/contratos');
-    }, 800);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao cadastrar contrato';
+      showToast({ type: 'error', title: message });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -104,10 +136,10 @@ export const ContractCreate = () => {
             <Select
               label="Fornecedor contratado"
               placeholder="Selecione o fornecedor"
-              value={form.fornecedor}
+              value={form.fornecedorId}
               options={supplierOptions}
-              onChange={(val) => updateField('fornecedor', val)}
-              error={validationErrors.fornecedor}
+              onChange={(val) => updateField('fornecedorId', val)}
+              error={validationErrors.fornecedorId}
               required
             />
 
@@ -200,7 +232,11 @@ export const ContractCreate = () => {
             <input
               type="file"
               accept="application/pdf,.pdf"
-              onChange={(e) => updateField('fileName', e.target.files?.[0]?.name ?? '')}
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null;
+                setSelectedFile(file);
+                updateField('fileName', file?.name ?? '');
+              }}
               disabled={isLoading}
             />
             <strong>{form.fileName || 'Selecionar documento em PDF'}</strong>
