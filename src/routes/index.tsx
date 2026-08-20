@@ -4,7 +4,6 @@ import { TwoFactor } from '../pages/TwoFactor/TwoFactor';
 import { ForgotPassword } from '../pages/ForgotPassword/ForgotPassword';
 import { ResetPassword } from '../pages/ResetPassword/ResetPassword';
 import { SignUp } from '../pages/SignUp/SignUp';
-import { Home } from '../pages/Home/Home';
 import { Calendar } from '../pages/Calendar/Calendar';
 import { ContractsList } from '../pages/Contracts/ContractsList';
 import { ContractDetails } from '../pages/Contracts/ContractDetails';
@@ -39,47 +38,52 @@ export const AppRoutes = () => {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={isAuthenticated ? <Navigate to="/home" replace /> : <Login />} />
-        <Route path="/two-factor" element={isAuthenticated ? <Navigate to="/home" replace /> : <TwoFactor />} />
-        <Route path="/forgot-password" element={isAuthenticated ? <Navigate to="/home" replace /> : <ForgotPassword />} />
-        <Route path="/reset-password" element={isAuthenticated ? <Navigate to="/home" replace /> : <ResetPassword />} />
-        <Route path="/sign-up" element={isAuthenticated ? <Navigate to="/home" replace /> : <SignUp />} />
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/visao-executiva" replace /> : <Login />} />
+        <Route path="/two-factor" element={isAuthenticated ? <Navigate to="/visao-executiva" replace /> : <TwoFactor />} />
+        <Route path="/forgot-password" element={isAuthenticated ? <Navigate to="/visao-executiva" replace /> : <ForgotPassword />} />
+        <Route path="/reset-password" element={isAuthenticated ? <Navigate to="/visao-executiva" replace /> : <ResetPassword />} />
+        <Route path="/sign-up" element={isAuthenticated ? <Navigate to="/visao-executiva" replace /> : <SignUp />} />
         
         <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-          <Route path="/home" element={<Home />} />
-          <Route path="/visao-executiva" element={<ExecutiveView />} />
-          <Route path="/gastos" element={<ExpensesView />} />
-          <Route path="/preco-auditoria" element={<PriceAuditView />} />
+          {/* Dashboards - apenas Administradores */}
+          <Route path="/visao-executiva" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><ExecutiveView /></ProtectedRoute>} />
+          <Route path="/gastos" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin', 'aprovador']}><ExpensesView /></ProtectedRoute>} />
+          <Route path="/preco-auditoria" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><PriceAuditView /></ProtectedRoute>} />
           
+          {/* Corridas e Solicitações - Solicitantes, Aprovadores e Admins */}
           <Route path="/corridas" element={<Navigate to="/corridas/solicitacoes" replace />} />
           <Route path="/corridas/solicitacoes" element={<RideRequestsList />} />
-          <Route path="/corridas/solicitacoes/nova" element={<RideRequestCreate />} />
+          <Route path="/corridas/solicitacoes/nova" element={<ProtectedRoute allowedProfiles={['solicitante', 'solicitante-emergencia', 'admin-master', 'admin-filial', 'admin']}><RideRequestCreate /></ProtectedRoute>} />
           <Route path="/corridas/solicitacoes/:requestId/revisar" element={<RideReview />} />
           <Route path="/corridas/calendario" element={<Calendar />} />
           <Route path="/corridas/historico" element={<RideHistoryList />} />
           <Route path="/corridas/historico/:rideId" element={<RideDetails />} />
           
+          {/* Terceiros (Fornecedores e Contratos) - Admins e Fornecedores */}
           <Route path="/terceiros" element={<Navigate to="/terceiros/fornecedores" replace />} />
-          <Route path="/terceiros/fornecedores" element={<SuppliersList />} />
-          <Route path="/terceiros/fornecedores/novo" element={<SupplierCreate />} />
-          <Route path="/terceiros/fornecedores/:supplierId" element={<SupplierDetails />} />
-          <Route path="/terceiros/fornecedores/:supplierId/editar" element={<SupplierEdit />} />
-          <Route path="/terceiros/contratos" element={<ContractsList />} />
-          <Route path="/terceiros/contratos/novo" element={<ContractCreate />} />
-          <Route path="/terceiros/contratos/:contractId" element={<ContractDetails />} />
+          <Route path="/terceiros/fornecedores" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin-fornecedor', 'admin', 'fornecedor']}><SuppliersList /></ProtectedRoute>} />
+          <Route path="/terceiros/fornecedores/novo" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin']}><SupplierCreate /></ProtectedRoute>} />
+          <Route path="/terceiros/fornecedores/:supplierId" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin-fornecedor', 'admin', 'fornecedor']}><SupplierDetails /></ProtectedRoute>} />
+          <Route path="/terceiros/fornecedores/:supplierId/editar" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin']}><SupplierEdit /></ProtectedRoute>} />
+          <Route path="/terceiros/contratos" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin', 'fornecedor', 'admin-fornecedor']}><ContractsList /></ProtectedRoute>} />
+          <Route path="/terceiros/contratos/novo" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><ContractCreate /></ProtectedRoute>} />
+          <Route path="/terceiros/contratos/:contractId" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin', 'fornecedor', 'admin-fornecedor']}><ContractDetails /></ProtectedRoute>} />
 
-          <Route path="/colaboradores" element={<EmployeesList />} />
-          <Route path="/colaboradores/novo" element={<EmployeeCreate />} />
-          <Route path="/colaboradores/:employeeId" element={<EmployeeDetails />} />
-          <Route path="/colaboradores/:employeeId/editar" element={<EmployeeEdit />} />
-          <Route path="/filiais" element={<BranchesList />} />
-          <Route path="/filiais/nova" element={<BranchCreate />} />
-          <Route path="/filiais/:branchId" element={<BranchDetails />} />
-          <Route path="/filiais/:branchId/editar" element={<BranchEdit />} />
+          {/* Colaboradores - Admins */}
+          <Route path="/colaboradores" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><EmployeesList /></ProtectedRoute>} />
+          <Route path="/colaboradores/novo" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><EmployeeCreate /></ProtectedRoute>} />
+          <Route path="/colaboradores/:employeeId" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><EmployeeDetails /></ProtectedRoute>} />
+          <Route path="/colaboradores/:employeeId/editar" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><EmployeeEdit /></ProtectedRoute>} />
+          
+          {/* Filiais - Apenas Admin Master */}
+          <Route path="/filiais" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin']}><BranchesList /></ProtectedRoute>} />
+          <Route path="/filiais/nova" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin']}><BranchCreate /></ProtectedRoute>} />
+          <Route path="/filiais/:branchId" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin']}><BranchDetails /></ProtectedRoute>} />
+          <Route path="/filiais/:branchId/editar" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin']}><BranchEdit /></ProtectedRoute>} />
         </Route>
 
-        <Route path="/" element={<Navigate to={isAuthenticated ? "/home" : "/login"} replace />} />
-        <Route path="*" element={<Navigate to={isAuthenticated ? "/home" : "/login"} replace />} />
+        <Route path="/" element={<Navigate to={isAuthenticated ? "/visao-executiva" : "/login"} replace />} />
+        <Route path="*" element={<Navigate to={isAuthenticated ? "/visao-executiva" : "/login"} replace />} />
       </Routes>
     </BrowserRouter>
   );

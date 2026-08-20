@@ -14,14 +14,15 @@ interface ProfileRouteProps {
 
 export const ProfileRoute = ({
   children, allowedProfiles, requiredPermission,
-  requiredAnyPermission, fallbackPath = '/home',
+  requiredAnyPermission, fallbackPath = '/visao-executiva',
 }: ProfileRouteProps) => {
   const user = useAuthStore((state) => state.user);
+  const profiles = user?.perfis?.map((p) => p.tipoPerfil) ?? (user?.profile ? [user.profile] : []);
   const profile = user?.profile;
 
-  const canAccessByProfile = !allowedProfiles || Boolean(profile && allowedProfiles.includes(profile));
+  const canAccessByProfile = !allowedProfiles || Boolean(profile && allowedProfiles.includes(profile)) || (user?.perfis && user.perfis.some((p) => allowedProfiles?.includes(p.tipoPerfil as UserProfile)));
   const canAccessByPermission = !requiredPermission || hasPermission(profile, requiredPermission);
-  const canAccessByAnyPermission = !requiredAnyPermission || hasAnyPermission(profile, requiredAnyPermission);
+  const canAccessByAnyPermission = !requiredAnyPermission || requiredAnyPermission.some((perm) => hasAnyPermission(profiles, perm));
 
   if (!canAccessByProfile || !canAccessByPermission || !canAccessByAnyPermission) {
     return <Navigate to={fallbackPath} replace />;
