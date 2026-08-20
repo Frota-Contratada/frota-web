@@ -1,11 +1,11 @@
 .container {
   position: relative;
   width: 100%;
-  border-radius: 12px;
+  border-radius: var(--radius-xl, 16px);
   overflow: hidden;
-  border: 1px solid var(--border-color, #E5E7EB);
-  background-color: #f3f4f6;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border, #E5E7EB);
+  background-color: #F8FAFC;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
 }
 
 .map {
@@ -16,25 +16,25 @@
 
 .hintOverlay {
   position: absolute;
-  bottom: 12px;
-  left: 12px;
-  right: 12px;
+  bottom: 14px;
+  left: 14px;
+  right: 14px;
   z-index: 1000;
   background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
-  padding: 8px 14px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(12px);
+  padding: 10px 16px;
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   font-size: 0.8125rem;
-  color: #4B5563;
+  color: #334155;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .coordinates {
-  font-family: monospace;
-  font-weight: 600;
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
   color: var(--brand-primary, #E21B22);
 }

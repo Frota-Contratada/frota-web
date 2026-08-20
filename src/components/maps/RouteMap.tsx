@@ -123,21 +123,33 @@ export const RouteMap = ({
         className={styles.leafletMap}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          subdomains="abcd"
+          maxZoom={20}
         />
 
         {displayCoords.length >= 2 && (
           <>
-            {}
             <Polyline
               positions={displayCoords}
-              pathOptions={{ color: '#991B1B', weight: 8, opacity: 0.3 }}
+              pathOptions={{
+                color: '#1E1B4B',
+                weight: 8,
+                opacity: 0.15,
+                lineCap: 'round',
+                lineJoin: 'round',
+              }}
             />
-            {}
             <Polyline
               positions={displayCoords}
-              pathOptions={{ color: '#E21B22', weight: 5, opacity: 0.9 }}
+              pathOptions={{
+                color: '#E21B22',
+                weight: 5,
+                opacity: 0.95,
+                lineCap: 'round',
+                lineJoin: 'round',
+              }}
             />
           </>
         )}
