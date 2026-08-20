@@ -20,7 +20,7 @@ export class ApiError<T = unknown> extends Error {
   }
 }
 
-const DEFAULT_API_URL = 'http://localhost:3000';
+const DEFAULT_API_URL = 'https://moisture-aloft-unmovable.ngrok-free.dev';
 
 const getApiBaseUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL as string | undefined;

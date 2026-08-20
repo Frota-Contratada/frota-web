@@ -23,14 +23,14 @@ export interface UserMeResponse {
 
 export const userApi = {
   getMe() {
-    return apiClient.get<UserMeResponse>('/usuario/me');
+    return apiClient.get<UserMeResponse>('/usuario/info/me');
   },
 
   updateFotoPerfil(file: File) {
     const formData = new FormData();
     formData.append('foto', file);
 
-    return apiClient.patch<UserMeResponse>('/usuario/me/foto', formData);
+    return apiClient.patch<UserMeResponse>('/usuario/info/me/foto', formData);
   },
 };
 

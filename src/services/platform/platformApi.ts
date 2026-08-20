@@ -1,5 +1,5 @@
 import { apiClient, type ApiQueryParams } from '../api/apiClient';
-import type { PaginatedResponse } from '../rides/ridesApi';
+import type { PaginatedResponse } from '../../utils/apiHelpers';
 
 export interface SupplierDto {
   id: number;

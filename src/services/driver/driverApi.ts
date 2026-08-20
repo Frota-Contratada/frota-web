@@ -6,6 +6,8 @@ export interface MotoristaDto {
   email: string;
   cpf: string;
   fornecedorId: number;
+  fornecedorNome?: string;
+  dataAtivacao?: string;
 }
 
 export interface CriarMotoristaParams {
@@ -25,20 +27,26 @@ export interface MotoristaResponse {
   response: MotoristaDto;
 }
 
+export interface PaginatedMotoristas {
+  totalCount: number;
+  hasNextPage: boolean;
+  data: MotoristaDto[];
+}
+
 export interface MotoristasListResponse {
-  response: MotoristaDto[];
+  response: PaginatedMotoristas | MotoristaDto[];
 }
 
 export const driverApi = {
   create(data: CriarMotoristaParams) {
-    return apiClient.post<MotoristaResponse>('/usuario/motoristas', data);
+    return apiClient.post<MotoristaResponse>('/usuario/motorista/motoristas', data);
   },
 
   list(query?: BuscarMotoristasQueryParams) {
-    return apiClient.get<MotoristasListResponse>('/usuario', { query: query as Record<string, string | number | boolean | null | undefined> });
+    return apiClient.get<MotoristasListResponse>('/usuario/motorista', { query: query as Record<string, string | number | boolean | null | undefined> });
   },
 
   getById(id: number) {
-    return apiClient.get<MotoristaResponse>(`/usuario/${id}`);
+    return apiClient.get<MotoristaResponse>(`/usuario/motorista/${id}`);
   },
 };

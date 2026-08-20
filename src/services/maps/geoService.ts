@@ -21,7 +21,7 @@ export interface SugestaoEndereco {
 }
 
 export const geoService = {
-  
+
   async buscarEnderecoPorCep(cep: string): Promise<EnderecoDetalhado | null> {
     const cleanCep = cep.replace(/\D/g, '');
     if (cleanCep.length !== 8) return null;
@@ -50,7 +50,7 @@ export const geoService = {
     }
   },
 
-  
+
   async buscarSugestoesEndereco(query: string): Promise<SugestaoEndereco[]> {
     if (!query || query.trim().length < 3) return [];
 
@@ -93,7 +93,7 @@ export const geoService = {
     }
   },
 
-  
+
   async geocodificarTexto(
     query: string,
     cidadeFallback?: string,
@@ -137,7 +137,7 @@ export const geoService = {
     return null;
   },
 
-  
+
   async geocodificarCoordenadas(
     lat: number,
     lng: number

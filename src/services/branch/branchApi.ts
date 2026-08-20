@@ -41,8 +41,14 @@ export interface FilialResponse {
   response: FilialDto;
 }
 
+export interface PaginatedFiliais {
+  totalCount: number;
+  hasNextPage: boolean;
+  data: FilialDto[];
+}
+
 export interface FiliaisListResponse {
-  response: FilialDto[];
+  response: PaginatedFiliais | FilialDto[];
 }
 
 export interface SubstituirAdministradoresParams {

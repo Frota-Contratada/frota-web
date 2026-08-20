@@ -43,7 +43,7 @@ describe('supplierApi', () => {
     const query = { nome: 'Mobilidade' };
     const result = await supplierApi.list(query);
 
-    expect(getSpy).toHaveBeenCalledWith('/fornecedor', { query });
+    expect(getSpy).toHaveBeenCalledWith('/fornecedor/admin', { query });
     expect(result.response).toHaveLength(2);
   });
 

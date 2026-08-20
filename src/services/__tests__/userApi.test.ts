@@ -29,7 +29,7 @@ describe('userApi', () => {
 
     const result = await userApi.getMe();
 
-    expect(getSpy).toHaveBeenCalledWith('/usuario/me');
+    expect(getSpy).toHaveBeenCalledWith('/usuario/info/me');
     expect(result.response.id).toBe(10);
     expect(result.response.perfis[0].tipoPerfil).toBe('aprovador');
   });
@@ -51,7 +51,7 @@ describe('userApi', () => {
     const file = new File(['dummy content'], 'avatar.jpg', { type: 'image/jpeg' });
     const result = await userApi.updateFotoPerfil(file);
 
-    expect(patchSpy).toHaveBeenCalledWith('/usuario/me/foto', expect.any(FormData));
+    expect(patchSpy).toHaveBeenCalledWith('/usuario/info/me/foto', expect.any(FormData));
     const formDataArg = patchSpy.mock.calls[0][1] as FormData;
     expect(formDataArg.get('foto')).toBe(file);
     expect(result.response.fotoPerfil).toBe('fotos/nova-foto.png');

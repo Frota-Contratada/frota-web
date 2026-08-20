@@ -68,7 +68,7 @@ export const authApi = {
   },
 
   me() {
-    return apiClient.get<{ response: import('../user/userApi').UserMe }>('/usuario/me');
+    return apiClient.get<{ response: import('../user/userApi').UserMe }>('/usuario/info/me');
   },
 
   logout() {

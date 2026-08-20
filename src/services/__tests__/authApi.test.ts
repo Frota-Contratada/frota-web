@@ -99,7 +99,7 @@ describe('authApi', () => {
 
     const result = await authApi.me();
 
-    expect(getSpy).toHaveBeenCalledWith('/usuario/me');
+    expect(getSpy).toHaveBeenCalledWith('/usuario/info/me');
     expect(result.response.nome).toBe('Admin User');
   });
 

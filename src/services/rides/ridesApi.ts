@@ -1,69 +1,174 @@
 import { apiClient, type ApiQueryParams } from '../api/apiClient';
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  meta: {
-    page: number;
-    perPage: number;
-    total: number;
-    totalPages: number;
-  };
+export interface EnderecoSolicitacaoDto {
+  logradouro: string;
+  cidade: string;
+  uf: string;
+  latitude: number;
+  longitude: number;
+  numero?: string;
+  bairro?: string;
+  cep?: string;
+  complemento?: string;
 }
 
-export interface RideRequestPayload {
-  rideFor: string;
-  beneficiaryName: string;
-  origin: string;
-  destination: string;
-  rideAt: string;
-  rideType: string;
-  costCenter: string;
-  passengers: number;
-  passengerCpfs: string[];
-  reason: string;
-  supplierId?: number;
-}
-
-export interface RideReviewPayload {
-  supplierId: number;
-  comment?: string;
-}
-
-export interface RideRequestDto extends RideRequestPayload {
+export interface MotivoSolicitacaoDto {
   id: number;
-  requester: string;
+  nome: string;
+  descricao?: string;
+}
+
+export interface TipoCorridaDto {
+  id: number;
+  nome: string;
+  descricao?: string;
+}
+
+export interface TipoVeiculoDto {
+  id: number;
+  nome: string;
+  descricao?: string;
+}
+
+export interface SimularSolicitacaoParams {
+  dataCorrida: string;
+  tipoCorridaId: number;
+  origem: EnderecoSolicitacaoDto;
+  destino: EnderecoSolicitacaoDto;
+  paradas?: EnderecoSolicitacaoDto[];
+}
+
+export interface SimulacaoSolicitacaoDto {
+  distanciaKm: number;
+  duracaoMinutos: number;
+  valorEstimado: number;
+}
+
+export interface CriarSolicitacaoParams {
+  dataCorrida: string;
+  tipoCorridaId: number;
+  tipoVeiculoId?: number;
+  motivoSolicitacaoId: number;
+  origem: EnderecoSolicitacaoDto;
+  destino: EnderecoSolicitacaoDto;
+  paradas?: EnderecoSolicitacaoDto[];
+  centrosCustoIds: number[];
+  cpfsAcompanhantes?: string[];
+}
+
+export interface SolicitacaoCentroCustoDto {
+  filialId: number;
+  centroCustoId: number;
+  centroCustoNome?: string;
+  aprovadorId: number;
+  aprovadorNome?: string;
+  statusAprovacao: string;
+}
+
+export interface PassageiroDto {
+  cpf: string;
+  nome?: string;
+  solicitante: boolean;
+}
+
+export interface CorridaDto {
+  id: number;
   status: string;
-  estimatedDistanceKm: number;
-  estimatedValue: string;
-  createdAt: string;
+  dataInicio: string;
+  dataFim?: string;
+  motoristaId: number;
+  motoristaNome?: string;
+  placaVeiculo: string;
+  kmPercorrido: number;
+  valorFinal: number;
+  emAndamento: boolean;
+}
+
+export interface SolicitacaoDto {
+  id: number;
+  status: string;
+  dataCriacao?: string;
+  dataCorrida: string;
+  dataChegadaEstimada?: string;
+  duracaoEstimadaMinutos?: number;
+  distanciaEstimadaKm?: number;
+  distanciaKm?: number;
+  valorEstimado: number;
+  tipoCorrida: TipoCorridaDto;
+  tipoVeiculo?: TipoVeiculoDto;
+  solicitanteId?: number;
+  solicitanteNome?: string;
+  fornecedorId?: number;
+  fornecedorNome?: string;
+  origem: EnderecoSolicitacaoDto;
+  destino: EnderecoSolicitacaoDto;
+  paradas?: EnderecoSolicitacaoDto[];
+  motivoSolicitacao?: MotivoSolicitacaoDto;
+  motivo?: MotivoSolicitacaoDto;
+  centrosCusto?: SolicitacaoCentroCustoDto[];
+  passageiros?: PassageiroDto[];
+  corrida?: CorridaDto;
+  emAndamento?: boolean;
+  cancelavel?: boolean;
+  createdAt?: string;
+}
+
+export interface CancelarSolicitacaoParams {
+  motivo?: string;
 }
 
 export const ridesApi = {
+  getMotivos() {
+    return apiClient.get<{ response: MotivoSolicitacaoDto[] }>('/solicitacoes/motivos');
+  },
+
+  getTiposCorrida() {
+    return apiClient.get<{ response: TipoCorridaDto[] }>('/solicitacoes/tipos-corrida');
+  },
+
+  getTiposVeiculo() {
+    return apiClient.get<{ response: TipoVeiculoDto[] }>('/solicitacoes/tipos-veiculo');
+  },
+
+  getViagens(query?: { dataInicio?: string; dataFim?: string }) {
+    return apiClient.get<{ response: SolicitacaoDto[] }>('/solicitacoes/viagens', {
+      query: query as Record<string, string | number | boolean | null | undefined>,
+    });
+  },
+
+  simular(data: SimularSolicitacaoParams) {
+    return apiClient.post<{ response: SimulacaoSolicitacaoDto }>('/solicitacoes/simulacao', data);
+  },
+
+  create(data: CriarSolicitacaoParams) {
+    return apiClient.post<{ response: SolicitacaoDto }>('/solicitacoes', data);
+  },
+
+  list(query?: ApiQueryParams) {
+    return apiClient.get<{ response: SolicitacaoDto[] }>('/solicitacoes', { query });
+  },
+
+  getById(id: number) {
+    return apiClient.get<{ response: SolicitacaoDto }>(`/solicitacoes/${id}`);
+  },
+
+  cancelar(id: number, data?: CancelarSolicitacaoParams) {
+    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/cancelamento`, data ?? {});
+  },
+
   listRequests(query?: ApiQueryParams) {
-    return apiClient.get<PaginatedResponse<RideRequestDto>>('/ride-requests', { query });
+    return apiClient.get<{ response: SolicitacaoDto[] }>('/solicitacoes', { query });
   },
 
   getRequest(requestId: number) {
-    return apiClient.get<RideRequestDto>(`/ride-requests/${requestId}`);
+    return apiClient.get<{ response: SolicitacaoDto }>(`/solicitacoes/${requestId}`);
   },
 
-  createRequest(payload: RideRequestPayload) {
-    return apiClient.post<RideRequestDto>('/ride-requests', payload);
-  },
-
-  approveRequest(requestId: number, payload: RideReviewPayload) {
-    return apiClient.post<RideRequestDto>(`/ride-requests/${requestId}/approve`, payload);
-  },
-
-  rejectRequest(requestId: number, comment?: string) {
-    return apiClient.post<RideRequestDto>(`/ride-requests/${requestId}/reject`, { comment });
+  createRequest(payload: CriarSolicitacaoParams) {
+    return apiClient.post<{ response: SolicitacaoDto }>('/solicitacoes', payload);
   },
 
   cancelRequest(requestId: number) {
-    return apiClient.post<RideRequestDto>(`/ride-requests/${requestId}/cancel`);
-  },
-
-  listHistory(query?: ApiQueryParams) {
-    return apiClient.get<PaginatedResponse<unknown>>('/rides/history', { query });
+    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${requestId}/cancelamento`, {});
   },
 };

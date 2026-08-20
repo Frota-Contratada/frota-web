@@ -26,7 +26,7 @@ describe('driverApi', () => {
 
     const result = await driverApi.create(payload);
 
-    expect(postSpy).toHaveBeenCalledWith('/usuario/motoristas', payload);
+    expect(postSpy).toHaveBeenCalledWith('/usuario/motorista/motoristas', payload);
     expect(result.response.id).toBe(501);
   });
 
@@ -48,7 +48,7 @@ describe('driverApi', () => {
     const query = { nome: 'Carlos', cpf: '11122233344' };
     const result = await driverApi.list(query);
 
-    expect(getSpy).toHaveBeenCalledWith('/usuario', { query });
+    expect(getSpy).toHaveBeenCalledWith('/usuario/motorista', { query });
     expect(result.response).toHaveLength(1);
   });
 
@@ -67,7 +67,7 @@ describe('driverApi', () => {
 
     const result = await driverApi.getById(501);
 
-    expect(getSpy).toHaveBeenCalledWith('/usuario/501');
+    expect(getSpy).toHaveBeenCalledWith('/usuario/motorista/501');
     expect(result.response.nome).toBe('Carlos Henrique');
   });
 });
