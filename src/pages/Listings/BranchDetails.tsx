@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, LoadingState, StatusBadge, useToast } from '../../components/common';
+import { LocationPickerMap } from '../../components/maps/LocationPickerMap';
 import { branchApi, type FilialDto } from '../../services';
 import styles from '../Suppliers/Suppliers.module.css';
 
@@ -38,7 +39,7 @@ export const BranchDetails = () => {
     return (
       <div className={styles.page}>
         <LoadingState
-          variant="card"
+          variant="details"
           message="Carregando dados da filial"
           submessage="Consultando endereço e informações cadastradas..."
         />
@@ -51,6 +52,8 @@ export const BranchDetails = () => {
   }
 
   const endereco = branch.endereco;
+  const lat = endereco?.latitude ?? -26.9046;
+  const lng = endereco?.longitude ?? -48.6617;
 
   return (
     <div className={styles.page}>
@@ -94,7 +97,7 @@ export const BranchDetails = () => {
             </div>
             <div className={styles.infoItem}>
               <span>Endereço</span>
-              <strong>{endereco ? `${endereco.logradouro}, ${endereco.numero}` : '—'}</strong>
+              <strong>{endereco ? `${endereco.logradouro}${endereco.numero ? `, ${endereco.numero}` : ''}` : '—'}</strong>
             </div>
             <div className={styles.infoItem}>
               <span>Bairro</span>
@@ -104,6 +107,18 @@ export const BranchDetails = () => {
               <span>Cidade / UF</span>
               <strong>{endereco ? `${endereco.cidade} / ${endereco.uf}` : '—'}</strong>
             </div>
+          </div>
+
+          <div style={{ marginTop: '1.75rem' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+              Localização no Mapa
+            </h3>
+            <LocationPickerMap
+              latitude={lat}
+              longitude={lng}
+              label={branch.nome}
+              height={300}
+            />
           </div>
         </article>
 
@@ -118,11 +133,11 @@ export const BranchDetails = () => {
           <div className={styles.summaryList}>
             <div>
               <span>Latitude</span>
-              <strong>{endereco?.latitude ?? '—'}</strong>
+              <strong>{endereco?.latitude ? Number(endereco.latitude).toFixed(6) : lat.toFixed(6)}</strong>
             </div>
             <div>
               <span>Longitude</span>
-              <strong>{endereco?.longitude ?? '—'}</strong>
+              <strong>{endereco?.longitude ? Number(endereco.longitude).toFixed(6) : lng.toFixed(6)}</strong>
             </div>
             <div>
               <span>Status Operacional</span>
