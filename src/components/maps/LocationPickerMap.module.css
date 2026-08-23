@@ -16,25 +16,75 @@
 
 .hintOverlay {
   position: absolute;
-  bottom: 14px;
-  left: 14px;
-  right: 14px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
   z-index: 1000;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(12px);
-  padding: 10px 16px;
-  border-radius: var(--radius-lg, 12px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 10px 20px;
+  border-radius: 0 0 var(--radius-xl, 16px) var(--radius-xl, 16px);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
   font-size: 0.8125rem;
   color: #334155;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  box-sizing: border-box;
 }
 
 .coordinates {
   font-family: ui-monospace, monospace;
   font-weight: 700;
   color: var(--brand-primary, #E21B22);
+}
+
+.map :global(.leaflet-tile-pane) {
+  filter: contrast(102%) brightness(101%);
+}
+
+.map :global(.leaflet-control-zoom) {
+  border: none !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+  border-radius: 10px !important;
+  overflow: hidden;
+}
+
+.map :global(.leaflet-control-zoom-in),
+.map :global(.leaflet-control-zoom-out) {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  color: #1E293B !important;
+  border: none !important;
+  width: 32px !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.map :global(.leaflet-control-zoom-in):hover,
+.map :global(.leaflet-control-zoom-out):hover {
+  background-color: #ffffff !important;
+  color: var(--brand-primary, #E21B22) !important;
+}
+
+.map :global(.leaflet-popup-content-wrapper) {
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(8px);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  font-size: 0.8125rem;
+  color: #1E293B;
+  padding: 2px;
+}
+
+.map :global(.leaflet-popup-tip) {
+  background: rgba(255, 255, 255, 0.98);
 }

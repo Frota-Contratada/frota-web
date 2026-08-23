@@ -21,11 +21,13 @@ const MapBoundsAdjuster = ({ coordinates }: { coordinates: Array<[number, number
   useEffect(() => {
     if (coordinates.length >= 2) {
       const bounds = L.latLngBounds(coordinates.map(([lat, lng]) => [lat, lng]));
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15, animate: true });
+      }
     } else if (coordinates.length === 1) {
-      map.setView(coordinates[0], 14);
+      map.flyTo(coordinates[0], 14, { animate: true });
     }
-  }, [coordinates, map]);
+  }, [JSON.stringify(coordinates), map]);
 
   return null;
 };
@@ -124,7 +126,7 @@ export const RouteMap = ({
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
           subdomains="abcd"
           maxZoom={20}
         />

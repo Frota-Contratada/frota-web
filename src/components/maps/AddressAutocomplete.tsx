@@ -66,20 +66,24 @@ export const AddressAutocomplete = ({
         const results = await geoService.buscarSugestoesEndereco(query);
         setSuggestions(results);
         setIsOpen(results.length > 0);
+
+        // Se for um CEP exato de 8 dígitos, sincroniza diretamente
+        const cleanCep = query.replace(/\D/g, '');
+        if (cleanCep.length === 8 && results.length > 0) {
+          onSelectAddress?.(results[0]);
+        }
       } finally {
         setIsLoading(false);
       }
-    }, 400);
+    }, 350);
   };
 
   const handleSelect = (suggestion: SugestaoEndereco) => {
-    const mainText = [suggestion.logradouro, suggestion.bairro, suggestion.cidade]
-      .filter(Boolean)
-      .join(', ') || suggestion.displayName;
-
-    onChange(mainText);
+    const formattedAddress = suggestion.displayName || [suggestion.logradouro, suggestion.bairro, suggestion.cidade, suggestion.uf].filter(Boolean).join(', ');
+    onChange(formattedAddress);
     onSelectAddress?.(suggestion);
     setIsOpen(false);
+    setSuggestions([]);
   };
 
   return (
@@ -106,6 +110,10 @@ export const AddressAutocomplete = ({
                 <li
                   key={`${item.latitude}-${item.longitude}-${index}`}
                   className={styles.suggestionItem}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelect(item);
+                  }}
                   onClick={() => handleSelect(item)}
                   role="option"
                   aria-selected={false}
