@@ -7,9 +7,19 @@ import { Button, Input, Select, useToast } from '../../components/common';
 import { RouteMap, AddressAutocomplete } from '../../components/maps';
 import type { RoutePoint, RouteResult } from '../../services/maps/routingService';
 import type { SugestaoEndereco } from '../../services/maps/geoService';
-import { ridesApi, costCenterApi, extractListData, type MotivoSolicitacaoDto, type TipoCorridaDto, type CentroCustoDto } from '../../services';
-import { employees } from '../Listings/listingsData';
-import { suppliers } from '../Suppliers/suppliersData';
+import {
+  ridesApi,
+  costCenterApi,
+  supplierApi,
+  collaboratorApi,
+  extractListData,
+  type MotivoSolicitacaoDto,
+  type TipoCorridaDto,
+  type CentroCustoDto,
+  type FornecedorDto,
+  type ColaboradorDto,
+} from '../../services';
+import { useAuthStore } from '../../stores/authStore';
 import styles from './RideReview.module.css';
 
 type RequestStep = 1 | 2 | 3;
@@ -47,10 +57,6 @@ const defaultReasonOptions = [
   { label: 'Recepção de fornecedor', value: 'Recepção de fornecedor' },
 ];
 
-const beneficiaryOptions = employees
-  .filter((employee) => !employee.deactivatedAt && !employee.supplier)
-  .map((employee) => ({ label: employee.name, value: employee.name }));
-
 const InfoItem = ({ label, value }: InfoItemProps) => (
   <div className={styles.infoItem}>
     <span>{label}</span>
@@ -61,20 +67,66 @@ const InfoItem = ({ label, value }: InfoItemProps) => (
 export const RideRequestCreate = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const availableSuppliers = suppliers.filter((supplier) => supplier.status === 'aprovado');
+  const { user: currentUser } = useAuthStore();
+
   const [currentStep, setCurrentStep] = useState<RequestStep>(1);
   const [selectedSupplierId, setSelectedSupplierId] = useState(0);
   const [backendMotivos, setBackendMotivos] = useState<MotivoSolicitacaoDto[]>([]);
   const [backendTiposCorrida, setBackendTiposCorrida] = useState<TipoCorridaDto[]>([]);
   const [backendCentrosCusto, setBackendCentrosCusto] = useState<CentroCustoDto[]>([]);
+  const [availableSuppliers, setAvailableSuppliers] = useState<FornecedorDto[]>([]);
+  const [collaboratorsList, setCollaboratorsList] = useState<ColaboradorDto[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const userName = currentUser?.name || 'Usuário Atual';
+
+  const [originLocation, setOriginLocation] = useState<{ address: string; lat: number; lng: number }>({
+    address: '',
+    lat: -23.55052,
+    lng: -46.633308,
+  });
+
+  const [destinationLocation, setDestinationLocation] = useState<{ address: string; lat: number; lng: number }>({
+    address: '',
+    lat: -23.55052,
+    lng: -46.633308,
+  });
+
+  const [calculatedDistanceKm, setCalculatedDistanceKm] = useState<number>(0);
+  const [calculatedDurationMin, setCalculatedDurationMin] = useState<number>(0);
+
+  const [form, setForm] = useState({
+    requester: userName,
+    rideFor: 'Para mim',
+    beneficiaryName: userName,
+    origin: '',
+    destination: '',
+    rideAt: new Date(Date.now() + 3600000).toISOString().slice(0, 16),
+    rideType: 'Executiva',
+    costCenter: '',
+    passengers: '1',
+    passengerCpfs: [''],
+    reason: 'Reunião externa',
+  });
+
+  useEffect(() => {
+    if (currentUser?.name) {
+      setForm((prev) => ({
+        ...prev,
+        requester: currentUser.name,
+        beneficiaryName: prev.rideFor === 'Para mim' ? currentUser.name : prev.beneficiaryName,
+      }));
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     Promise.allSettled([
       ridesApi.getMotivos(),
       ridesApi.getTiposCorrida(),
       costCenterApi.list(),
-    ]).then(([motivosRes, tiposRes, ccRes]) => {
+      supplierApi.list(),
+      collaboratorApi.list(),
+    ]).then(([motivosRes, tiposRes, ccRes, suppRes, collabRes]) => {
       if (motivosRes.status === 'fulfilled') {
         const motivos = extractListData<MotivoSolicitacaoDto>(motivosRes.value);
         if (motivos.length > 0) setBackendMotivos(motivos);
@@ -85,53 +137,44 @@ export const RideRequestCreate = () => {
       }
       if (ccRes.status === 'fulfilled') {
         const ccs = extractListData<CentroCustoDto>(ccRes.value);
-        if (ccs.length > 0) setBackendCentrosCusto(ccs);
+        if (ccs.length > 0) {
+          setBackendCentrosCusto(ccs);
+          setForm((prev) => ({ ...prev, costCenter: prev.costCenter || ccs[0].nome || `CC-${ccs[0].id}` }));
+        }
       }
-    }).catch((err) => {
-      console.warn('Usando opções locais para formulário de corrida:', err);
-    });
+      if (suppRes.status === 'fulfilled') {
+        const supps = extractListData<FornecedorDto>(suppRes.value);
+        if (supps.length > 0) {
+          setAvailableSuppliers(supps);
+          setSelectedSupplierId((prev) => prev || supps[0].id);
+        }
+      }
+      if (collabRes.status === 'fulfilled') {
+        const collabs = extractListData<ColaboradorDto>(collabRes.value);
+        if (collabs.length > 0) setCollaboratorsList(collabs);
+      }
+    }).catch(() => {});
   }, []);
 
-
-  const [originLocation, setOriginLocation] = useState<{ address: string; lat: number; lng: number }>({
-    address: 'Av. Marginal Direita do Tietê, 500 - Vila Jaguara, São Paulo - SP',
-    lat: -23.518,
-    lng: -46.745,
-  });
-
-  const [destinationLocation, setDestinationLocation] = useState<{ address: string; lat: number; lng: number }>({
-    address: 'Aeroporto Internacional de Guarulhos - Rod. Hélio Smidt, Guarulhos - SP',
-    lat: -23.435,
-    lng: -46.473,
-  });
-
-  const [calculatedDistanceKm, setCalculatedDistanceKm] = useState<number>(31.4);
-  const [calculatedDurationMin, setCalculatedDurationMin] = useState<number>(45);
-
-  const [form, setForm] = useState({
-    requester: 'Marina Oliveira',
-    rideFor: 'Para mim',
-    beneficiaryName: 'Marina Oliveira',
-    origin: 'Av. Marginal Direita do Tietê, 500 - Vila Jaguara, São Paulo - SP',
-    destination: 'Aeroporto Internacional de Guarulhos - Rod. Hélio Smidt, Guarulhos - SP',
-    rideAt: new Date(Date.now() + 3600000).toISOString().slice(0, 16),
-    rideType: 'Executiva',
-    costCenter: 'CC-041 (Operações Logísticas)',
-    passengers: '1',
-    passengerCpfs: ['123.456.789-00'],
-    reason: 'Reunião externa',
-  });
+  const beneficiaryOptions = useMemo(() => {
+    if (collaboratorsList.length > 0) {
+      return collaboratorsList.map((c) => ({ label: c.nome, value: c.nome }));
+    }
+    return [{ label: userName, value: userName }];
+  }, [collaboratorsList, userName]);
 
   const selectedSupplier = useMemo(
     () => availableSuppliers.find((supplier) => supplier.id === selectedSupplierId),
     [availableSuppliers, selectedSupplierId]
   );
 
-  const estimatedKm = `${calculatedDistanceKm.toLocaleString('pt-BR')} km`;
-  const estimatedValue = `R$ ${(calculatedDistanceKm * 5.2 + 25).toLocaleString('pt-BR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  const estimatedKm = calculatedDistanceKm > 0 ? `${calculatedDistanceKm.toLocaleString('pt-BR')} km` : 'A calcular';
+  const estimatedValue = calculatedDistanceKm > 0
+    ? `R$ ${(calculatedDistanceKm * 5.2 + 25).toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`
+    : 'R$ 0,00';
 
   const rideTypeOptions = backendTiposCorrida.length > 0
     ? backendTiposCorrida.map((t) => ({ label: t.nome, value: t.nome }))
@@ -141,10 +184,17 @@ export const RideRequestCreate = () => {
     ? backendMotivos.map((m) => ({ label: m.nome, value: m.nome }))
     : defaultReasonOptions;
 
-  const selectedSupplierName = selectedSupplier?.name ?? 'Fornecedor não selecionado';
-  const requesterEmployee = employees.find((employee) => employee.name === form.requester);
-  const selectedBeneficiary = employees.find((employee) => employee.name === form.beneficiaryName);
-  const selectedBeneficiaryCpf = selectedBeneficiary?.cpf ?? '';
+  const costCenterOptions = useMemo(() => {
+    if (backendCentrosCusto.length > 0) {
+      return backendCentrosCusto.map((cc) => ({ label: cc.nome || `CC-${cc.id}`, value: cc.nome || `CC-${cc.id}` }));
+    }
+    return [{ label: 'Centro de Custo Padrão', value: 'Centro de Custo Padrão' }];
+  }, [backendCentrosCusto]);
+
+  const selectedSupplierName = selectedSupplier?.nome ?? 'Fornecedor não selecionado';
+  const requesterEmployee = collaboratorsList.find((c) => c.nome === form.requester);
+  const selectedBeneficiary = collaboratorsList.find((c) => c.nome === form.beneficiaryName);
+  const selectedBeneficiaryCpf = selectedBeneficiary?.cpf ?? currentUser?.cpf ?? '';
   const isRideForSelf = form.rideFor === 'Para mim';
 
   const updateField = (field: keyof typeof form, value: string) => {
@@ -182,7 +232,7 @@ export const RideRequestCreate = () => {
   const updateRideFor = (value: string) => {
     setForm((current) => {
       const beneficiaryName = value === 'Para mim' ? current.requester : '';
-      const beneficiaryCpf = value === 'Para mim' ? requesterEmployee?.cpf ?? '' : '';
+      const beneficiaryCpf = value === 'Para mim' ? requesterEmployee?.cpf ?? currentUser?.cpf ?? '' : '';
 
       return {
         ...current,
@@ -194,7 +244,7 @@ export const RideRequestCreate = () => {
   };
 
   const updateBeneficiary = (value: string) => {
-    const beneficiary = employees.find((employee) => employee.name === value);
+    const beneficiary = collaboratorsList.find((c) => c.nome === value);
 
     setForm((current) => ({
       ...current,
@@ -308,13 +358,12 @@ export const RideRequestCreate = () => {
       });
       navigate('/corridas/solicitacoes');
     } catch (err) {
-      console.warn('Erro ao criar na API, criando localmente:', err);
+      const message = err instanceof Error ? err.message : 'Falha ao criar solicitação de corrida';
       showToast({
-        type: 'success',
-        title: 'Solicitação criada',
-        description: `A corrida para ${form.destination} foi solicitada com sucesso.`,
+        type: 'error',
+        title: 'Erro ao solicitar corrida',
+        description: message,
       });
-      navigate('/corridas/solicitacoes');
     } finally {
       setIsSubmitting(false);
     }
@@ -377,7 +426,7 @@ export const RideRequestCreate = () => {
 
                 <Input label="Data e horário" type="datetime-local" value={form.rideAt} onChange={(event) => updateField('rideAt', event.target.value)} required />
                 <Input label="Passageiros" type="number" min="1" value={form.passengers} onChange={(event) => updatePassengers(event.target.value)} required />
-                <Input label="Centro de custo" value={form.costCenter} onChange={(event) => updateField('costCenter', event.target.value)} required />
+                <Select label="Centro de custo" value={form.costCenter} options={costCenterOptions} onChange={(val) => updateField('costCenter', val)} required />
                 <Select label="Motivo" value={form.reason} options={reasonOptions} onChange={(value) => updateField('reason', value)} required />
               </div>
 
@@ -429,10 +478,10 @@ export const RideRequestCreate = () => {
                     >
                       <span className={styles.supplierOptionHeader}>
                         <span className={styles.radioControl} aria-hidden="true" />
-                        <strong>{supplier.name}</strong>
+                        <strong>{supplier.nome}</strong>
                       </span>
-                      <span>{supplier.vehicles} veículos disponíveis</span>
-                      <span>{supplier.linkedContracts} contratos vinculados</span>
+                      <span>{supplier.cnpjCpf ? `CNPJ: ${supplier.cnpjCpf}` : 'Fornecedor Credenciado'}</span>
+                      <span>{supplier.quantidadeVeiculosAtivos ? `${supplier.quantidadeVeiculosAtivos} veículos disponíveis` : 'Ativo para atendimento'}</span>
                     </button>
                   );
                 })}

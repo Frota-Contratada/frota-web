@@ -4,7 +4,7 @@ import CheckIcon from '../../assets/icons/check.svg?react';
 import IaIcon from '../../assets/icons/ia.svg?react';
 import { LoadingState, useToast, type BadgeStatus } from '../../components/common';
 import { contractApi, type ContratoDto } from '../../services';
-import { contracts, type Contract } from './contractsData';
+import { type Contract } from './contractsData';
 import styles from './Contracts.module.css';
 
 type ExtractedField = {
@@ -41,7 +41,6 @@ export const ContractDetails = () => {
 
   useEffect(() => {
     let isMounted = true;
-    const localContract = contracts.find((item) => String(item.id) === String(contractId));
 
     if (contractId && !isNaN(Number(contractId))) {
       contractApi
@@ -65,25 +64,17 @@ export const ContractDetails = () => {
               sla: '95% de atendimento no prazo combinado.',
               reajuste: 'IPCA anual.',
             });
-          } else if (localContract) {
-            setContract(localContract);
           }
         })
-        .catch(() => {
+        .catch((err) => {
           if (!isMounted) return;
-          if (localContract) {
-            setContract(localContract);
-          } else {
-            showToast({ type: 'warning', title: 'Contrato não encontrado', description: 'Redirecionando para a lista de contratos.' });
-            navigate('/terceiros/contratos', { replace: true });
-          }
+          const msg = err instanceof Error ? err.message : 'Contrato não encontrado no servidor.';
+          showToast({ type: 'error', title: 'Erro ao carregar contrato', description: msg });
+          navigate('/terceiros/contratos', { replace: true });
         })
         .finally(() => {
           if (isMounted) setIsLoading(false);
         });
-    } else if (localContract) {
-      setContract(localContract);
-      setIsLoading(false);
     } else {
       setIsLoading(false);
       navigate('/terceiros/contratos', { replace: true });
@@ -113,14 +104,13 @@ export const ContractDetails = () => {
   const previewPages = buildPreviewPages(currentPage, TOTAL_PREVIEW_PAGES);
 
   const extractedFields: ExtractedField[] = [
-    { label: 'Contraparte', value: contract.fornecedor },
-    { label: 'Requisitante', value: 'Jonas Paulo Teixeira' },
-    { label: 'CNPJ/CPF', value: '35.211.434/0001-15' },
-    { label: 'Data', value: '22/05/2025' },
+    { label: 'Código do Contrato', value: contract.codigo },
+    { label: 'Contraparte / Fornecedor', value: contract.fornecedor },
+    { label: 'Tipo de Contrato', value: contract.tipo },
     { label: 'Início da vigência', value: contract.inicio },
     { label: 'Fim da vigência', value: contract.vencimento },
-    { label: 'Tipo de cobrança', value: 'KM rodado' },
-    { label: 'Valor por KM', value: 'R$34,09' },
+    { label: 'Valor Mensal Contratado', value: contract.valorMensal },
+    { label: 'Status do Contrato', value: contract.status },
   ];
 
   return (

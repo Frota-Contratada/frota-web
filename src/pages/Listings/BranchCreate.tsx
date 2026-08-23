@@ -4,19 +4,10 @@ import { Button, Input, Select, useToast } from '../../components/common';
 import { LocationPickerMap } from '../../components/maps';
 import { branchApi, collaboratorApi, geoService, extractListData, type ColaboradorDto } from '../../services';
 import { useAuthStore } from '../../stores/authStore';
+import { formatCnpj, cleanCnpj, stateSelectOptions } from '../../utils';
 import styles from '../Rides/RideReview.module.css';
 
-const stateOptions = [
-  { label: 'São Paulo - SP', value: 'SP' },
-  { label: 'Santa Catarina - SC', value: 'SC' },
-  { label: 'Paraná - PR', value: 'PR' },
-  { label: 'Pernambuco - PE', value: 'PE' },
-  { label: 'Rio de Janeiro - RJ', value: 'RJ' },
-  { label: 'Minas Gerais - MG', value: 'MG' },
-  { label: 'Rio Grande do Sul - RS', value: 'RS' },
-  { label: 'Mato Grosso do Sul - MS', value: 'MS' },
-  { label: 'Goiás - GO', value: 'GO' },
-];
+const stateOptions = stateSelectOptions;
 
 export const BranchCreate = () => {
   const navigate = useNavigate();
@@ -76,11 +67,11 @@ export const BranchCreate = () => {
 
     if (!form.name.trim()) errors.name = 'Nome da filial é obrigatório';
 
-    const cleanCnpj = form.cnpj.replace(/\D/g, '');
-    if (!cleanCnpj) {
+    const cnpjLimpo = cleanCnpj(form.cnpj);
+    if (!cnpjLimpo) {
       errors.cnpj = 'CNPJ é obrigatório';
-    } else if (cleanCnpj.length !== 14) {
-      errors.cnpj = 'CNPJ deve conter 14 dígitos';
+    } else if (cnpjLimpo.length !== 14) {
+      errors.cnpj = 'CNPJ deve conter 14 caracteres alfanuméricos';
     }
 
     const cleanCep = form.zipCode.replace(/\D/g, '');
@@ -100,18 +91,7 @@ export const BranchCreate = () => {
   };
 
   const handleCnpjChange = (val: string) => {
-    const raw = val.replace(/\D/g, '').slice(0, 14);
-    let formatted = raw;
-    if (raw.length > 12) {
-      formatted = `${raw.slice(0, 2)}.${raw.slice(2, 5)}.${raw.slice(5, 8)}/${raw.slice(8, 12)}-${raw.slice(12)}`;
-    } else if (raw.length > 8) {
-      formatted = `${raw.slice(0, 2)}.${raw.slice(2, 5)}.${raw.slice(5, 8)}/${raw.slice(8)}`;
-    } else if (raw.length > 5) {
-      formatted = `${raw.slice(0, 2)}.${raw.slice(2, 5)}.${raw.slice(5)}`;
-    } else if (raw.length > 2) {
-      formatted = `${raw.slice(0, 2)}.${raw.slice(2)}`;
-    }
-    updateField('cnpj', formatted);
+    updateField('cnpj', formatCnpj(val));
   };
 
   const handleCepChange = async (val: string) => {

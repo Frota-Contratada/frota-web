@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select, useToast } from '../../components/common';
 import { branchApi, supplierApi, extractListData, type FilialDto } from '../../services';
+import { formatCnpj, cleanCnpj } from '../../utils';
 import styles from '../Rides/RideReview.module.css';
 import contractsStyles from '../Contracts/Contracts.module.css';
 
@@ -40,18 +41,7 @@ export const SupplierCreate = () => {
   };
 
   const handleDocumentChange = (val: string) => {
-    const raw = val.replace(/\D/g, '').slice(0, 14);
-    let formatted = raw;
-    if (raw.length > 12) {
-      formatted = `${raw.slice(0, 2)}.${raw.slice(2, 5)}.${raw.slice(5, 8)}/${raw.slice(8, 12)}-${raw.slice(12)}`;
-    } else if (raw.length > 8) {
-      formatted = `${raw.slice(0, 2)}.${raw.slice(2, 5)}.${raw.slice(5, 8)}/${raw.slice(8)}`;
-    } else if (raw.length > 5) {
-      formatted = `${raw.slice(0, 2)}.${raw.slice(2, 5)}.${raw.slice(5)}`;
-    } else if (raw.length > 2) {
-      formatted = `${raw.slice(0, 2)}.${raw.slice(2)}`;
-    }
-    updateField('document', formatted);
+    updateField('document', formatCnpj(val));
   };
 
   const validate = (): boolean => {
@@ -59,11 +49,11 @@ export const SupplierCreate = () => {
 
     if (!form.name.trim()) errors.name = 'Razão Social / Nome é obrigatório';
 
-    const cleanDoc = form.document.replace(/\D/g, '');
-    if (!cleanDoc) {
+    const cnpjLimpo = cleanCnpj(form.document);
+    if (!cnpjLimpo) {
       errors.document = 'CNPJ é obrigatório';
-    } else if (cleanDoc.length !== 14) {
-      errors.document = 'CNPJ deve conter 14 dígitos';
+    } else if (cnpjLimpo.length !== 14) {
+      errors.document = 'CNPJ deve conter 14 caracteres alfanuméricos';
     }
 
     setValidationErrors(errors);
@@ -81,7 +71,7 @@ export const SupplierCreate = () => {
       setIsLoading(true);
       await supplierApi.create({
         nome: form.name,
-        cnpjCpf: form.document.replace(/\D/g, ''),
+        cnpjCpf: cleanCnpj(form.document),
         filialId: selectedFilialId || 1,
       });
 

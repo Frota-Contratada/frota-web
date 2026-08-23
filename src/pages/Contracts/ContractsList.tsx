@@ -113,6 +113,11 @@ export const ContractsList = () => {
           setBigNumbers(bigNumbersRes.value.response);
         }
 
+        if (contractsRes.status === 'rejected') {
+          const msg = contractsRes.reason instanceof Error ? contractsRes.reason.message : 'Falha ao buscar contratos';
+          showToast({ type: 'error', title: 'Erro ao carregar contratos', description: msg });
+        }
+
         if (suppliersRes.status === 'fulfilled') {
           const apiSuppliers = extractListData<{ id: number; nome: string }>(suppliersRes.value);
           if (apiSuppliers.length > 0) {
@@ -120,7 +125,8 @@ export const ContractsList = () => {
           }
         }
       } catch (err) {
-        console.warn('Usando dados padrão de contratos:', err);
+        const msg = err instanceof Error ? err.message : 'Erro ao processar dados de contratos';
+        showToast({ type: 'error', title: 'Erro ao carregar contratos', description: msg });
       } finally {
         if (isMounted) setIsLoading(false);
       }

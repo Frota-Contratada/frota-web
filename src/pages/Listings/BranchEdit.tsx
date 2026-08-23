@@ -3,19 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Input, LoadingState, Select, useToast } from '../../components/common';
 import { LocationPickerMap } from '../../components/maps';
 import { branchApi, geoService } from '../../services';
+import { stateSelectOptions } from '../../utils';
 import styles from '../Rides/RideReview.module.css';
 
-const stateOptions = [
-  { label: 'São Paulo - SP', value: 'SP' },
-  { label: 'Santa Catarina - SC', value: 'SC' },
-  { label: 'Paraná - PR', value: 'PR' },
-  { label: 'Pernambuco - PE', value: 'PE' },
-  { label: 'Rio de Janeiro - RJ', value: 'RJ' },
-  { label: 'Minas Gerais - MG', value: 'MG' },
-  { label: 'Rio Grande do Sul - RS', value: 'RS' },
-  { label: 'Mato Grosso do Sul - MS', value: 'MS' },
-  { label: 'Goiás - GO', value: 'GO' },
-];
+const stateOptions = stateSelectOptions;
 
 export const BranchEdit = () => {
   const navigate = useNavigate();

@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Input, LoadingState, Select, useToast } from '../../components/common';
 import { branchApi, supplierApi, extractListData, type FilialDto } from '../../services';
-import { formatDocument } from './suppliersData';
+import { formatCnpj, cleanCnpj } from '../../utils';
 import styles from '../Rides/RideReview.module.css';
 
 const statusOptions = [
@@ -45,7 +45,7 @@ export const SupplierEdit = () => {
           const s = res.response;
           setForm({
             name: s.nome || '',
-            document: s.cnpjCpf ? formatDocument(s.cnpjCpf) : '',
+            document: s.cnpjCpf ? formatCnpj(s.cnpjCpf) : '',
             vehicles: '0',
             status: 'aprovado',
             linkedBranch: '',
@@ -73,7 +73,12 @@ export const SupplierEdit = () => {
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
     if (!form.name.trim()) errors.name = 'Nome é obrigatório';
-    if (!form.document.trim()) errors.document = 'Documento é obrigatório';
+    const cnpjLimpo = cleanCnpj(form.document);
+    if (!cnpjLimpo) {
+      errors.document = 'CNPJ é obrigatório';
+    } else if (cnpjLimpo.length !== 14) {
+      errors.document = 'CNPJ deve conter 14 caracteres alfanuméricos';
+    }
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -138,9 +143,10 @@ export const SupplierEdit = () => {
             />
 
             <Input
-              label="CNPJ / CPF"
+              label="CNPJ"
+              placeholder="00.000.000/0000-00"
               value={form.document}
-              onChange={(e) => updateField('document', e.target.value)}
+              onChange={(e) => updateField('document', formatCnpj(e.target.value))}
               error={validationErrors.document}
               required
               disabled={isLoading}

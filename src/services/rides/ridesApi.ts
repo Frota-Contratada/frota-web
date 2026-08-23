@@ -106,8 +106,11 @@ export interface SolicitacaoDto {
   motivoSolicitacao?: MotivoSolicitacaoDto;
   motivo?: MotivoSolicitacaoDto;
   centrosCusto?: SolicitacaoCentroCustoDto[];
+  CentrosCusto?: SolicitacaoCentroCustoDto[];
   passageiros?: PassageiroDto[];
+  Passageiros?: PassageiroDto[];
   corrida?: CorridaDto;
+  Corrida?: CorridaDto[];
   emAndamento?: boolean;
   cancelavel?: boolean;
   createdAt?: string;
@@ -152,6 +155,22 @@ export const ridesApi = {
     return apiClient.get<{ response: SolicitacaoDto }>(`/solicitacoes/${id}`);
   },
 
+  aprovar(id: number) {
+    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/aprovar`, {});
+  },
+
+  rejeitar(id: number, motivo?: string) {
+    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/rejeitar`, { motivo });
+  },
+
+  approveRequest(requestId: number) {
+    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${requestId}/aprovar`, {});
+  },
+
+  rejectRequest(requestId: number, motivo?: string) {
+    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${requestId}/rejeitar`, { motivo });
+  },
+
   cancelar(id: number, data?: CancelarSolicitacaoParams) {
     return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/cancelamento`, data ?? {});
   },
@@ -172,3 +191,4 @@ export const ridesApi = {
     return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${requestId}/cancelamento`, {});
   },
 };
+

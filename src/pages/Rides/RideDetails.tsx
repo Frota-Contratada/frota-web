@@ -1,16 +1,18 @@
-import { useMemo } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { Button, StatusBadge, useToast } from '../../components/common';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Button, LoadingState, StatusBadge, useToast } from '../../components/common';
 import { RouteMap } from '../../components/maps';
 import type { RoutePoint } from '../../services/maps/routingService';
 import SetaSmIcon from '../../assets/icons/seta-sm.svg?react';
-import { rideHistory, rideRequests, type RideStatus } from '../Listings/listingsData';
+import { ridesApi, type SolicitacaoDto } from '../../services';
 import styles from './RideReview.module.css';
 
-const rideStatusBadgeMap: Record<RideStatus, 'em_andamento' | 'aprovado' | 'cancelado'> = {
-  I: 'em_andamento',
-  F: 'aprovado',
-  C: 'cancelado',
+const mapStatusToBadge = (status?: string): 'em_andamento' | 'aprovado' | 'cancelado' | 'pendente' => {
+  const s = status?.toUpperCase();
+  if (s === 'EM_ANDAMENTO' || s === 'I') return 'em_andamento';
+  if (s === 'APROVADA' || s === 'FINALIZADA' || s === 'F') return 'aprovado';
+  if (s === 'CANCELADA' || s === 'REJEITADA' || s === 'C') return 'cancelado';
+  return 'pendente';
 };
 
 export const RideDetails = () => {
@@ -18,45 +20,117 @@ export const RideDetails = () => {
   const { rideId } = useParams();
   const { showToast } = useToast();
 
-  const ride = rideHistory.find((item) => item.id === Number(rideId));
-  const associatedRequest = ride ? rideRequests.find((req) => req.id === ride.requestId) : null;
+  const [solicitacao, setSolicitacao] = useState<SolicitacaoDto | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (!ride) {
-    return <Navigate to="/corridas/historico" replace />;
-  }
+  useEffect(() => {
+    let isMounted = true;
+    if (rideId && !isNaN(Number(rideId))) {
+      ridesApi
+        .getById(Number(rideId))
+        .then((res) => {
+          if (!isMounted) return;
+          if (res.response) {
+            setSolicitacao(res.response);
+          }
+        })
+        .catch((err) => {
+          if (!isMounted) return;
+          const msg = err instanceof Error ? err.message : 'Não foi possível carregar os dados da corrida.';
+          showToast({
+            type: 'error',
+            title: 'Erro ao buscar detalhes da corrida',
+            description: msg,
+          });
+        })
+        .finally(() => {
+          if (isMounted) setIsLoading(false);
+        });
+    } else {
+      setIsLoading(false);
+      navigate('/corridas/historico');
+    }
 
-  const originText = associatedRequest?.origin || 'Seara Itajaí - SC';
-  const destinationText = associatedRequest?.destination || 'Aeroporto / Destino Final';
+    return () => {
+      isMounted = false;
+    };
+  }, [rideId, navigate]);
 
-  const routePoints: RoutePoint[] = useMemo(() => [
-    {
-      lat: -26.9078,
-      lng: -48.6619,
-      label: `Origem: ${originText}`,
-      type: 'origin',
-    },
-    {
-      lat: -26.8795,
-      lng: -48.6510,
-      label: `Destino: ${destinationText}`,
-      type: 'destination',
-    },
-  ], [originText, destinationText]);
+  const originText = solicitacao?.origem
+    ? `${solicitacao.origem.logradouro}, ${solicitacao.origem.cidade} - ${solicitacao.origem.uf}`
+    : 'Origem';
+
+  const destinationText = solicitacao?.destino
+    ? `${solicitacao.destino.logradouro}, ${solicitacao.destino.cidade} - ${solicitacao.destino.uf}`
+    : 'Destino';
+
+  const routePoints: RoutePoint[] = useMemo(() => {
+    const pts: RoutePoint[] = [];
+    if (solicitacao?.origem?.latitude && solicitacao?.origem?.longitude) {
+      pts.push({
+        lat: solicitacao.origem.latitude,
+        lng: solicitacao.origem.longitude,
+        label: `Origem: ${originText}`,
+        type: 'origin',
+      });
+    }
+    if (solicitacao?.destino?.latitude && solicitacao?.destino?.longitude) {
+      pts.push({
+        lat: solicitacao.destino.latitude,
+        lng: solicitacao.destino.longitude,
+        label: `Destino: ${destinationText}`,
+        type: 'destination',
+      });
+    }
+    return pts;
+  }, [solicitacao, originText, destinationText]);
 
   const handlePrintReceipt = () => {
     showToast({
       type: 'success',
       title: 'Gerando recibo',
-      description: `O recibo da corrida #${ride.id} está pronto para impressão.`,
+      description: `O recibo da corrida #${solicitacao?.id || rideId} está pronto para impressão.`,
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className={styles.page}>
+        <LoadingState
+          variant="details"
+          message="Carregando detalhes da corrida"
+          submessage="Buscando informações do trajeto e valores..."
+        />
+      </div>
+    );
+  }
+
+  if (!solicitacao) {
+    return (
+      <div className={styles.page}>
+        <div style={{ textAlign: 'center', padding: '3rem' }}>
+          <h2>Corrida não encontrada</h2>
+          <Button variant="outline" style={{ marginTop: '1rem' }} onClick={() => navigate('/corridas/historico')}>
+            Voltar ao histórico
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const corrida = solicitacao.Corrida && solicitacao.Corrida.length > 0 ? solicitacao.Corrida[0] : null;
+  const valorFinal = corrida?.valorFinal ?? solicitacao.valorEstimado ?? 0;
+  const kmPercorrido = corrida?.kmPercorrido ?? solicitacao.distanciaEstimadaKm ?? solicitacao.distanciaKm ?? 0;
 
   return (
     <div className={styles.page}>
       <section className={styles.detailHeader}>
         <div>
-          <h2>Corrida #{ride.id}</h2>
-          <p>Solicitação #{ride.requestId} • {ride.supplier}</p>
+          <h2>Corrida #{solicitacao.id}</h2>
+          <p>
+            {solicitacao.dataCorrida ? new Date(solicitacao.dataCorrida).toLocaleString('pt-BR') : '—'} •{' '}
+            {solicitacao.tipoCorrida?.nome || 'Transporte Executivo'}
+          </p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           <Button variant="outline" onClick={handlePrintReceipt}>
@@ -75,7 +149,7 @@ export const RideDetails = () => {
               <h3>Informações do Trajeto</h3>
               <p>Origem, destino e traçado do percurso da corrida.</p>
             </div>
-            <StatusBadge status={rideStatusBadgeMap[ride.status]} />
+            <StatusBadge status={mapStatusToBadge(solicitacao.status)} />
           </div>
 
           <div className={styles.routeCard}>
@@ -107,29 +181,35 @@ export const RideDetails = () => {
           <div className={styles.cardHeader} style={{ marginTop: '2rem' }}>
             <div>
               <h3>Execução da Corrida</h3>
-              <p>Horários de início/término e medição de distância.</p>
+              <p>Horários e medição de distância do trajeto.</p>
             </div>
           </div>
 
           <div className={styles.infoGrid}>
             <div className={styles.infoItem}>
-              <span>Horário de Início</span>
-              <strong>{ride.startedAt}</strong>
+              <span>Data da Corrida</span>
+              <strong>
+                {solicitacao.dataCorrida ? new Date(solicitacao.dataCorrida).toLocaleDateString('pt-BR') : '—'}
+              </strong>
             </div>
 
             <div className={styles.infoItem}>
-              <span>Horário de Término</span>
-              <strong>{ride.finishedAt ?? 'Em andamento'}</strong>
+              <span>Horário Agendado</span>
+              <strong>
+                {solicitacao.dataCorrida
+                  ? new Date(solicitacao.dataCorrida).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                  : '—'}
+              </strong>
             </div>
 
             <div className={styles.infoItem}>
               <span>Distância Percorrida</span>
-              <strong>{ride.distanceKm > 0 ? `${ride.distanceKm.toLocaleString('pt-BR')} km` : '—'}</strong>
+              <strong>{kmPercorrido > 0 ? `${Number(kmPercorrido).toLocaleString('pt-BR')} km` : 'A calcular'}</strong>
             </div>
 
             <div className={styles.infoItem}>
               <span>Categoria do Veículo</span>
-              <strong>{ride.vehicleType}</strong>
+              <strong>{solicitacao.tipoVeiculo?.nome || solicitacao.tipoCorrida?.nome || 'Executiva'}</strong>
             </div>
           </div>
 
@@ -143,22 +223,22 @@ export const RideDetails = () => {
           <div className={styles.infoGrid}>
             <div className={styles.infoItem}>
               <span>Motorista</span>
-              <strong>{ride.driver}</strong>
+              <strong>{corrida?.motoristaNome || 'A definir pelo fornecedor'}</strong>
             </div>
 
             <div className={styles.infoItem}>
               <span>Placa do Veículo</span>
-              <strong>{ride.vehiclePlate}</strong>
+              <strong>{corrida?.placaVeiculo || '—'}</strong>
             </div>
 
             <div className={styles.infoItem}>
-              <span>Fornecedor</span>
-              <strong>{ride.supplier}</strong>
+              <span>Tipo de Corrida</span>
+              <strong>{solicitacao.tipoCorrida?.nome || 'Executiva'}</strong>
             </div>
 
             <div className={styles.infoItem}>
               <span>Status Operacional</span>
-              <strong>{ride.status === 'F' ? 'Concluída' : ride.status === 'I' ? 'Em trânsito' : 'Cancelada'}</strong>
+              <strong>{solicitacao.status}</strong>
             </div>
           </div>
         </article>
@@ -169,18 +249,22 @@ export const RideDetails = () => {
 
             <div className={styles.summaryList}>
               <div>
-                <span>Valor da corrida</span>
-                <strong>{ride.finalValue}</strong>
+                <span>Valor estimado</span>
+                <strong>
+                  R$ {Number(solicitacao.valorEstimado || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </strong>
               </div>
 
               <div>
                 <span>Despesas extras / Pedágio</span>
-                <strong>{ride.extraExpenses}</strong>
+                <strong>R$ 0,00</strong>
               </div>
 
               <div>
                 <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>Total Faturado</span>
-                <strong style={{ color: 'var(--brand-primary)', fontSize: '1.125rem' }}>{ride.finalValue}</strong>
+                <strong style={{ color: 'var(--brand-primary)', fontSize: '1.125rem' }}>
+                  R$ {Number(valorFinal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </strong>
               </div>
             </div>
           </div>
@@ -191,17 +275,25 @@ export const RideDetails = () => {
             <div className={styles.summaryList}>
               <div>
                 <span>Solicitante</span>
-                <strong>{associatedRequest?.requester || 'Marina Oliveira'}</strong>
+                <strong>{solicitacao.solicitanteNome || 'Colaborador Solicitante'}</strong>
               </div>
 
               <div>
-                <span>Motivo corporativo</span>
-                <strong>{associatedRequest?.reason || 'Reunião Externa'}</strong>
+                <span>Centros de Custo</span>
+                <strong>
+                  {solicitacao.CentrosCusto && solicitacao.CentrosCusto.length > 0
+                    ? solicitacao.CentrosCusto.map((cc) => cc.centroCustoNome || `CC #${cc.centroCustoId}`).join(', ')
+                    : 'Centro de custo padrão'}
+                </strong>
               </div>
 
               <div>
                 <span>Passageiros</span>
-                <strong>{associatedRequest?.passengers || 1} pessoa(s)</strong>
+                <strong>
+                  {solicitacao.Passageiros && solicitacao.Passageiros.length > 0
+                    ? `${solicitacao.Passageiros.length} pessoa(s)`
+                    : '1 pessoa'}
+                </strong>
               </div>
             </div>
           </div>
