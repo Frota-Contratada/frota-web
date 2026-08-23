@@ -131,6 +131,9 @@ export const SuppliersList = () => {
             };
           });
           setSuppliersList(apiSuppliers);
+        } else if (suppliersRes.status === 'rejected') {
+          const msg = suppliersRes.reason instanceof Error ? suppliersRes.reason.message : 'Falha ao buscar fornecedores';
+          showToast({ type: 'error', title: 'Erro ao carregar fornecedores', description: msg });
         }
       })
       .catch((err) => {

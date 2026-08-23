@@ -124,7 +124,6 @@ async function request<T>(path: string, options: ApiRequestOptions = {}): Promis
     throw new ApiError('Serviço temporariamente indisponível. Tente novamente mais tarde.', 0);
   }
 
-
   if (response.status === 401 && !skipAuth && !_retry && !path.includes('/autenticacao/login') && !path.includes('/autenticacao/refresh')) {
     if (!refreshPromise) {
       refreshPromise = refreshAccessToken().finally(() => {

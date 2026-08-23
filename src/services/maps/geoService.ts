@@ -22,7 +22,7 @@ export interface SugestaoEndereco {
 
 interface PhotonFeature {
   geometry: {
-    coordinates: [number, number]; // [lng, lat]
+    coordinates: [number, number]; 
   };
   properties: {
     name?: string;
@@ -79,7 +79,6 @@ export const geoService = {
 
     const cleanQuery = query.trim();
 
-    // 1. Se o usuário digitou um CEP (com ou sem traço)
     const cepMatch = cleanQuery.replace(/\D/g, '');
     if (cepMatch.length === 8) {
       const cepResult = await this.buscarEnderecoPorCep(cepMatch);
@@ -99,7 +98,6 @@ export const geoService = {
       }
     }
 
-    // 2. Busca precisa focada 100% no Brasil com Nominatim OpenStreetMap
     try {
       const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
         cleanQuery
@@ -156,10 +154,9 @@ export const geoService = {
         }
       }
     } catch {
-      // Falha de rede ou timeout
+      
     }
 
-    // 3. Fallback complementar com Photon filtrado no Brasil
     try {
       const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(
         cleanQuery
@@ -195,7 +192,7 @@ export const geoService = {
         }
       }
     } catch {
-      // Ignora erro de fallback
+      
     }
 
     return [];
@@ -245,7 +242,7 @@ export const geoService = {
         }
       }
     } catch {
-      // Ignora erro
+      
     }
 
     return null;

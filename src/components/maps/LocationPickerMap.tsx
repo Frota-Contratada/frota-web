@@ -13,7 +13,6 @@ interface LocationPickerMapProps {
   className?: string;
 }
 
-
 const MapClickHandler = ({ onLocationSelect }: { onLocationSelect: (lat: number, lng: number) => void }) => {
   useMapEvents({
     click(e) {
@@ -22,7 +21,6 @@ const MapClickHandler = ({ onLocationSelect }: { onLocationSelect: (lat: number,
   });
   return null;
 };
-
 
 const MapRecenter = ({ lat, lng }: { lat: number; lng: number }) => {
   const map = useMap();

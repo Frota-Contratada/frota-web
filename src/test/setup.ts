@@ -1,12 +1,10 @@
 import '@testing-library/jest-dom';
 import { beforeEach, vi } from 'vitest';
 
-
 beforeEach(() => {
   localStorage.clear();
   vi.restoreAllMocks();
 });
-
 
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

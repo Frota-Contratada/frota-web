@@ -12,7 +12,7 @@ import {
   type ColaboradorDto,
   type MotoristaDto,
 } from '../../services';
-import { formatCpf, employees as defaultEmployees } from './listingsData';
+import { formatCpf } from './listingsData';
 import styles from '../Rides/RideReview.module.css';
 import localStyles from './EmployeeCreate.module.css';
 
@@ -43,7 +43,6 @@ export const EmployeeEdit = () => {
     setIsInitialLoading(true);
 
     const numericId = Number(employeeId);
-    const mockEmployee = defaultEmployees.find((e) => String(e.id) === String(employeeId));
 
     Promise.allSettled([
       branchApi.list(),
@@ -61,7 +60,6 @@ export const EmployeeEdit = () => {
       setBranchesList(branches);
       setCostCentersList(costCenters);
 
-      // 1. Check driver
       if (driverRes.status === 'fulfilled' && driverRes.value?.response) {
         const d: MotoristaDto = driverRes.value.response;
         setForm({
@@ -76,7 +74,6 @@ export const EmployeeEdit = () => {
         return;
       }
 
-      // 2. Check collaborator
       const matchedCollab = collabs.find((c) => String(c.id) === String(employeeId));
       if (matchedCollab) {
         let loadedProfiles: string[] = [];
@@ -100,42 +97,13 @@ export const EmployeeEdit = () => {
         return;
       }
 
-      // 3. Fallback mock
-      if (mockEmployee) {
-        setForm({
-          name: mockEmployee.name || '',
-          email: mockEmployee.email || '',
-          cpf: mockEmployee.cpf ? formatCpf(mockEmployee.cpf) : '',
-          role: mockEmployee.role || 'Colaborador',
-          branch: branches[0]?.id ? String(branches[0].id) : '1',
-          costCenterId: costCenters[0]?.id ? String(costCenters[0].id) : '1',
-          profiles: mockEmployee.profiles || ['Solicitante'],
-        });
-        return;
-      }
-
-      setForm({
-        name: `Colaborador #${employeeId}`,
-        email: '',
-        cpf: '',
-        role: 'Colaborador',
-        branch: branches[0]?.id ? String(branches[0].id) : '1',
-        costCenterId: costCenters[0]?.id ? String(costCenters[0].id) : '1',
-        profiles: ['Solicitante'],
-      });
-    }).catch(() => {
+      showToast({ type: 'error', title: 'Colaborador não localizado', description: 'O registro não foi encontrado no servidor.' });
+      navigate('/colaboradores', { replace: true });
+    }).catch((err) => {
       if (!isMounted) return;
-      if (mockEmployee) {
-        setForm({
-          name: mockEmployee.name || '',
-          email: mockEmployee.email || '',
-          cpf: mockEmployee.cpf ? formatCpf(mockEmployee.cpf) : '',
-          role: mockEmployee.role || 'Colaborador',
-          branch: '1',
-          costCenterId: '1',
-          profiles: mockEmployee.profiles || ['Solicitante'],
-        });
-      }
+      const msg = err instanceof Error ? err.message : 'Erro ao consultar dados do colaborador';
+      showToast({ type: 'error', title: 'Erro ao carregar colaborador', description: msg });
+      navigate('/colaboradores', { replace: true });
     }).finally(() => {
       if (isMounted) setIsInitialLoading(false);
     });

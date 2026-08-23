@@ -14,7 +14,6 @@ interface RouteMapProps {
   className?: string;
 }
 
-
 const MapBoundsAdjuster = ({ coordinates }: { coordinates: Array<[number, number]> }) => {
   const map = useMap();
 
@@ -41,7 +40,6 @@ export const RouteMap = ({
 }: RouteMapProps) => {
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
 
   const validPoints = points.filter(
     (p) => typeof p.lat === 'number' && typeof p.lng === 'number' && !isNaN(p.lat) && !isNaN(p.lng)

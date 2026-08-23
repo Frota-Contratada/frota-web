@@ -85,7 +85,6 @@ export const collaboratorApi = {
     });
   },
 
-  // Smart list helper: tries admin first then filial
   list(query?: ColaboradoresAdminQueryParams) {
     return apiClient.get<ColaboradoresListResponse>('/usuario/colaborador/admin', {
       query: query as Record<string, string | number | boolean | null | undefined>,

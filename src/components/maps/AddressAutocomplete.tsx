@@ -67,7 +67,6 @@ export const AddressAutocomplete = ({
         setSuggestions(results);
         setIsOpen(results.length > 0);
 
-        // Se for um CEP exato de 8 dígitos, sincroniza diretamente
         const cleanCep = query.replace(/\D/g, '');
         if (cleanCep.length === 8 && results.length > 0) {
           onSelectAddress?.(results[0]);

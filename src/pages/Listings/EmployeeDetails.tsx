@@ -46,7 +46,6 @@ export const EmployeeDetails = () => {
 
       const collabs = collabsRes.status === 'fulfilled' ? extractListData<ColaboradorDto>(collabsRes.value) : [];
 
-      // 1. Check driver
       if (driverRes.status === 'fulfilled' && driverRes.value?.response) {
         const d: MotoristaDto = driverRes.value.response;
         setEmployee({
@@ -62,7 +61,6 @@ export const EmployeeDetails = () => {
         return;
       }
 
-      // 2. Check collaborator
       const matchedCollab = collabs.find((c) => String(c.id) === String(employeeId));
       if (matchedCollab) {
         let loadedProfiles: string[] = [];
@@ -87,7 +85,6 @@ export const EmployeeDetails = () => {
         return;
       }
 
-      // 3. Fallback mock
       if (mockEmployee) {
         setEmployee({
           id: mockEmployee.id,

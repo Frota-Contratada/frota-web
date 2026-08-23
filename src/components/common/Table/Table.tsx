@@ -147,7 +147,7 @@ export function Table<T>({
             Array.from({ length: loadingRows }, (_, rowIndex) => (
               <tr key={`skeleton-row-${rowIndex}`} className={styles.tr}>
                 {columns.map((_, colIndex) => {
-                  // Varied widths for realistic skeleton feel
+                  
                   const widths = ['80%', '60%', '90%', '45%', '70%'];
                   const width = widths[(rowIndex + colIndex) % widths.length];
                   return (

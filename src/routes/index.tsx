@@ -45,12 +45,11 @@ export const AppRoutes = () => {
         <Route path="/sign-up" element={isAuthenticated ? <Navigate to="/visao-executiva" replace /> : <SignUp />} />
         
         <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-          {/* Dashboards - apenas Administradores */}
+          
           <Route path="/visao-executiva" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><ExecutiveView /></ProtectedRoute>} />
           <Route path="/gastos" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin', 'aprovador']}><ExpensesView /></ProtectedRoute>} />
           <Route path="/preco-auditoria" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><PriceAuditView /></ProtectedRoute>} />
-          
-          {/* Corridas e Solicitações - Solicitantes, Aprovadores e Admins */}
+
           <Route path="/corridas" element={<Navigate to="/corridas/solicitacoes" replace />} />
           <Route path="/corridas/solicitacoes" element={<RideRequestsList />} />
           <Route path="/corridas/solicitacoes/nova" element={<ProtectedRoute allowedProfiles={['solicitante', 'solicitante-emergencia', 'admin-master', 'admin-filial', 'admin']}><RideRequestCreate /></ProtectedRoute>} />
@@ -58,8 +57,7 @@ export const AppRoutes = () => {
           <Route path="/corridas/calendario" element={<Calendar />} />
           <Route path="/corridas/historico" element={<RideHistoryList />} />
           <Route path="/corridas/historico/:rideId" element={<RideDetails />} />
-          
-          {/* Terceiros (Fornecedores e Contratos) - Admins e Fornecedores */}
+
           <Route path="/terceiros" element={<Navigate to="/terceiros/fornecedores" replace />} />
           <Route path="/terceiros/fornecedores" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin-fornecedor', 'admin', 'fornecedor']}><SuppliersList /></ProtectedRoute>} />
           <Route path="/terceiros/fornecedores/novo" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin']}><SupplierCreate /></ProtectedRoute>} />
@@ -69,13 +67,11 @@ export const AppRoutes = () => {
           <Route path="/terceiros/contratos/novo" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><ContractCreate /></ProtectedRoute>} />
           <Route path="/terceiros/contratos/:contractId" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin', 'fornecedor', 'admin-fornecedor']}><ContractDetails /></ProtectedRoute>} />
 
-          {/* Colaboradores - Admins */}
           <Route path="/colaboradores" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><EmployeesList /></ProtectedRoute>} />
           <Route path="/colaboradores/novo" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><EmployeeCreate /></ProtectedRoute>} />
           <Route path="/colaboradores/:employeeId" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><EmployeeDetails /></ProtectedRoute>} />
           <Route path="/colaboradores/:employeeId/editar" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><EmployeeEdit /></ProtectedRoute>} />
-          
-          {/* Filiais - Apenas Admin Master */}
+
           <Route path="/filiais" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin']}><BranchesList /></ProtectedRoute>} />
           <Route path="/filiais/nova" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin']}><BranchCreate /></ProtectedRoute>} />
           <Route path="/filiais/:branchId" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin']}><BranchDetails /></ProtectedRoute>} />

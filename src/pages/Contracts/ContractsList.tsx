@@ -98,12 +98,12 @@ export const ContractsList = () => {
               inicio: dataInicio ? new Date(dataInicio).toLocaleDateString('pt-BR') : '—',
               vencimento: dataFim ? new Date(dataFim).toLocaleDateString('pt-BR') : 'Indeterminado',
               valorMensal: c.valorMensal ? `R$ ${Number(c.valorMensal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00',
-              responsavel: 'Gestor de Contratos',
+              responsavel: '—',
               status: badgeStatus,
               arquivo: c.nomeArquivo || (c.arquivoUrl ? c.arquivoUrl.split('/').pop() || 'contrato.pdf' : (c as any).caminhoArquivo ? (c as any).caminhoArquivo.split('/').pop() : 'contrato.pdf'),
               escopo: c.descricao || 'Prestação de serviços de transporte e mobilidade.',
-              sla: '95% de atendimento no prazo.',
-              reajuste: 'IPCA anual.',
+              sla: 'Conforme termo contratual',
+              reajuste: 'Conforme contrato',
             };
           });
           setContractsList(mapped);

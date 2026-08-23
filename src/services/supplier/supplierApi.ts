@@ -77,7 +77,6 @@ export const supplierApi = {
     });
   },
 
-  // Smart list helper: tries admin then filial, or provides unified interface
   list(query?: BuscarFornecedoresQueryParams) {
     return apiClient.get<FornecedoresListResponse>('/fornecedor/admin', {
       query: query as Record<string, string | number | boolean | null | undefined>,

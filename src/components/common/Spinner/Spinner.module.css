@@ -22,7 +22,7 @@
   stroke-linecap: round;
 }
 
-/* Sizes */
+
 .xs {
   width: 14px;
   height: 14px;
@@ -68,7 +68,7 @@
   height: 48px;
 }
 
-/* Variants */
+
 .primary {
   color: var(--brand-primary);
 }

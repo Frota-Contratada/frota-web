@@ -8,13 +8,6 @@ export interface ApiEnvelope<T> {
   response: T;
 }
 
-/**
- * Safely extracts an array from various backend response envelope formats:
- * - { response: { data: T[] } } (NestJS Paginated response)
- * - { response: T[] } (NestJS Array response)
- * - { data: T[] }
- * - T[]
- */
 export function extractListData<T>(response: unknown): T[] {
   if (!response) return [];
   if (Array.isArray(response)) return response as T[];

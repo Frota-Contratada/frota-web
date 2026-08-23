@@ -50,7 +50,6 @@ export const routingService = {
       const distanceKm = Math.round((primaryRoute.distance / 1000) * 10) / 10;
       const durationMinutes = Math.round(primaryRoute.duration / 60);
 
-
       const coordinates: Array<[number, number]> = (primaryRoute.geometry?.coordinates || []).map(
         ([lng, lat]) => [lat, lng]
       );
@@ -66,7 +65,6 @@ export const routingService = {
     }
   },
 
-  
   calcularDistanciaFallback(pontos: RoutePoint[]): RouteResult {
     let totalDistKm = 0;
     const R = 6371;

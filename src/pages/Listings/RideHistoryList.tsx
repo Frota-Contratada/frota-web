@@ -113,7 +113,7 @@ export const RideHistoryList = () => {
             finishedAt: finishTime,
             distanceKm: distance,
             finalValue: formattedVal,
-            extraExpenses: 'R$ 0,00',
+            extraExpenses: '—',
             status,
           };
         });
