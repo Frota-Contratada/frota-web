@@ -232,13 +232,13 @@ export const RideDetails = () => {
             </div>
 
             <div className={styles.infoItem}>
-              <span>Tipo de Corrida</span>
-              <strong>{solicitacao.tipoCorrida?.nome || 'Executiva'}</strong>
+              <span>Fornecedor Credenciado</span>
+              <strong>{solicitacao.fornecedorNome || (solicitacao.fornecedorId ? `Fornecedor #${solicitacao.fornecedorId}` : 'Transportes Aurora')}</strong>
             </div>
 
             <div className={styles.infoItem}>
-              <span>Status Operacional</span>
-              <strong>{solicitacao.status}</strong>
+              <span>Motivo / Finalidade</span>
+              <strong>{solicitacao.motivo?.nome || 'Viagem Corporativa'}</strong>
             </div>
           </div>
         </article>

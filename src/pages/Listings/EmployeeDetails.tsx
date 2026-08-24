@@ -14,13 +14,24 @@ const getInitials = (name: string) => name
   .join('')
   .toLocaleUpperCase('pt-BR');
 
+const normalizeProfile = (p: string) => {
+  const upper = p.toUpperCase();
+  if (upper.includes('SOLICITANTE_EMERGENCIA')) return 'Solicitante de Emergência';
+  if (upper.includes('SOLICITANTE')) return 'Solicitante';
+  if (upper.includes('APROVADOR')) return 'Aprovador';
+  if (upper.includes('MOTORISTA')) return 'Motorista';
+  if (upper.includes('ADMIN_MASTER')) return 'Administrador Master';
+  if (upper.includes('ADMIN_FILIAL')) return 'Administrador de Filial';
+  return p;
+};
+
 interface EmployeeViewData {
   id: number;
   nome: string;
   email: string;
   cpf: string | null;
   cargo: string;
-  vinculoTipo: 'Filial' | 'Fornecedor';
+  vinculoTipo: string;
   vinculoNome: string;
   perfis: string[];
 }
@@ -35,92 +46,79 @@ export const EmployeeDetails = () => {
   useEffect(() => {
     let isMounted = true;
     const numericId = Number(employeeId);
-    const mockEmployee = defaultEmployees.find((e) => String(e.id) === String(employeeId));
+
+    if (isNaN(numericId)) {
+      setIsLoading(false);
+      navigate('/colaboradores', { replace: true });
+      return;
+    }
 
     Promise.allSettled([
       collaboratorApi.list(),
-      !isNaN(numericId) ? driverApi.getById(numericId) : Promise.reject(),
-      !isNaN(numericId) ? collaboratorApi.getProfiles(numericId) : Promise.reject(),
-    ]).then(([collabsRes, driverRes, profilesRes]) => {
-      if (!isMounted) return;
+      collaboratorApi.getProfiles(numericId),
+      driverApi.getById(numericId),
+    ])
+      .then(([collabsRes, profilesRes, driverRes]) => {
+        if (!isMounted) return;
 
-      const collabs = collabsRes.status === 'fulfilled' ? extractListData<ColaboradorDto>(collabsRes.value) : [];
+        const collabs =
+          collabsRes.status === 'fulfilled' ? extractListData<ColaboradorDto>(collabsRes.value) : [];
+        const matchedCollab = collabs.find((c) => Number(c.id) === numericId);
 
-      if (driverRes.status === 'fulfilled' && driverRes.value?.response) {
-        const d: MotoristaDto = driverRes.value.response;
-        setEmployee({
-          id: d.id,
-          nome: d.nome,
-          email: d.email,
-          cpf: d.cpf,
-          cargo: 'Motorista',
-          vinculoTipo: 'Fornecedor',
-          vinculoNome: `Fornecedor #${d.fornecedorId}`,
-          perfis: ['Motorista'],
-        });
-        return;
-      }
-
-      const matchedCollab = collabs.find((c) => String(c.id) === String(employeeId));
-      if (matchedCollab) {
         let loadedProfiles: string[] = [];
         if (profilesRes.status === 'fulfilled' && profilesRes.value?.response?.perfis) {
-          loadedProfiles = profilesRes.value.response.perfis.map((p) => p.tipoPerfil);
-        } else if (matchedCollab.perfis && matchedCollab.perfis.length > 0) {
-          loadedProfiles = matchedCollab.perfis.map((p) => p.tipoPerfil);
-        } else {
-          loadedProfiles = ['Solicitante'];
+          loadedProfiles = profilesRes.value.response.perfis.map((p) => normalizeProfile(p.tipoPerfil));
         }
 
-        setEmployee({
-          id: matchedCollab.id,
-          nome: matchedCollab.nome,
-          email: matchedCollab.email,
-          cpf: matchedCollab.cpf,
-          cargo: 'Colaborador',
-          vinculoTipo: 'Filial',
-          vinculoNome: matchedCollab.filialNome || (matchedCollab.filialId ? `Filial #${matchedCollab.filialId}` : 'Matriz Seara'),
-          perfis: loadedProfiles.length > 0 ? loadedProfiles : ['Solicitante'],
-        });
-        return;
-      }
+        if (matchedCollab) {
+          if (loadedProfiles.length === 0 && matchedCollab.perfis && matchedCollab.perfis.length > 0) {
+            loadedProfiles = matchedCollab.perfis.map((p) => normalizeProfile(p.tipoPerfil));
+          }
 
-      if (mockEmployee) {
-        setEmployee({
-          id: mockEmployee.id,
-          nome: mockEmployee.name,
-          email: mockEmployee.email,
-          cpf: mockEmployee.cpf,
-          cargo: mockEmployee.role || 'Analista',
-          vinculoTipo: mockEmployee.supplier ? 'Fornecedor' : 'Filial',
-          vinculoNome: mockEmployee.supplier || mockEmployee.branch || 'Matriz Seara',
-          perfis: mockEmployee.profiles || ['Solicitante'],
-        });
-        return;
-      }
+          setEmployee({
+            id: matchedCollab.id,
+            nome: matchedCollab.nome,
+            email: matchedCollab.email,
+            cpf: matchedCollab.cpf || null,
+            cargo: matchedCollab.cargo || 'Colaborador',
+            vinculoTipo: 'Filial',
+            vinculoNome: matchedCollab.filialNome || (matchedCollab.filialId ? `Filial #${matchedCollab.filialId}` : 'Filial Londrina'),
+            perfis: loadedProfiles,
+          });
+          return;
+        }
 
-      showToast({ type: 'warning', title: 'Colaborador não localizado', description: 'Redirecionando para a listagem.' });
-      navigate('/colaboradores', { replace: true });
-    }).catch(() => {
-      if (!isMounted) return;
-      if (mockEmployee) {
-        setEmployee({
-          id: mockEmployee.id,
-          nome: mockEmployee.name,
-          email: mockEmployee.email,
-          cpf: mockEmployee.cpf,
-          cargo: mockEmployee.role || 'Analista',
-          vinculoTipo: mockEmployee.supplier ? 'Fornecedor' : 'Filial',
-          vinculoNome: mockEmployee.supplier || mockEmployee.branch || 'Matriz Seara',
-          perfis: mockEmployee.profiles || ['Solicitante'],
+        if (driverRes.status === 'fulfilled' && driverRes.value?.response) {
+          const d: MotoristaDto = driverRes.value.response;
+          setEmployee({
+            id: d.id,
+            nome: d.nome,
+            email: d.email,
+            cpf: d.cpf || null,
+            cargo: 'Motorista Profissional',
+            vinculoTipo: 'Fornecedor',
+            vinculoNome: d.fornecedorNome || (d.fornecedorId ? `Fornecedor #${d.fornecedorId}` : 'Transportes Aurora'),
+            perfis: ['Motorista'],
+          });
+          return;
+        }
+
+        showToast({
+          type: 'error',
+          title: 'Colaborador não encontrado',
+          description: `O registro de ID #${employeeId} não existe no banco de dados.`,
         });
-      } else {
-        showToast({ type: 'error', title: 'Erro ao carregar colaborador' });
         navigate('/colaboradores', { replace: true });
-      }
-    }).finally(() => {
-      if (isMounted) setIsLoading(false);
-    });
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        const msg = err instanceof Error ? err.message : 'Erro ao buscar colaborador';
+        showToast({ type: 'error', title: msg });
+        navigate('/colaboradores', { replace: true });
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
 
     return () => {
       isMounted = false;
@@ -133,7 +131,7 @@ export const EmployeeDetails = () => {
         <LoadingState
           variant="card"
           message="Carregando dados do colaborador"
-          submessage="Consultando perfil e permissões..."
+          submessage="Consultando perfil e permissões no servidor..."
         />
       </div>
     );
@@ -143,17 +141,20 @@ export const EmployeeDetails = () => {
     return null;
   }
 
-  const isSolicitante = employee.perfis.includes('Solicitante');
-  const isAprovador = employee.perfis.includes('Aprovador');
-  const isMotorista = employee.perfis.includes('Motorista');
+  const isSolicitante = employee.perfis.some((p) => p.toLowerCase().includes('solicitante'));
+  const isAprovador = employee.perfis.some((p) => p.toLowerCase().includes('aprovador'));
+  const isMotorista = employee.perfis.some((p) => p.toLowerCase().includes('motorista'));
+  const isAdmin = employee.perfis.some((p) => p.toLowerCase().includes('administrador') || p.toLowerCase().includes('admin'));
 
   return (
     <div className={styles.page}>
       <section className={styles.heroCard}>
         <div className={styles.employeeIdentity}>
-          <span className={styles.avatar} aria-label={`Avatar de ${employee.nome}`}>{getInitials(employee.nome)}</span>
+          <span className={styles.avatar} aria-label={`Avatar de ${employee.nome}`}>
+            {getInitials(employee.nome)}
+          </span>
           <div>
-            <span className={styles.eyebrow}>Visão geral do colaborador</span>
+            <span className={styles.eyebrow}>Visão Geral do Colaborador</span>
             <h2>{employee.nome}</h2>
             <p>{employee.email}</p>
           </div>
@@ -161,8 +162,12 @@ export const EmployeeDetails = () => {
 
         <div className={styles.heroActions}>
           <StatusBadge status="aprovado" />
-          <Button variant="outline" onClick={() => navigate(`/colaboradores/${employee.id}/editar`)}>Editar dados cadastrais</Button>
-          <Button variant="outline" onClick={() => navigate('/colaboradores')}>Voltar</Button>
+          <Button variant="outline" onClick={() => navigate(`/colaboradores/${employee.id}/editar`)}>
+            Editar dados
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/colaboradores')}>
+            Voltar
+          </Button>
         </div>
       </section>
 
@@ -171,27 +176,27 @@ export const EmployeeDetails = () => {
           <div className={styles.card}>
             <div className={styles.cardHeader}>
               <div>
-                <h3>Dados cadastrais</h3>
-                <p>Informações usadas para identificar o colaborador na plataforma.</p>
+                <h3>Dados Cadastrais</h3>
+                <p>Informações de registro e identificação institucional.</p>
               </div>
             </div>
 
             <div className={styles.infoGrid}>
               <div className={styles.infoItem}>
                 <span>CPF</span>
-                <strong>{formatCpf(employee.cpf)}</strong>
+                <strong>{employee.cpf ? formatCpf(employee.cpf) : 'Não informado'}</strong>
               </div>
               <div className={styles.infoItem}>
                 <span>Cargo</span>
                 <strong>{employee.cargo}</strong>
               </div>
               <div className={styles.infoItem}>
-                <span>Disponibilidade</span>
-                <strong>Disponível</strong>
+                <span>Vínculo Institucional</span>
+                <strong>{employee.vinculoTipo}</strong>
               </div>
               <div className={styles.infoItem}>
-                <span>Situação Operacional</span>
-                <strong>Ativo na plataforma</strong>
+                <span>Unidade / Lotação</span>
+                <strong>{employee.vinculoNome}</strong>
               </div>
             </div>
           </div>
@@ -199,8 +204,8 @@ export const EmployeeDetails = () => {
           <div className={styles.card}>
             <div className={styles.cardHeader}>
               <div>
-                <h3>Permissões do Perfil</h3>
-                <p>Visão geral das permissões liberadas conforme os perfis vinculados.</p>
+                <h3>Permissões e Acessos</h3>
+                <p>Funcionalidades disponíveis de acordo com os papéis do colaborador.</p>
               </div>
             </div>
 
@@ -213,10 +218,10 @@ export const EmployeeDetails = () => {
                   <div className={styles.permissionContent}>
                     <div>
                       <strong>Solicitação de Corridas</strong>
-                      <p>Permite solicitar viagens corporativas e acompanhar status de atendimento.</p>
+                      <p>Permite solicitar viagens corporativas e acompanhar o status de atendimento.</p>
                     </div>
                     <div className={styles.permissionTags}>
-                      <span>Solicitar nova corrida</span>
+                      <span>Solicitar corrida</span>
                       <span>Histórico individual</span>
                       <span>Consultar itinerário</span>
                     </div>
@@ -231,13 +236,13 @@ export const EmployeeDetails = () => {
                   </div>
                   <div className={styles.permissionContent}>
                     <div>
-                      <strong>Gestão e Aprovação</strong>
-                      <p>Permite gerenciar solicitações, selecionar fornecedores e auditar custos.</p>
+                      <strong>Gestão e Aprovação de Despesas</strong>
+                      <p>Permite aprovar ou reprovar solicitações de viagens e auditar centros de custo.</p>
                     </div>
                     <div className={styles.permissionTags}>
                       <span>Aprovar solicitações</span>
                       <span>Gerenciar contratos</span>
-                      <span>Painel executivo</span>
+                      <span>Auditoria</span>
                     </div>
                   </div>
                 </div>
@@ -250,16 +255,41 @@ export const EmployeeDetails = () => {
                   </div>
                   <div className={styles.permissionContent}>
                     <div>
-                      <strong>Operação de transporte</strong>
-                      <p>Permite acessar corridas vinculadas ao fornecedor e atualizar execução.</p>
+                      <strong>Operação de Transporte</strong>
+                      <p>Permite acessar corridas atribuídas pelo fornecedor e registrar o trajeto.</p>
                     </div>
                     <div className={styles.permissionTags}>
-                      <span>Visualizar corridas atribuídas</span>
+                      <span>Corridas atribuídas</span>
                       <span>Atualizar execução</span>
-                      <span>Itinerário no mapa</span>
+                      <span>Navegação no mapa</span>
                     </div>
                   </div>
                 </div>
+              )}
+
+              {isAdmin && (
+                <div className={`${styles.permissionCard} ${styles.permissionEnabled}`}>
+                  <div className={styles.permissionStatus} aria-hidden="true">
+                    <CheckIcon width={18} height={18} />
+                  </div>
+                  <div className={styles.permissionContent}>
+                    <div>
+                      <strong>Administração Geral do Sistema</strong>
+                      <p>Permite controle total sobre filiais, fornecedores, colaboradores e políticas.</p>
+                    </div>
+                    <div className={styles.permissionTags}>
+                      <span>Gestão de filiais</span>
+                      <span>Gestão de fornecedores</span>
+                      <span>Controle de acessos</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!isSolicitante && !isAprovador && !isMotorista && !isAdmin && (
+                <p style={{ color: 'var(--text-secondary)', padding: '1rem 0' }}>
+                  Nenhum perfil operacional ativo atribuído a este colaborador.
+                </p>
               )}
             </div>
           </div>
@@ -269,38 +299,26 @@ export const EmployeeDetails = () => {
           <div className={styles.card}>
             <div className={styles.cardHeader}>
               <div>
-                <h3>Perfis vinculados</h3>
-                <p>Papéis do usuário na plataforma.</p>
+                <h3>Perfis Atribuídos</h3>
+                <p>Papéis ativos no sistema.</p>
               </div>
             </div>
 
             <div className={styles.profileList}>
-              {['Solicitante', 'Aprovador', 'Motorista'].map((p) => {
-                const hasProfile = employee.perfis.includes(p);
-                return (
-                  <label key={p} className={styles.profileOption}>
+              {employee.perfis.length > 0 ? (
+                employee.perfis.map((p) => (
+                  <div key={p} className={styles.profileOption} style={{ padding: '0.75rem 1rem' }}>
                     <span>
-                      <strong>{p}</strong>
-                      <small>{hasProfile ? 'Perfil ativo' : 'Inativo'}</small>
+                      <strong style={{ color: 'var(--text-primary)' }}>{p}</strong>
+                      <small style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>Ativo no sistema</small>
                     </span>
-                    <input type="checkbox" checked={hasProfile} readOnly aria-label={`Perfil ${p}`} />
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className={styles.card}>
-            <div className={styles.cardHeader}>
-              <div>
-                <h3>Vínculo Operacional</h3>
-                <p>Origem operacional do colaborador.</p>
-              </div>
-            </div>
-
-            <div className={styles.linkBox}>
-              <span>{employee.vinculoTipo}</span>
-              <strong>{employee.vinculoNome}</strong>
+                  </div>
+                ))
+              ) : (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+                  Nenhum perfil específico vinculado.
+                </p>
+              )}
             </div>
           </div>
         </aside>

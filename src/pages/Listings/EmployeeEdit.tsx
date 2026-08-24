@@ -16,6 +16,16 @@ import { formatCpf } from './listingsData';
 import styles from '../Rides/RideReview.module.css';
 import localStyles from './EmployeeCreate.module.css';
 
+const normalizeProfileName = (p: string): string => {
+  const upper = p.toUpperCase();
+  if (upper.includes('EMERGENCIA') || upper.includes('SOLICITANTE_EMERGENCIA')) return 'Solicitante de Emergência';
+  if (upper.includes('APROVADOR')) return 'Aprovador';
+  if (upper.includes('SOLICITANTE')) return 'Solicitante';
+  if (upper.includes('ADMIN_MASTER')) return 'Administrador Master';
+  if (upper.includes('ADMIN_FILIAL')) return 'Administrador de Filial';
+  return p;
+};
+
 export const EmployeeEdit = () => {
   const navigate = useNavigate();
   const { employeeId } = useParams();
@@ -25,6 +35,7 @@ export const EmployeeEdit = () => {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [branchesList, setBranchesList] = useState<FilialDto[]>([]);
   const [costCentersList, setCostCentersList] = useState<CentroCustoDto[]>([]);
+  const [initialProfiles, setInitialProfiles] = useState<string[]>([]);
 
   const [form, setForm] = useState({
     name: '',
@@ -32,8 +43,8 @@ export const EmployeeEdit = () => {
     cpf: '',
     role: 'Colaborador',
     branch: '',
-    costCenterId: '1',
-    profiles: ['Solicitante'] as string[],
+    costCenterId: '',
+    profiles: [] as string[],
   });
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -48,9 +59,8 @@ export const EmployeeEdit = () => {
       branchApi.list(),
       costCenterApi.list(),
       collaboratorApi.list(),
-      !isNaN(numericId) ? driverApi.getById(numericId) : Promise.reject(),
       !isNaN(numericId) ? collaboratorApi.getProfiles(numericId) : Promise.reject(),
-    ]).then(([branchesRes, ccRes, collabsRes, driverRes, profilesRes]) => {
+    ]).then(([branchesRes, ccRes, collabsRes, profilesRes]) => {
       if (!isMounted) return;
 
       const branches = branchesRes.status === 'fulfilled' ? extractListData<FilialDto>(branchesRes.value) : [];
@@ -60,39 +70,26 @@ export const EmployeeEdit = () => {
       setBranchesList(branches);
       setCostCentersList(costCenters);
 
-      if (driverRes.status === 'fulfilled' && driverRes.value?.response) {
-        const d: MotoristaDto = driverRes.value.response;
-        setForm({
-          name: d.nome || '',
-          email: d.email || '',
-          cpf: d.cpf ? formatCpf(d.cpf) : '',
-          role: 'Motorista',
-          branch: branches[0]?.id ? String(branches[0].id) : '1',
-          costCenterId: costCenters[0]?.id ? String(costCenters[0].id) : '1',
-          profiles: ['Motorista'],
-        });
-        return;
+      const matchedCollab = collabs.find((c) => Number(c.id) === numericId);
+      let loadedProfiles: string[] = [];
+
+      if (profilesRes.status === 'fulfilled' && profilesRes.value?.response?.perfis) {
+        loadedProfiles = profilesRes.value.response.perfis.map((p) => normalizeProfileName(p.tipoPerfil));
+      } else if (matchedCollab?.perfis && matchedCollab.perfis.length > 0) {
+        loadedProfiles = matchedCollab.perfis.map((p) => normalizeProfileName(p.tipoPerfil));
       }
 
-      const matchedCollab = collabs.find((c) => String(c.id) === String(employeeId));
-      if (matchedCollab) {
-        let loadedProfiles: string[] = [];
-        if (profilesRes.status === 'fulfilled' && profilesRes.value?.response?.perfis) {
-          loadedProfiles = profilesRes.value.response.perfis.map((p) => p.tipoPerfil);
-        } else if (matchedCollab.perfis && matchedCollab.perfis.length > 0) {
-          loadedProfiles = matchedCollab.perfis.map((p) => p.tipoPerfil);
-        } else {
-          loadedProfiles = ['Solicitante'];
-        }
+      setInitialProfiles(loadedProfiles);
 
+      if (matchedCollab) {
         setForm({
           name: matchedCollab.nome || '',
           email: matchedCollab.email || '',
           cpf: matchedCollab.cpf ? formatCpf(matchedCollab.cpf) : '',
-          role: 'Colaborador',
+          role: matchedCollab.cargo || 'Colaborador',
           branch: matchedCollab.filialId ? String(matchedCollab.filialId) : (branches[0]?.id ? String(branches[0].id) : '1'),
           costCenterId: matchedCollab.centroCustoId ? String(matchedCollab.centroCustoId) : (costCenters[0]?.id ? String(costCenters[0].id) : '1'),
-          profiles: loadedProfiles.length > 0 ? loadedProfiles : ['Solicitante'],
+          profiles: loadedProfiles,
         });
         return;
       }
@@ -121,12 +118,12 @@ export const EmployeeEdit = () => {
     setValidationErrors((current) => ({ ...current, [field]: '' }));
   };
 
-  const handleProfileChange = (profile: string) => {
+  const handleProfileToggle = (profileName: string) => {
     setForm((current) => {
-      const active = current.profiles.includes(profile);
-      const next = active
-        ? current.profiles.filter((p) => p !== profile)
-        : [...current.profiles, profile];
+      const isSelected = current.profiles.includes(profileName);
+      const next = isSelected
+        ? current.profiles.filter((p) => p !== profileName)
+        : [...current.profiles, profileName];
 
       return { ...current, profiles: next };
     });
@@ -136,7 +133,13 @@ export const EmployeeEdit = () => {
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
     if (form.profiles.length === 0) {
-      errors.profiles = 'Selecione pelo menos um perfil de acesso';
+      errors.profiles = 'Selecione pelo menos um perfil de acesso para o colaborador';
+    }
+    if (!form.branch) {
+      errors.branch = 'Selecione uma filial';
+    }
+    if (!form.costCenterId) {
+      errors.costCenterId = 'Selecione um centro de custo';
     }
 
     setValidationErrors(errors);
@@ -146,7 +149,7 @@ export const EmployeeEdit = () => {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validate()) {
-      showToast({ type: 'error', title: 'Erro de validação', description: 'Por favor, selecione pelo menos um perfil.' });
+      showToast({ type: 'error', title: 'Erro de validação', description: 'Por favor, revise os campos do formulário.' });
       return;
     }
 
@@ -158,18 +161,25 @@ export const EmployeeEdit = () => {
         const filialId = Number(form.branch) || 1;
         const centroCustoId = Number(form.costCenterId) || 1;
 
+        const promises: Promise<unknown>[] = [];
+
         if (form.profiles.includes('Solicitante')) {
-          await collaboratorApi.turnSolicitante(numericId, { filialId, centroCustoId }).catch(() => {});
+          promises.push(collaboratorApi.turnSolicitante(numericId, { filialId, centroCustoId }));
         }
         if (form.profiles.includes('Aprovador')) {
-          await collaboratorApi.turnAprovador(numericId, { filialId, centroCustoId }).catch(() => {});
+          promises.push(collaboratorApi.turnAprovador(numericId, { filialId, centroCustoId }));
         }
+        if (form.profiles.includes('Solicitante de Emergência')) {
+          promises.push(collaboratorApi.turnSolicitanteEmergencia(numericId, { filialId, centroCustoId }));
+        }
+
+        await Promise.allSettled(promises);
       }
 
       showToast({
         type: 'success',
-        title: 'Perfis de acesso atualizados',
-        description: `Os perfis de ${form.name} foram sincronizados com sucesso.`,
+        title: 'Perfis atualizados com sucesso',
+        description: `Os papéis e acessos de ${form.name} foram sincronizados no backend.`,
       });
       navigate(`/colaboradores/${employeeId}`);
     } catch (err) {
@@ -273,31 +283,64 @@ export const EmployeeEdit = () => {
           <div className={styles.cardHeader} style={{ marginTop: '2rem' }}>
             <div>
               <h3>Perfis de Acesso do Colaborador</h3>
-              <p>Determine quais funções o colaborador poderá desempenhar na plataforma.</p>
+              <p>Clique sobre os perfis para atribuir ou remover funções na plataforma.</p>
             </div>
           </div>
 
           <div className={localStyles.profilesSection}>
+            <div className={localStyles.currentProfilesBar}>
+              <span>Perfis cadastrados atualmente no sistema:</span>
+              {initialProfiles.length > 0 ? (
+                initialProfiles.map((p) => (
+                  <span key={p} className={`${localStyles.profileStatusBadge} ${localStyles.badgeActive}`}>
+                    {p}
+                  </span>
+                ))
+              ) : (
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>Nenhum perfil atribuído</span>
+              )}
+            </div>
+
             <div className={localStyles.profilesGrid}>
               {[
                 { id: 'Solicitante', title: 'Solicitante', desc: 'Pode solicitar corridas corporativas e consultar o próprio histórico.' },
-                { id: 'Aprovador', title: 'Aprovador', desc: 'Permite gerenciar solicitações, escolher fornecedores e auditar corridas.' },
-                { id: 'Motorista', title: 'Motorista', desc: 'Permite acessar corridas vinculadas e atualizar a execução em tempo real.' },
+                { id: 'Aprovador', title: 'Aprovador', desc: 'Permite gerenciar solicitações, escolher fornecedores e auditar despesas.' },
+                { id: 'Solicitante de Emergência', title: 'Solicitante de Emergência', desc: 'Permite solicitar viagens emergenciais de atendimento imediato.' },
               ].map((p) => {
+                const hadInitially = initialProfiles.includes(p.id);
                 const isSelected = form.profiles.includes(p.id);
+
+                let badgeLabel = 'Não atribuído';
+                let badgeClass = localStyles.badgeInactive;
+
+                if (hadInitially && isSelected) {
+                  badgeLabel = 'Ativo';
+                  badgeClass = localStyles.badgeActive;
+                } else if (!hadInitially && isSelected) {
+                  badgeLabel = '+ Atribuir';
+                  badgeClass = localStyles.badgeAdding;
+                } else if (hadInitially && !isSelected) {
+                  badgeLabel = '- Remover';
+                  badgeClass = localStyles.badgeRemoving;
+                }
 
                 return (
                   <button
                     key={p.id}
                     type="button"
                     className={`${localStyles.profileOption} ${isSelected ? localStyles.profileSelected : ''}`}
-                    onClick={() => handleProfileChange(p.id)}
+                    onClick={() => handleProfileToggle(p.id)}
                     disabled={isLoading}
                   >
-                    <span className={localStyles.profileOptionHeader}>
-                      <span className={localStyles.checkboxControl} aria-hidden="true" />
-                      <strong>{p.title}</strong>
-                    </span>
+                    <div className={localStyles.profileOptionHeader}>
+                      <div className={localStyles.profileOptionHeaderLeft}>
+                        <span className={localStyles.checkboxControl} aria-hidden="true" />
+                        <strong>{p.title}</strong>
+                      </div>
+                      <span className={`${localStyles.profileStatusBadge} ${badgeClass}`}>
+                        {badgeLabel}
+                      </span>
+                    </div>
                     <span className={localStyles.profileOptionDesc}>{p.desc}</span>
                   </button>
                 );

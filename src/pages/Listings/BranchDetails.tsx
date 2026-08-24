@@ -76,36 +76,36 @@ export const BranchDetails = () => {
         <article className={styles.detailCard}>
           <div className={styles.detailHeader}>
             <div>
-              <h2>Informações Institucionais e Endereço</h2>
-              <p>Localização geográfica e dados de registro da filial.</p>
+              <h2>Endereço e Localização</h2>
+              <p>Dados de localização geográfica cadastrados para a filial.</p>
             </div>
             <StatusBadge status="aprovado" />
           </div>
 
           <div className={styles.infoGrid}>
             <div className={styles.infoItem}>
-              <span>Nome da Filial</span>
-              <strong>{branch.nome}</strong>
-            </div>
-            <div className={styles.infoItem}>
-              <span>CNPJ</span>
-              <strong>{branch.cnpj}</strong>
-            </div>
-            <div className={styles.infoItem}>
               <span>CEP</span>
               <strong>{endereco?.cep || '—'}</strong>
             </div>
             <div className={styles.infoItem}>
-              <span>Endereço</span>
-              <strong>{endereco ? `${endereco.logradouro}${endereco.numero ? `, ${endereco.numero}` : ''}` : '—'}</strong>
+              <span>Logradouro</span>
+              <strong>{endereco?.logradouro || '—'}</strong>
+            </div>
+            <div className={styles.infoItem}>
+              <span>Número / Compl.</span>
+              <strong>{endereco ? `${endereco.numero || 'S/N'}${endereco.complemento ? ` (${endereco.complemento})` : ''}` : '—'}</strong>
             </div>
             <div className={styles.infoItem}>
               <span>Bairro</span>
               <strong>{endereco?.bairro || '—'}</strong>
             </div>
             <div className={styles.infoItem}>
-              <span>Cidade / UF</span>
-              <strong>{endereco ? `${endereco.cidade} / ${endereco.uf}` : '—'}</strong>
+              <span>Cidade</span>
+              <strong>{endereco?.cidade || '—'}</strong>
+            </div>
+            <div className={styles.infoItem}>
+              <span>Estado (UF)</span>
+              <strong>{endereco?.uf || '—'}</strong>
             </div>
           </div>
 
@@ -125,8 +125,8 @@ export const BranchDetails = () => {
         <aside className={styles.detailCard} aria-label="Resumo operacional">
           <div className={styles.detailHeader}>
             <div>
-              <h2>Operações & Coordenadas</h2>
-              <p>Geolocalização registrada da unidade.</p>
+              <h2>Coordenadas Geográficas</h2>
+              <p>Pontos de latitude e longitude registrados.</p>
             </div>
           </div>
 
@@ -140,8 +140,8 @@ export const BranchDetails = () => {
               <strong>{endereco?.longitude ? Number(endereco.longitude).toFixed(6) : lng.toFixed(6)}</strong>
             </div>
             <div>
-              <span>Status Operacional</span>
-              <strong>Operando normalmente</strong>
+              <span>Status da Unidade</span>
+              <strong>Ativa no sistema</strong>
             </div>
           </div>
         </aside>

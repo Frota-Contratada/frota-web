@@ -45,22 +45,23 @@ const columns: ColumnDef<Branch>[] = [
     render: (_, row) => <strong className={styles.primaryText}>{row.name}</strong>,
   },
   {
+    key: 'cnpj',
+    header: 'CNPJ',
+    sortable: true,
+    render: (_, row) => row.cnpj || '—',
+  },
+  {
     key: 'address',
     header: 'Endereço',
-    render: (_, row) => <span className={styles.mutedText}>{row.address}, {row.neighborhood}</span>,
+    render: (_, row) => (
+      <span className={styles.mutedText}>
+        {row.address || '—'}{row.neighborhood ? `, ${row.neighborhood}` : ''}
+      </span>
+    ),
   },
   { key: 'city', header: 'Cidade', sortable: true },
   { key: 'state', header: 'UF', sortable: true },
-  { key: 'costCenters', header: 'Centros de custo', sortable: true },
-  { key: 'suppliers', header: 'Fornecedores', sortable: true },
-  { key: 'requests', header: 'Solicitações', sortable: true },
-  { key: 'activatedAt', header: 'Ativação', sortable: true },
-  {
-    key: 'status',
-    header: 'Status',
-    sortable: true,
-    render: (_, row) => <StatusBadge status={row.status} />,
-  },
+  { key: 'zipCode', header: 'CEP', sortable: true },
 ];
 
 export const BranchesList = () => {
@@ -131,10 +132,8 @@ export const BranchesList = () => {
     });
   }, [branchesList, query, selectedFilters]);
 
-  const activeBranches = branchesList.filter((branch) => !branch.deactivatedAt).length;
-  const totalCostCenters = branchesList.reduce((total, branch) => total + branch.costCenters, 0);
-  const totalSuppliers = branchesList.reduce((total, branch) => total + branch.suppliers, 0);
-  const totalRequests = branchesList.reduce((total, branch) => total + branch.requests, 0);
+  const totalStates = new Set(branchesList.map((b) => b.state).filter(Boolean)).size;
+  const totalCities = new Set(branchesList.map((b) => b.city).filter(Boolean)).size;
   const totalPages = Math.max(1, Math.ceil(filteredBranches.length / PAGE_SIZE));
   const pageData = filteredBranches.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
@@ -149,10 +148,21 @@ export const BranchesList = () => {
   return (
     <div className={styles.page}>
       <section className={styles.statsGrid} aria-label="Resumo de filiais">
-        <StatCard title="Filiais ativas" value={String(activeBranches)} isLoading={isLoading} />
-        <StatCard title="Centros de custo" value={String(totalCostCenters)} trend={{ value: 4.4, direction: 'up', label: 'vs. mês anterior' }} isLoading={isLoading} />
-        <StatCard title="Fornecedores vinculados" value={String(totalSuppliers)} isLoading={isLoading} />
-        <StatCard title="Solicitações" value={String(totalRequests)} isLoading={isLoading} />
+        <StatCard
+          title="Filiais cadastradas"
+          value={String(branchesList.length)}
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Estados atendidos (UFs)"
+          value={String(totalStates)}
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Cidades atendidas"
+          value={String(totalCities)}
+          isLoading={isLoading}
+        />
       </section>
 
       <section className={styles.tableSection}>

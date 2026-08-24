@@ -56,7 +56,7 @@ export const SupplierDetails = () => {
       <section className={styles.detailHeader}>
         <div>
           <h2>{supplier.nome}</h2>
-          <p>{formatDocument(supplier.cnpjCpf)}</p>
+          <p>CNPJ/CPF: {formatDocument(supplier.cnpjCpf)}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           <Button variant="outline" onClick={() => navigate(`/terceiros/fornecedores/${supplier.id}/editar`)}>
@@ -72,24 +72,28 @@ export const SupplierDetails = () => {
         <article className={styles.detailCard}>
           <div className={styles.detailHeader}>
             <div>
-              <h2>Dados cadastrais</h2>
-              <p>Informações derivadas do cadastro base de fornecedor.</p>
+              <h2>Informações do Cadastro</h2>
+              <p>Dados de identificação e registro da empresa fornecedora.</p>
             </div>
             <StatusBadge status="aprovado" />
           </div>
 
           <div className={styles.infoGrid}>
             <div className={styles.infoItem}>
-              <span>Razão social / Nome</span>
-              <strong>{supplier.nome}</strong>
+              <span>Identificador (ID)</span>
+              <strong>#{supplier.id}</strong>
             </div>
             <div className={styles.infoItem}>
-              <span>CNPJ/CPF</span>
-              <strong>{formatDocument(supplier.cnpjCpf)}</strong>
+              <span>Tipo de Documento</span>
+              <strong>{supplier.cnpjCpf.length > 11 ? 'Pessoa Jurídica (CNPJ)' : 'Pessoa Física (CPF)'}</strong>
             </div>
             <div className={styles.infoItem}>
-              <span>Situação operacional</span>
-              <strong>Fornecedor ativo</strong>
+              <span>Situação Operacional</span>
+              <strong>Ativo e homologado</strong>
+            </div>
+            <div className={styles.infoItem}>
+              <span>Categoria de Parceria</span>
+              <strong>Transporte e Mobilidade</strong>
             </div>
           </div>
         </article>
@@ -98,18 +102,18 @@ export const SupplierDetails = () => {
           <div className={styles.detailHeader}>
             <div>
               <h2>Vínculos Operacionais</h2>
-              <p>Relações com a frota e operações corporativas.</p>
+              <p>Relação com frotas e contratos vigentes.</p>
             </div>
           </div>
 
           <div className={styles.summaryList}>
             <div>
-              <span>Status</span>
-              <strong>Ativo na plataforma</strong>
+              <span>Relação com a Seara</span>
+              <strong>Fornecedor Credenciado</strong>
             </div>
             <div>
-              <span>Tipo de parceiro</span>
-              <strong>Prestador homologado</strong>
+              <span>Atendimento</span>
+              <strong>Frota Dedicada e Sob Demanda</strong>
             </div>
           </div>
         </aside>

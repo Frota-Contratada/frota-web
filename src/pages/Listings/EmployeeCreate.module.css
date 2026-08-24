@@ -49,7 +49,54 @@
 .profileOptionHeader {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--spacing-sm);
+  width: 100%;
+}
+
+.profileOptionHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.profileOptionHeaderLeft strong {
+  color: var(--text-primary);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.profileStatusBadge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+}
+
+.badgeActive {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+
+.badgeInactive {
+  background-color: #f5f5f5;
+  color: #757575;
+  border: 1px solid #e0e0e0;
+}
+
+.badgeAdding {
+  background-color: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #bbdefb;
+}
+
+.badgeRemoving {
+  background-color: #ffebee;
+  color: #c62828;
+  border: 1px solid #ffcdd2;
 }
 
 .checkboxControl {
@@ -62,12 +109,6 @@
   position: relative;
   flex-shrink: 0;
   transition: all var(--transition-base);
-}
-
-.profileOptionHeader strong {
-  color: var(--text-primary);
-  font-size: var(--font-size-md);
-  font-weight: 700;
 }
 
 .profileSelected .checkboxControl {
@@ -91,6 +132,24 @@
   color: var(--text-muted);
   font-size: var(--font-size-sm);
   line-height: 1.4;
+}
+
+.currentProfilesBar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  background-color: var(--surface-subtle, #f8f9fa);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 1rem;
+}
+
+.currentProfilesBar span {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
 .errorAlert {

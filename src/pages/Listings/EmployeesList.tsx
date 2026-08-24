@@ -47,7 +47,11 @@ const columns: ColumnDef<Employee>[] = [
     key: 'avatar',
     header: '',
     width: '64px',
-    render: (_, row) => <span className={styles.avatar} aria-label={`Foto de ${row.name}`}>{getInitials(row.name)}</span>,
+    render: (_, row) => (
+      <span className={styles.avatar} aria-label={`Foto de ${row.name}`}>
+        {getInitials(row.name)}
+      </span>
+    ),
   },
   {
     key: 'name',
@@ -60,15 +64,11 @@ const columns: ColumnDef<Employee>[] = [
       </div>
     ),
   },
-  { key: 'role', header: 'Cargo', sortable: true, render: (_, row) => row.role ?? 'Não informado' },
-  { key: 'supplier', header: 'Fornecedor', sortable: true, render: (_, row) => row.supplier ?? '—' },
-  { key: 'cpf', header: 'CPF', sortable: true, render: (_, row) => formatCpf(row.cpf) },
-  { key: 'profiles', header: 'Perfis', render: (_, row) => <span className={styles.mutedText}>{row.profiles.join(', ')}</span> },
   {
-    key: 'status',
-    header: 'Status',
+    key: 'role',
+    header: 'Cargo',
     sortable: true,
-    render: (_, row) => <StatusBadge status={row.status} />,
+    render: (_, row) => row.role ?? 'Não informado',
   },
 ];
 
@@ -89,17 +89,16 @@ export const EmployeesList = () => {
     Promise.allSettled([
       collaboratorApi.list(),
       collaboratorApi.getAdminBigNumbers().catch(() => collaboratorApi.getFilialBigNumbers()),
-      driverApi.list(),
     ])
-      .then(([collabRes, bigNumbersRes, driverRes]) => {
+      .then(([collabRes, bigNumbersRes]) => {
         if (!isMounted) return;
 
         if (bigNumbersRes.status === 'fulfilled' && bigNumbersRes.value.response) {
           setBigNumbers(bigNumbersRes.value.response);
         }
 
-        const collabs = collabRes.status === 'fulfilled' ? extractListData<ColaboradorDto>(collabRes.value) : [];
-        const driversList = driverRes.status === 'fulfilled' ? extractListData<MotoristaDto>(driverRes.value) : [];
+        const collabs =
+          collabRes.status === 'fulfilled' ? extractListData<ColaboradorDto>(collabRes.value) : [];
 
         if (collabs.length > 0) {
           const mapped: Employee[] = collabs.map((c: ColaboradorDto) => ({
@@ -118,23 +117,8 @@ export const EmployeesList = () => {
             status: 'aprovado',
           }));
           setEmployeesList(mapped);
-        } else if (driversList.length > 0) {
-          const apiEmployees: Employee[] = driversList.map((m: MotoristaDto) => ({
-            id: m.id,
-            name: m.nome,
-            email: m.email,
-            cpf: m.cpf,
-            searaCode: null,
-            role: 'Motorista',
-            branch: null,
-            supplier: m.fornecedorNome || (m.fornecedorId ? `Fornecedor #${m.fornecedorId}` : '—'),
-            available: true,
-            activatedAt: (m as any).dataAtivacao ? new Date((m as any).dataAtivacao).toLocaleDateString('pt-BR') : '—',
-            deactivatedAt: null,
-            profiles: ['Motorista'],
-            status: 'aprovado',
-          }));
-          setEmployeesList(apiEmployees);
+        } else {
+          setEmployeesList([]);
         }
       })
       .catch((err) => {
@@ -152,35 +136,18 @@ export const EmployeesList = () => {
 
   const filteredEmployees = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
-    const statusFilters = selectedFilters.filter((filter) => filter.startsWith('status:')).map((filter) => filter.replace('status:', ''));
-    const profileFilters = selectedFilters.filter((filter) => filter.startsWith('perfil:')).map((filter) => filter.replace('perfil:', ''));
-    const linkFilters = selectedFilters.filter((filter) => filter.startsWith('vinculo:')).map((filter) => filter.replace('vinculo:', ''));
 
     return employeesList.filter((employee) => {
       const matchesQuery =
         normalizedQuery.length === 0 ||
         employee.name.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
         employee.email.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
-        employee.role?.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
-        employee.branch?.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
-        employee.supplier?.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
-        employee.cpf?.includes(normalizedQuery);
-      const matchesStatus = statusFilters.length === 0 || statusFilters.includes(employee.status);
-      const matchesProfile = profileFilters.length === 0 || profileFilters.some((profile) => employee.profiles.includes(profile));
-      const matchesLink = linkFilters.length === 0 || linkFilters.some((link) => {
-        if (link === 'filial') return Boolean(employee.branch);
-        if (link === 'fornecedor') return Boolean(employee.supplier);
-        return false;
-      });
+        employee.role?.toLocaleLowerCase('pt-BR').includes(normalizedQuery);
 
-      return matchesQuery && matchesStatus && matchesProfile && matchesLink;
+      return matchesQuery;
     });
-  }, [employeesList, query, selectedFilters]);
+  }, [employeesList, query]);
 
-  const activeEmployees = employeesList.filter((employee) => !employee.deactivatedAt).length;
-  const drivers = employeesList.filter((employee) => employee.profiles.includes('Motorista')).length;
-  const availableEmployees = employeesList.filter((employee) => employee.available).length;
-  const supplierUsers = employeesList.filter((employee) => employee.supplier).length;
   const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / PAGE_SIZE));
   const pageData = filteredEmployees.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
@@ -196,24 +163,23 @@ export const EmployeesList = () => {
     <div className={styles.page}>
       <section className={styles.statsGrid} aria-label="Resumo de colaboradores">
         <StatCard
-          title="Colaboradores ativos"
-          value={String(bigNumbers?.totalColaboradores ?? activeEmployees)}
-          trend={{ value: 3.1, direction: 'up', label: 'vs. mês anterior' }}
+          title="Colaboradores cadastrados"
+          value={String(employeesList.length)}
           isLoading={isLoading}
         />
         <StatCard
-          title="Solicitantes"
-          value={String(bigNumbers?.totalSolicitantes ?? availableEmployees)}
+          title="Administradores de Filial"
+          value={String(bigNumbers?.administradoresDeFilial ?? 0)}
           isLoading={isLoading}
         />
         <StatCard
           title="Aprovadores"
-          value={String(bigNumbers?.aprovadores ?? bigNumbers?.totalAprovadores ?? drivers)}
+          value={String(bigNumbers?.aprovadores ?? 0)}
           isLoading={isLoading}
         />
         <StatCard
-          title="Usuários fornecedores"
-          value={String(supplierUsers)}
+          title="Solicitantes de Emergência"
+          value={String(bigNumbers?.solicitantesDeEmergencia ?? 0)}
           isLoading={isLoading}
         />
       </section>
@@ -224,19 +190,23 @@ export const EmployeesList = () => {
             setQuery(value);
             setCurrentPage(1);
           }}
-          onExport={() => showToast({ type: 'success', title: 'Exportação iniciada', description: 'A lista de colaboradores será preparada em instantes.' })}
-          rightActions={<Button onClick={() => navigate('/colaboradores/novo')}>Cadastrar colaborador</Button>}
-          filterSections={filterSections}
+          onExport={() =>
+            showToast({
+              type: 'success',
+              title: 'Exportação iniciada',
+              description: 'A lista de colaboradores será preparada em instantes.',
+            })
+          }
+          rightActions={
+            <Button onClick={() => navigate('/colaboradores/novo')}>
+              Cadastrar colaborador
+            </Button>
+          }
+          filterSections={[]}
           selectedFilters={selectedFilters}
           onFilterChange={(values) => {
             setSelectedFilters(values);
             setCurrentPage(1);
-          }}
-          onFilterApply={() => showToast({ type: 'success', title: 'Filtro aplicado', description: 'A tabela foi atualizada.' })}
-          onFilterClear={() => {
-            setSelectedFilters([]);
-            setCurrentPage(1);
-            showToast({ type: 'info', title: 'Filtros limpos' });
           }}
         />
 

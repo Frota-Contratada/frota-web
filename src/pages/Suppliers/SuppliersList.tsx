@@ -43,25 +43,20 @@ const columns: ColumnDef<Supplier>[] = [
   },
   {
     key: 'linkedContracts',
-    header: 'Contratos',
+    header: 'Contratos vigentes',
     sortable: true,
     render: (_, row) => row.linkedContracts,
   },
   {
     key: 'vehicles',
-    header: 'Veículos',
+    header: 'Veículos ativos',
     sortable: true,
     render: (_, row) => row.vehicles,
   },
   {
     key: 'activatedAt',
-    header: 'Ativação',
+    header: 'Data de ativação',
     sortable: true,
-  },
-  {
-    key: 'filePath',
-    header: 'Arquivo',
-    render: (_, row) => row.filePath ? <span className={styles.fileText}>Anexado</span> : <span className={styles.emptyFile}>Não enviado</span>,
   },
   {
     key: 'status',
@@ -196,24 +191,22 @@ export const SuppliersList = () => {
       <section className={styles.statsGrid} aria-label="Resumo de fornecedores">
         <StatCard
           title="Fornecedores ativos"
-          value={String(bigNumbers?.fornecedoresAtivos ?? bigNumbers?.totalFornecedores ?? activeSuppliers)}
-          trend={{ value: 6, direction: 'up', label: 'vs. mês anterior' }}
+          value={String(bigNumbers?.fornecedoresAtivos ?? activeSuppliers)}
           isLoading={isLoading}
         />
         <StatCard
-          title="Contratos ativos"
-          value={String(bigNumbers?.fornecedoresComContratoVigente ?? bigNumbers?.totalContratosAtivos ?? suppliersWithContracts)}
+          title="Com contrato vigente"
+          value={String(bigNumbers?.fornecedoresComContratoVigente ?? suppliersWithContracts)}
           isLoading={isLoading}
         />
         <StatCard
-          title="Motoristas vinculados"
-          value={String(bigNumbers?.veiculosAtivos ?? bigNumbers?.totalMotoristas ?? totalVehicles)}
-          trend={{ value: 4.5, direction: 'up', label: 'vs. mês anterior' }}
+          title="Sem contrato vigente"
+          value={String(bigNumbers?.fornecedoresSemContratoVigente ?? (activeSuppliers - suppliersWithContracts))}
           isLoading={isLoading}
         />
         <StatCard
-          title="Documentos pendentes"
-          value={String(pendingDocuments)}
+          title="Veículos ativos"
+          value={String(bigNumbers?.veiculosAtivos ?? totalVehicles)}
           isLoading={isLoading}
         />
       </section>
