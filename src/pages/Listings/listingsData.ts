@@ -54,6 +54,7 @@ export type Employee = {
 export type Branch = {
   id: number;
   name: string;
+  cnpj?: string;
   address: string;
   neighborhood: string;
   city: string;

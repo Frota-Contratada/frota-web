@@ -95,26 +95,10 @@ export const PriceAuditView = () => {
 
       {}
       <section className={styles.statsGrid}>
-        <StatCard
-          title="Sobrepreço total"
-          value="R$ 54"
-          trend={{ value: 8.5, direction: 'up', label: 'Maior que ontem' }}
-        />
-        <StatCard
-          title="Corridas com desvio alto"
-          value="23"
-          trend={{ value: 10, direction: 'up', label: 'Maior que ontem' }}
-        />
-        <StatCard
-          title="Maior desvio do período"
-          value="10%"
-          trend={{ value: 1.5, direction: 'up', label: 'Maior que ontem' }}
-        />
-        <StatCard
-          title="Fornecedores em risco"
-          value="64"
-          trend={{ value: 2.5, direction: 'up', label: 'Maior que ontem' }}
-        />
+        <StatCard title="Sobrepreço total" value="R$ 54" />
+        <StatCard title="Corridas com desvio alto" value="23" />
+        <StatCard title="Maior desvio do período" value="10%" />
+        <StatCard title="Fornecedores em risco" value="64" />
       </section>
 
       {}

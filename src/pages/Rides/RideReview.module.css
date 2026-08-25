@@ -27,6 +27,13 @@
   font-size: var(--font-size-sm);
 }
 
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--spacing-lg);
+}
+
+
 .stepper {
   --progress: 0%;
   position: relative;

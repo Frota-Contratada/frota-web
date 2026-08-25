@@ -1,7 +1,14 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select, useToast } from '../../components/common';
-import { branchApi, costCenterApi, collaboratorApi, extractListData, type FilialDto, type CentroCustoDto } from '../../services';
+import {
+  branchApi,
+  costCenterApi,
+  DEFAULT_CENTROS_CUSTO,
+  extractListData,
+  type FilialDto,
+  type CentroCustoDto,
+} from '../../services';
 import styles from '../Rides/RideReview.module.css';
 import localStyles from './EmployeeCreate.module.css';
 
@@ -25,7 +32,6 @@ export const EmployeeCreate = () => {
   const [form, setForm] = useState({
     name: '',
     email: '',
-    cpf: '',
     role: 'Analista',
     branch: '',
     costCenterId: '',
@@ -40,31 +46,50 @@ export const EmployeeCreate = () => {
       costCenterApi.list(),
     ]).then(([branchesRes, ccRes]) => {
       const branches = branchesRes.status === 'fulfilled' ? extractListData<FilialDto>(branchesRes.value) : [];
-      const costCenters = ccRes.status === 'fulfilled' ? extractListData<CentroCustoDto>(ccRes.value) : [];
+      let costCenters = ccRes.status === 'fulfilled' ? extractListData<CentroCustoDto>(ccRes.value) : [];
+      if (costCenters.length === 0) {
+        costCenters = DEFAULT_CENTROS_CUSTO;
+      }
 
       setBranchesList(branches);
       setCostCentersList(costCenters);
 
-      if (branches.length > 0) {
-        setForm((curr) => ({
-          ...curr,
-          branch: curr.branch || String(branches[0].id),
-        }));
-      }
-      if (costCenters.length > 0) {
-        setForm((curr) => ({
-          ...curr,
-          costCenterId: curr.costCenterId || String(costCenters[0].id),
-        }));
-      }
+      const branchVal = branches[0]?.id ? String(branches[0].id) : '1';
+      const availableCcs = costCenters.filter((c) => String(c.filialId) === branchVal);
+      const ccVal = availableCcs[0]?.numero ? String(availableCcs[0].numero) : (costCenters[0]?.numero ? String(costCenters[0].numero) : '101');
+
+      setForm((curr) => ({
+        ...curr,
+        branch: curr.branch || branchVal,
+        costCenterId: curr.costCenterId || ccVal,
+      }));
     }).catch(() => {});
   }, []);
 
   const branchOptions = branchesList.map((b) => ({ label: `${b.nome} (${b.cnpj})`, value: String(b.id) }));
-  const costCenterOptions = costCentersList.map((c) => ({ label: `${c.nome} ${c.codigo ? `(${c.codigo})` : ''}`, value: String(c.id) }));
+
+  const selectedBranchId = Number(form.branch) || 1;
+  const filteredCostCenters = useMemo(() => {
+    const branchSpecific = costCentersList.filter((c) => Number(c.filialId) === selectedBranchId);
+    return branchSpecific.length > 0 ? branchSpecific : costCentersList;
+  }, [costCentersList, selectedBranchId]);
+
+  const costCenterOptions = useMemo(() => {
+    return filteredCostCenters.map((c) => ({
+      label: `${c.nome} (Nº ${c.numero})${c.temAprovador ? ' — Com Aprovador' : ' — Sem Aprovador'}`,
+      value: String(c.numero),
+    }));
+  }, [filteredCostCenters]);
 
   const updateField = (field: keyof typeof form, value: unknown) => {
-    setForm((current) => ({ ...current, [field]: value }));
+    if (field === 'branch') {
+      const newBranchId = Number(value);
+      const branchCcs = costCentersList.filter((c) => Number(c.filialId) === newBranchId);
+      const nextCc = branchCcs[0]?.numero ? String(branchCcs[0].numero) : '';
+      setForm((current) => ({ ...current, branch: String(value), costCenterId: nextCc }));
+    } else {
+      setForm((current) => ({ ...current, [field]: value }));
+    }
     setValidationErrors((current) => ({ ...current, [field]: '' }));
   };
 
@@ -80,19 +105,6 @@ export const EmployeeCreate = () => {
     setValidationErrors((current) => ({ ...current, profiles: '' }));
   };
 
-  const handleCpfChange = (val: string) => {
-    const raw = val.replace(/\D/g, '').slice(0, 11);
-    let formatted = raw;
-    if (raw.length > 9) {
-      formatted = `${raw.slice(0, 3)}.${raw.slice(3, 6)}.${raw.slice(6, 9)}-${raw.slice(9)}`;
-    } else if (raw.length > 6) {
-      formatted = `${raw.slice(0, 3)}.${raw.slice(3, 6)}.${raw.slice(6)}`;
-    } else if (raw.length > 3) {
-      formatted = `${raw.slice(0, 3)}.${raw.slice(3)}`;
-    }
-    updateField('cpf', formatted);
-  };
-
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
 
@@ -102,13 +114,6 @@ export const EmployeeCreate = () => {
       errors.email = 'Email corporativo é obrigatório';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
       errors.email = 'Email inválido';
-    }
-
-    const cleanCpf = form.cpf.replace(/\D/g, '');
-    if (!cleanCpf) {
-      errors.cpf = 'CPF é obrigatório';
-    } else if (cleanCpf.length !== 11) {
-      errors.cpf = 'CPF deve conter 11 dígitos';
     }
 
     if (!form.role) errors.role = 'Cargo é obrigatório';
@@ -151,8 +156,8 @@ export const EmployeeCreate = () => {
     <div className={styles.page}>
       <div className={styles.detailHeader}>
         <div>
-          <h2>Cadastrar Colaborador</h2>
-          <p>Adicione um novo colaborador interno da Seara e configure seus papéis operacionais.</p>
+          <h2>Novo Colaborador</h2>
+          <p>Cadastre um novo usuário corporativo e configure sua lotação e papéis operacionais.</p>
         </div>
       </div>
 
@@ -161,14 +166,14 @@ export const EmployeeCreate = () => {
           <div className={styles.cardHeader}>
             <div>
               <h3>Dados Cadastrais</h3>
-              <p>Informações básicas de identificação corporativa do colaborador.</p>
+              <p>Informações de identificação corporativa do colaborador.</p>
             </div>
           </div>
 
           <div className={styles.formGrid}>
             <Input
               label="Nome completo"
-              placeholder="Digite o nome completo"
+              placeholder="Ex: João da Silva"
               value={form.name}
               onChange={(e) => updateField('name', e.target.value)}
               error={validationErrors.name}
@@ -183,16 +188,6 @@ export const EmployeeCreate = () => {
               value={form.email}
               onChange={(e) => updateField('email', e.target.value)}
               error={validationErrors.email}
-              required
-              disabled={isLoading}
-            />
-
-            <Input
-              label="CPF"
-              placeholder="000.000.000-00"
-              value={form.cpf}
-              onChange={(e) => handleCpfChange(e.target.value)}
-              error={validationErrors.cpf}
               required
               disabled={isLoading}
             />

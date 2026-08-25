@@ -4,38 +4,34 @@ import { Button, Input, Select, useToast } from '../../components/common';
 import { branchApi, supplierApi, extractListData, type FilialDto } from '../../services';
 import { formatCnpj, cleanCnpj } from '../../utils';
 import styles from '../Rides/RideReview.module.css';
-import contractsStyles from '../Contracts/Contracts.module.css';
 
 export const SupplierCreate = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [branchesList, setBranchesList] = useState<FilialDto[]>([]);
-  const [selectedFilialId, setSelectedFilialId] = useState<number>(1);
+
+  const [form, setForm] = useState({
+    name: '',
+    document: '',
+    filialId: '',
+  });
 
   useEffect(() => {
     branchApi.list().then((res) => {
       const branches = extractListData<FilialDto>(res);
       if (branches.length > 0) {
         setBranchesList(branches);
-        setSelectedFilialId(branches[0].id);
+        setForm((prev) => ({ ...prev, filialId: prev.filialId || String(branches[0].id) }));
       }
     }).catch(() => {});
   }, []);
 
   const branchOptions = branchesList.map((b) => ({ label: `${b.nome} (${b.cnpj})`, value: String(b.id) }));
 
-  const [form, setForm] = useState({
-    name: '',
-    document: '',
-    linkedBranches: [] as string[],
-    vehicles: '0',
-    fileName: '',
-  });
-
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  const updateField = (field: keyof typeof form, value: unknown) => {
+  const updateField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
     setValidationErrors((current) => ({ ...current, [field]: '' }));
   };
@@ -53,8 +49,10 @@ export const SupplierCreate = () => {
     if (!cnpjLimpo) {
       errors.document = 'CNPJ é obrigatório';
     } else if (cnpjLimpo.length !== 14) {
-      errors.document = 'CNPJ deve conter 14 caracteres alfanuméricos';
+      errors.document = 'CNPJ deve conter 14 caracteres numéricos';
     }
+
+    if (!form.filialId) errors.filialId = 'Filial de vínculo é obrigatória';
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
@@ -72,13 +70,13 @@ export const SupplierCreate = () => {
       await supplierApi.create({
         nome: form.name,
         cnpjCpf: cleanCnpj(form.document),
-        filialId: selectedFilialId || 1,
+        filialId: Number(form.filialId),
       });
 
       showToast({
         type: 'success',
-        title: 'Fornecedor cadastrado',
-        description: `O fornecedor ${form.name} foi cadastrado com sucesso.`,
+        title: 'Fornecedor cadastrado com sucesso',
+        description: `O fornecedor ${form.name} foi cadastrado.`,
       });
       navigate('/terceiros/fornecedores');
     } catch (err) {
@@ -109,7 +107,7 @@ export const SupplierCreate = () => {
 
           <div className={styles.formGrid}>
             <Input
-              label="Razão Social / Nome Fantasia"
+              label="Razão Social / Nome Fantasia *"
               placeholder="Ex: Mobilidade Prime LTDA"
               value={form.name}
               onChange={(e) => updateField('name', e.target.value)}
@@ -119,7 +117,7 @@ export const SupplierCreate = () => {
             />
 
             <Input
-              label="CNPJ"
+              label="CNPJ *"
               placeholder="00.000.000/0000-00"
               value={form.document}
               onChange={(e) => handleDocumentChange(e.target.value)}
@@ -128,41 +126,18 @@ export const SupplierCreate = () => {
               disabled={isLoading}
             />
 
-            <Input
-              label="Quantidade inicial de veículos"
-              type="number"
-              min="0"
-              value={form.vehicles}
-              onChange={(e) => updateField('vehicles', e.target.value)}
-              disabled={isLoading}
-            />
-
-            <Select
-              label="Filial Principal de Vínculo"
-              placeholder="Selecione a filial"
-              value={form.linkedBranches[0] || ''}
-              options={branchOptions}
-              onChange={(val) => updateField('linkedBranches', [val])}
-            />
+            {branchOptions.length > 0 && (
+              <Select
+                label="Filial de Vínculo *"
+                placeholder="Selecione a filial"
+                value={form.filialId}
+                options={branchOptions}
+                onChange={(val) => updateField('filialId', val)}
+                error={validationErrors.filialId}
+                required
+              />
+            )}
           </div>
-
-          <div className={styles.cardHeader} style={{ marginTop: '2.5rem' }}>
-            <div>
-              <h3>Documentação Cadastral</h3>
-              <p>Anexe a ficha cadastral ou contrato de parceria em formato PDF.</p>
-            </div>
-          </div>
-
-          <label className={contractsStyles.uploadBox} style={{ marginTop: '1rem' }}>
-            <input
-              type="file"
-              accept="application/pdf,.pdf"
-              onChange={(e) => updateField('fileName', e.target.files?.[0]?.name ?? '')}
-              disabled={isLoading}
-            />
-            <strong>{form.fileName || 'Anexar documento cadastral (PDF)'}</strong>
-            <small>Formato aceito: PDF até 10MB.</small>
-          </label>
         </article>
 
         <aside className={styles.sidePanel}>
@@ -186,3 +161,4 @@ export const SupplierCreate = () => {
     </div>
   );
 };
+

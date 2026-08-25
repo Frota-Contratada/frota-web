@@ -1,50 +1,39 @@
 import { apiClient } from '../api/apiClient';
 
+export interface ContratoVinculoDto {
+  filialId: number;
+  filialNome: string;
+  fornecedorId: number;
+  fornecedorNome: string;
+}
+
 export interface ContratoDto {
   id: number;
-  fornecedorId?: number;
-  fornecedorNome?: string;
-  filialId?: number;
-  filialNome?: string;
-  tipoContrato?: string;
-  status: string;
-  valorMensal?: number;
-  dataInicioVigencia?: string;
-  dataFimVigencia?: string;
-  dataVigenciaInicio?: string;
+  dataVigenciaInicio: string;
   dataVigenciaFim?: string;
-  arquivoUrl?: string;
-  nomeArquivo?: string;
-  descricao?: string;
-  vinculos?: Array<{
-    filialId: number;
-    filialNome: string;
-    fornecedorId: number;
-    fornecedorNome: string;
-  }>;
+  status?: string;
+  vinculos?: ContratoVinculoDto[];
+  caminhoArquivo?: string;
+  usuarioCadastroId?: number;
+  dataAlteracao?: string;
 }
 
 export interface CriarContratoParams {
   arquivo: File;
-  fornecedorId: number;
-  filialId?: number;
-  tipoContrato: string;
-  valorMensal: number;
-  dataInicioVigencia: string;
+  dataVigenciaInicio?: string;
+  dataVigenciaFim?: string;
+  dataInicioVigencia?: string;
   dataFimVigencia?: string;
-  descricao?: string;
 }
 
 export interface BuscarContratosAdminQueryParams {
   fornecedorId?: number;
   filialId?: number;
-  tipoContrato?: string;
   status?: string;
 }
 
 export interface BuscarContratosFilialQueryParams {
   fornecedorId?: number;
-  tipoContrato?: string;
   status?: string;
 }
 
@@ -53,10 +42,6 @@ export interface ContratoBigNumbers {
   validos?: number;
   vencemEmBreve?: number;
   vencidos?: number;
-  totalContratos?: number;
-  totalAtivos?: number;
-  totalVencendoEmBreve?: number;
-  valorTotalMensal?: number;
 }
 
 export interface ContratoBigNumbersResponse {
@@ -81,13 +66,13 @@ export const contractApi = {
   create(data: CriarContratoParams) {
     const formData = new FormData();
     formData.append('arquivo', data.arquivo);
-    formData.append('fornecedorId', String(data.fornecedorId));
-    if (data.filialId) formData.append('filialId', String(data.filialId));
-    formData.append('tipoContrato', data.tipoContrato);
-    formData.append('valorMensal', String(data.valorMensal));
-    formData.append('dataInicioVigencia', data.dataInicioVigencia);
-    if (data.dataFimVigencia) formData.append('dataFimVigencia', data.dataFimVigencia);
-    if (data.descricao) formData.append('descricao', data.descricao);
+    const inicio = data.dataVigenciaInicio || data.dataInicioVigencia || new Date().toISOString();
+    const fim = data.dataVigenciaFim || data.dataFimVigencia;
+
+    formData.append('dataVigenciaInicio', inicio);
+    if (fim) {
+      formData.append('dataVigenciaFim', fim);
+    }
 
     return apiClient.post<ContratoResponse>('/contrato', formData);
   },
@@ -124,7 +109,8 @@ export const contractApi = {
     return apiClient.get<ContratoBigNumbersResponse>('/contrato/filial/big-numbers');
   },
 
-  getById(id: number) {
-    return apiClient.get<ContratoResponse>(`/contrato/${id}`);
+  getPdfBlob(id: number) {
+    return apiClient.getBlob(`/contrato/${id}`);
   },
 };
+

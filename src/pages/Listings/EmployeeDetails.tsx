@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import CheckIcon from '../../assets/icons/check.svg?react';
 import { Button, LoadingState, StatusBadge, useToast } from '../../components/common';
 import { collaboratorApi, driverApi, extractListData, type ColaboradorDto, type MotoristaDto } from '../../services';
-import { formatCpf, employees as defaultEmployees } from './listingsData';
 import styles from './EmployeeDetails.module.css';
 
 const getInitials = (name: string) => name
@@ -14,15 +13,69 @@ const getInitials = (name: string) => name
   .join('')
   .toLocaleUpperCase('pt-BR');
 
-const normalizeProfile = (p: string) => {
-  const upper = p.toUpperCase();
-  if (upper.includes('SOLICITANTE_EMERGENCIA')) return 'Solicitante de Emergência';
-  if (upper.includes('SOLICITANTE')) return 'Solicitante';
-  if (upper.includes('APROVADOR')) return 'Aprovador';
-  if (upper.includes('MOTORISTA')) return 'Motorista';
-  if (upper.includes('ADMIN_MASTER')) return 'Administrador Master';
-  if (upper.includes('ADMIN_FILIAL')) return 'Administrador de Filial';
-  return p;
+interface ProfileInfo {
+  key: string;
+  title: string;
+  badge: string;
+  description: string;
+}
+
+const getProfileDetails = (raw: string): ProfileInfo => {
+  const upper = raw.toUpperCase();
+  if (upper.includes('EMERGENCIA') || upper.includes('SOLICITANTE_EMERGENCIA')) {
+    return {
+      key: 'emergencia',
+      title: 'Solicitante de Emergência',
+      badge: 'Plantão',
+      description: 'Autorizado para abertura de corridas imediatas em situações de urgência.',
+    };
+  }
+  if (upper.includes('APROVADOR')) {
+    return {
+      key: 'aprovador',
+      title: 'Aprovador de Despesas',
+      badge: 'Gestão Financeira',
+      description: 'Validação e autorização de solicitações de viagens por centro de custo.',
+    };
+  }
+  if (upper.includes('ADMIN_MASTER') || upper.includes('ADMIN-MASTER') || upper.includes('ADMINISTRADOR MASTER')) {
+    return {
+      key: 'admin-master',
+      title: 'Administrador Master',
+      badge: 'Acesso Global',
+      description: 'Gestão integral sobre filiais, fornecedores, contratos e usuários.',
+    };
+  }
+  if (upper.includes('ADMIN_FILIAL') || upper.includes('ADMIN-FILIAL') || upper.includes('ADMINISTRADOR DE FILIAL')) {
+    return {
+      key: 'admin-filial',
+      title: 'Administrador de Filial',
+      badge: 'Gestão de Unidade',
+      description: 'Supervisão operacional, gestão de colaboradores e contratos da filial.',
+    };
+  }
+  if (upper.includes('ADMIN_FORNECEDOR') || upper.includes('ADMIN-FORNECEDOR') || upper.includes('ADMINISTRADOR DE FORNECEDOR')) {
+    return {
+      key: 'admin-fornecedor',
+      title: 'Administrador de Fornecedor',
+      badge: 'Parceiro',
+      description: 'Gestor externo responsável pela frota e motoristas credenciados.',
+    };
+  }
+  if (upper.includes('MOTORISTA')) {
+    return {
+      key: 'motorista',
+      title: 'Motorista Credenciado',
+      badge: 'Operação',
+      description: 'Condutor credenciado para atendimento de rotas corporativas.',
+    };
+  }
+  return {
+    key: 'solicitante',
+    title: 'Solicitante Corporativo',
+    badge: 'Passageiro',
+    description: 'Abertura de solicitações de viagens e acompanhamento de itinerários.',
+  };
 };
 
 interface EmployeeViewData {
@@ -67,12 +120,12 @@ export const EmployeeDetails = () => {
 
         let loadedProfiles: string[] = [];
         if (profilesRes.status === 'fulfilled' && profilesRes.value?.response?.perfis) {
-          loadedProfiles = profilesRes.value.response.perfis.map((p) => normalizeProfile(p.tipoPerfil));
+          loadedProfiles = profilesRes.value.response.perfis.map((p) => p.tipoPerfil);
         }
 
         if (matchedCollab) {
           if (loadedProfiles.length === 0 && matchedCollab.perfis && matchedCollab.perfis.length > 0) {
-            loadedProfiles = matchedCollab.perfis.map((p) => normalizeProfile(p.tipoPerfil));
+            loadedProfiles = matchedCollab.perfis.map((p) => p.tipoPerfil);
           }
 
           setEmployee({
@@ -125,6 +178,16 @@ export const EmployeeDetails = () => {
     };
   }, [employeeId, navigate, showToast]);
 
+  const uniqueProfiles = useMemo(() => {
+    if (!employee?.perfis) return [];
+    const map = new Map<string, ProfileInfo>();
+    for (const raw of employee.perfis) {
+      const info = getProfileDetails(raw);
+      map.set(info.key, info);
+    }
+    return Array.from(map.values());
+  }, [employee?.perfis]);
+
   if (isLoading) {
     return (
       <div className={styles.page}>
@@ -141,11 +204,6 @@ export const EmployeeDetails = () => {
     return null;
   }
 
-  const isSolicitante = employee.perfis.some((p) => p.toLowerCase().includes('solicitante'));
-  const isAprovador = employee.perfis.some((p) => p.toLowerCase().includes('aprovador'));
-  const isMotorista = employee.perfis.some((p) => p.toLowerCase().includes('motorista'));
-  const isAdmin = employee.perfis.some((p) => p.toLowerCase().includes('administrador') || p.toLowerCase().includes('admin'));
-
   return (
     <div className={styles.page}>
       <section className={styles.heroCard}>
@@ -154,19 +212,22 @@ export const EmployeeDetails = () => {
             {getInitials(employee.nome)}
           </span>
           <div>
-            <span className={styles.eyebrow}>Visão Geral do Colaborador</span>
-            <h2>{employee.nome}</h2>
-            <p>{employee.email}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <h2>{employee.nome}</h2>
+              <StatusBadge status="aprovado" />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.875rem', flexWrap: 'wrap' }}>
+              <span>{employee.email}</span>
+            </div>
           </div>
         </div>
 
         <div className={styles.heroActions}>
-          <StatusBadge status="aprovado" />
-          <Button variant="outline" onClick={() => navigate(`/colaboradores/${employee.id}/editar`)}>
-            Editar dados
+          <Button onClick={() => navigate(`/colaboradores/${employee.id}/editar`)}>
+            Gerenciar Perfis
           </Button>
           <Button variant="outline" onClick={() => navigate('/colaboradores')}>
-            Voltar
+            Voltar para Colaboradores
           </Button>
         </div>
       </section>
@@ -183,11 +244,15 @@ export const EmployeeDetails = () => {
 
             <div className={styles.infoGrid}>
               <div className={styles.infoItem}>
-                <span>CPF</span>
-                <strong>{employee.cpf ? formatCpf(employee.cpf) : 'Não informado'}</strong>
+                <span>Nome Completo</span>
+                <strong>{employee.nome}</strong>
               </div>
               <div className={styles.infoItem}>
-                <span>Cargo</span>
+                <span>E-mail Corporativo</span>
+                <strong>{employee.email}</strong>
+              </div>
+              <div className={styles.infoItem}>
+                <span>Cargo / Função</span>
                 <strong>{employee.cargo}</strong>
               </div>
               <div className={styles.infoItem}>
@@ -198,99 +263,12 @@ export const EmployeeDetails = () => {
                 <span>Unidade / Lotação</span>
                 <strong>{employee.vinculoNome}</strong>
               </div>
-            </div>
-          </div>
-
-          <div className={styles.card}>
-            <div className={styles.cardHeader}>
-              <div>
-                <h3>Permissões e Acessos</h3>
-                <p>Funcionalidades disponíveis de acordo com os papéis do colaborador.</p>
+              <div className={styles.infoItem}>
+                <span>Situação Cadastral</span>
+                <strong style={{ color: '#16a34a', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <i className={styles.activeDot} /> Ativo e Habilitado
+                </strong>
               </div>
-            </div>
-
-            <div className={styles.permissionList}>
-              {isSolicitante && (
-                <div className={`${styles.permissionCard} ${styles.permissionEnabled}`}>
-                  <div className={styles.permissionStatus} aria-hidden="true">
-                    <CheckIcon width={18} height={18} />
-                  </div>
-                  <div className={styles.permissionContent}>
-                    <div>
-                      <strong>Solicitação de Corridas</strong>
-                      <p>Permite solicitar viagens corporativas e acompanhar o status de atendimento.</p>
-                    </div>
-                    <div className={styles.permissionTags}>
-                      <span>Solicitar corrida</span>
-                      <span>Histórico individual</span>
-                      <span>Consultar itinerário</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {isAprovador && (
-                <div className={`${styles.permissionCard} ${styles.permissionEnabled}`}>
-                  <div className={styles.permissionStatus} aria-hidden="true">
-                    <CheckIcon width={18} height={18} />
-                  </div>
-                  <div className={styles.permissionContent}>
-                    <div>
-                      <strong>Gestão e Aprovação de Despesas</strong>
-                      <p>Permite aprovar ou reprovar solicitações de viagens e auditar centros de custo.</p>
-                    </div>
-                    <div className={styles.permissionTags}>
-                      <span>Aprovar solicitações</span>
-                      <span>Gerenciar contratos</span>
-                      <span>Auditoria</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {isMotorista && (
-                <div className={`${styles.permissionCard} ${styles.permissionEnabled}`}>
-                  <div className={styles.permissionStatus} aria-hidden="true">
-                    <CheckIcon width={18} height={18} />
-                  </div>
-                  <div className={styles.permissionContent}>
-                    <div>
-                      <strong>Operação de Transporte</strong>
-                      <p>Permite acessar corridas atribuídas pelo fornecedor e registrar o trajeto.</p>
-                    </div>
-                    <div className={styles.permissionTags}>
-                      <span>Corridas atribuídas</span>
-                      <span>Atualizar execução</span>
-                      <span>Navegação no mapa</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {isAdmin && (
-                <div className={`${styles.permissionCard} ${styles.permissionEnabled}`}>
-                  <div className={styles.permissionStatus} aria-hidden="true">
-                    <CheckIcon width={18} height={18} />
-                  </div>
-                  <div className={styles.permissionContent}>
-                    <div>
-                      <strong>Administração Geral do Sistema</strong>
-                      <p>Permite controle total sobre filiais, fornecedores, colaboradores e políticas.</p>
-                    </div>
-                    <div className={styles.permissionTags}>
-                      <span>Gestão de filiais</span>
-                      <span>Gestão de fornecedores</span>
-                      <span>Controle de acessos</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {!isSolicitante && !isAprovador && !isMotorista && !isAdmin && (
-                <p style={{ color: 'var(--text-secondary)', padding: '1rem 0' }}>
-                  Nenhum perfil operacional ativo atribuído a este colaborador.
-                </p>
-              )}
             </div>
           </div>
         </article>
@@ -300,18 +278,24 @@ export const EmployeeDetails = () => {
             <div className={styles.cardHeader}>
               <div>
                 <h3>Perfis Atribuídos</h3>
-                <p>Papéis ativos no sistema.</p>
+                <p>Papéis ativos e escopo de responsabilidade.</p>
               </div>
             </div>
 
             <div className={styles.profileList}>
-              {employee.perfis.length > 0 ? (
-                employee.perfis.map((p) => (
-                  <div key={p} className={styles.profileOption} style={{ padding: '0.75rem 1rem' }}>
-                    <span>
-                      <strong style={{ color: 'var(--text-primary)' }}>{p}</strong>
-                      <small style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>Ativo no sistema</small>
-                    </span>
+              {uniqueProfiles.length > 0 ? (
+                uniqueProfiles.map((p) => (
+                  <div key={p.key} className={styles.profileCard}>
+                    <div className={styles.profileCardIcon}>
+                      <CheckIcon width={16} height={16} />
+                    </div>
+                    <div className={styles.profileCardBody}>
+                      <div className={styles.profileCardTitleRow}>
+                        <strong className={styles.profileCardTitle}>{p.title}</strong>
+                        <span className={styles.profileBadge}>{p.badge}</span>
+                      </div>
+                      <span className={styles.profileCardDesc}>{p.description}</span>
+                    </div>
                   </div>
                 ))
               ) : (
@@ -326,4 +310,6 @@ export const EmployeeDetails = () => {
     </div>
   );
 };
+
+
 

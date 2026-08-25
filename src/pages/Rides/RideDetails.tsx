@@ -36,12 +36,9 @@ export const RideDetails = () => {
         })
         .catch((err) => {
           if (!isMounted) return;
-          const msg = err instanceof Error ? err.message : 'Não foi possível carregar os dados da corrida.';
-          showToast({
-            type: 'error',
-            title: 'Erro ao buscar detalhes da corrida',
-            description: msg,
-          });
+          const message = err instanceof Error ? err.message : 'Erro ao buscar detalhes da corrida';
+          showToast({ type: 'error', title: message });
+          navigate('/corridas/historico');
         })
         .finally(() => {
           if (isMounted) setIsLoading(false);
@@ -54,43 +51,57 @@ export const RideDetails = () => {
     return () => {
       isMounted = false;
     };
-  }, [rideId, navigate]);
+  }, [rideId, navigate, showToast]);
 
-  const originText = solicitacao?.origem
-    ? `${solicitacao.origem.logradouro}, ${solicitacao.origem.cidade} - ${solicitacao.origem.uf}`
-    : 'Origem';
+  const originText = useMemo(() => {
+    if (!solicitacao?.origem) return '—';
+    const { logradouro, numero, bairro, cidade, uf } = solicitacao.origem;
+    return `${logradouro || ''}, ${numero || 'S/N'} - ${bairro || ''}, ${cidade || ''} - ${uf || ''}`;
+  }, [solicitacao]);
 
-  const destinationText = solicitacao?.destino
-    ? `${solicitacao.destino.logradouro}, ${solicitacao.destino.cidade} - ${solicitacao.destino.uf}`
-    : 'Destino';
+  const destinationText = useMemo(() => {
+    if (!solicitacao?.destino) return '—';
+    const { logradouro, numero, bairro, cidade, uf } = solicitacao.destino;
+    return `${logradouro || ''}, ${numero || 'S/N'} - ${bairro || ''}, ${cidade || ''} - ${uf || ''}`;
+  }, [solicitacao]);
 
-  const routePoints: RoutePoint[] = useMemo(() => {
-    const pts: RoutePoint[] = [];
-    if (solicitacao?.origem?.latitude && solicitacao?.origem?.longitude) {
-      pts.push({
-        lat: solicitacao.origem.latitude,
-        lng: solicitacao.origem.longitude,
-        label: `Origem: ${originText}`,
-        type: 'origin',
+  const routePoints = useMemo<RoutePoint[]>(() => {
+    if (!solicitacao) return [];
+    const points: RoutePoint[] = [];
+
+    if (solicitacao.origem?.latitude && solicitacao.origem?.longitude) {
+      points.push({
+        lat: Number(solicitacao.origem.latitude),
+        lng: Number(solicitacao.origem.longitude),
+        label: 'Origem',
       });
     }
-    if (solicitacao?.destino?.latitude && solicitacao?.destino?.longitude) {
-      pts.push({
-        lat: solicitacao.destino.latitude,
-        lng: solicitacao.destino.longitude,
-        label: `Destino: ${destinationText}`,
-        type: 'destination',
+
+    if (solicitacao.paradas && Array.isArray(solicitacao.paradas)) {
+      solicitacao.paradas.forEach((p, index) => {
+        if (p.latitude && p.longitude) {
+          points.push({
+            lat: Number(p.latitude),
+            lng: Number(p.longitude),
+            label: `Parada ${index + 1}`,
+          });
+        }
       });
     }
-    return pts;
-  }, [solicitacao, originText, destinationText]);
+
+    if (solicitacao.destino?.latitude && solicitacao.destino?.longitude) {
+      points.push({
+        lat: Number(solicitacao.destino.latitude),
+        lng: Number(solicitacao.destino.longitude),
+        label: 'Destino Final',
+      });
+    }
+
+    return points;
+  }, [solicitacao]);
 
   const handlePrintReceipt = () => {
-    showToast({
-      type: 'success',
-      title: 'Gerando recibo',
-      description: `O recibo da corrida #${solicitacao?.id || rideId} está pronto para impressão.`,
-    });
+    window.print();
   };
 
   if (isLoading) {
@@ -99,7 +110,7 @@ export const RideDetails = () => {
         <LoadingState
           variant="details"
           message="Carregando detalhes da corrida"
-          submessage="Buscando informações do trajeto e valores..."
+          submessage="Buscando itinerário e dados da viagem..."
         />
       </div>
     );

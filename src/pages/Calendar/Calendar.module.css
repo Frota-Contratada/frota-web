@@ -413,64 +413,68 @@
   font-weight: 600;
 }
 
-.routeInfo {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr);
-  align-items: center;
-  column-gap: 0.375rem;
-  color: var(--text-muted);
+.routeTimeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin-top: 0.25rem;
+  padding: 0.75rem;
+  background-color: var(--surface-muted);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  position: relative;
 }
 
-.routeInfo div {
+.routeStep {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
   min-width: 0;
+  position: relative;
+}
+
+.originDot,
+.destinationDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 0.28rem;
+}
+
+.originDot {
+  background-color: #0070f3;
+  box-shadow: 0 0 0 2px rgba(0, 112, 243, 0.2);
+}
+
+.destinationDot {
+  background-color: #102a43;
+  box-shadow: 0 0 0 2px rgba(16, 42, 67, 0.2);
+}
+
+.routeDetails {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
 }
 
-.routeInfo div:last-child {
-  align-items: flex-end;
-  text-align: right;
-}
-
-.routeInfo span {
+.routeLabel {
   color: var(--text-muted);
-  font-size: 0.68rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  line-height: 1;
 }
 
-.routeInfo strong {
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: var(--font-size-xs);
+.routeAddress {
+  color: var(--text-primary);
+  font-size: 0.8125rem;
   font-weight: 600;
   line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.routeArrowWrapper {
-  justify-self: center;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-full);
-  background-color: var(--surface-muted);
-  color: var(--text-subtle);
-}
-
-.routeArrow {
-  display: block;
-  flex-shrink: 0;
-  transform: rotate(-90deg);
-}
-
-.routeArrow path {
-  stroke: currentColor;
+  word-break: break-word;
 }
 
 @media (max-width: 1100px) {

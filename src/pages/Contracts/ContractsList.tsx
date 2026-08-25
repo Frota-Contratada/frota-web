@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Select, StatCard, StatusBadge, Table, TableToolbar, useToast, type BadgeStatus, type ColumnDef, type FilterSection, type TableAction } from '../../components/common';
+import { Button, Input, StatCard, StatusBadge, Table, TableToolbar, useToast, type BadgeStatus, type ColumnDef, type FilterSection, type TableAction } from '../../components/common';
 import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
 import CheckIcon from '../../assets/icons/check.svg?react';
 import ErroIcon from '../../assets/icons/erro.svg?react';
-import { suppliers as defaultSuppliers, type Contract } from './contractsData';
-import { contractApi, supplierApi, extractListData, type ContratoDto, type ContratoBigNumbers } from '../../services';
+import { type Contract } from './contractsData';
+import { contractApi, extractListData, type ContratoDto, type ContratoBigNumbers } from '../../services';
 import styles from './Contracts.module.css';
 
 const PAGE_SIZE = 5;
@@ -14,17 +14,9 @@ const contractFilters: FilterSection[] = [
   {
     title: 'Status',
     options: [
-      { label: 'Aprovado', value: 'status:aprovado' },
-      { label: 'Pendente', value: 'status:pendente' },
-      { label: 'Em andamento', value: 'status:em_andamento' },
-    ],
-  },
-  {
-    title: 'Tipo',
-    options: [
-      { label: 'Transporte executivo', value: 'tipo:Transporte executivo' },
-      { label: 'Frota dedicada', value: 'tipo:Frota dedicada' },
-      { label: 'Gestão de frota', value: 'tipo:Gestão de frota' },
+      { label: 'Ativo', value: 'status:aprovado' },
+      { label: 'A vencer em breve', value: 'status:pendente' },
+      { label: 'Vencido', value: 'status:cancelado' },
     ],
   },
 ];
@@ -37,9 +29,9 @@ const columns: ColumnDef<Contract>[] = [
     render: (_, row) => <strong className={styles.contractCode}>{row.codigo}</strong>,
   },
   { key: 'fornecedor', header: 'Fornecedor', sortable: true },
-  { key: 'tipo', header: 'Tipo', sortable: true },
-  { key: 'vencimento', header: 'Vencimento', sortable: true },
-  { key: 'valorMensal', header: 'Valor mensal', sortable: true },
+  { key: 'filial', header: 'Filial', sortable: true },
+  { key: 'inicio', header: 'Início Vigência', sortable: true },
+  { key: 'vencimento', header: 'Fim Vigência', sortable: true },
   {
     key: 'status',
     header: 'Status',
@@ -53,98 +45,75 @@ export const ContractsList = () => {
   const { showToast } = useToast();
   const [contractsList, setContractsList] = useState<Contract[]>([]);
   const [bigNumbers, setBigNumbers] = useState<ContratoBigNumbers | null>(null);
-  const [suppliersList, setSuppliersList] = useState<Array<{ id: number; nome: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [query, setQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedSupplierId, setSelectedSupplierId] = useState('');
+  const [dataInicioVigencia, setDataInicioVigencia] = useState(new Date().toISOString().slice(0, 10));
+  const [dataFimVigencia, setDataFimVigencia] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
+  const fetchContracts = async () => {
+    try {
+      setIsLoading(true);
+      const [contractsRes, bigNumbersRes] = await Promise.allSettled([
+        contractApi.list(),
+        contractApi.getAdminBigNumbers().catch(() => contractApi.getFilialBigNumbers()),
+      ]);
 
-    async function loadData() {
-      try {
-        setIsLoading(true);
-        const [contractsRes, bigNumbersRes, suppliersRes] = await Promise.allSettled([
-          contractApi.list(),
-          contractApi.getAdminBigNumbers().catch(() => contractApi.getFilialBigNumbers()),
-          supplierApi.list(),
-        ]);
+      if (contractsRes.status === 'fulfilled') {
+        const apiContracts = extractListData<ContratoDto>(contractsRes.value);
+        const mapped: Contract[] = apiContracts.map((c: ContratoDto) => {
+          const rawStatus = (c.status || '').toUpperCase();
+          let badgeStatus: BadgeStatus = 'em_andamento';
+          if (rawStatus === 'ATIVO' || rawStatus === 'APROVADO') badgeStatus = 'aprovado';
+          else if (rawStatus === 'VENCE_EM_BREVE' || rawStatus === 'PENDENTE') badgeStatus = 'pendente';
+          else if (rawStatus === 'VENCIDO' || rawStatus === 'CANCELADO') badgeStatus = 'cancelado';
 
-        if (!isMounted) return;
+          const fornecedorNome = c.vinculos?.[0]?.fornecedorNome || (c.vinculos && c.vinculos.length > 0 ? c.vinculos.map(v => v.fornecedorNome).join(', ') : '—');
+          const filialNome = c.vinculos?.[0]?.filialNome || (c.vinculos && c.vinculos.length > 0 ? c.vinculos.map(v => v.filialNome).join(', ') : '—');
+          const dataInicio = c.dataVigenciaInicio;
+          const dataFim = c.dataVigenciaFim;
 
-        if (contractsRes.status === 'fulfilled') {
-          const apiContracts = extractListData<ContratoDto>(contractsRes.value);
-          const mapped: Contract[] = apiContracts.map((c: ContratoDto) => {
-            const rawStatus = (c.status || '').toLowerCase();
-            let badgeStatus: BadgeStatus = 'em_andamento';
-            if (rawStatus === 'ativo' || rawStatus === 'aprovado') badgeStatus = 'aprovado';
-            else if (rawStatus === 'pendente' || rawStatus.includes('breve')) badgeStatus = 'pendente';
-            else if (rawStatus === 'cancelado' || rawStatus === 'vencido') badgeStatus = 'cancelado';
-
-            const fornecedorNome = c.vinculos?.[0]?.fornecedorNome || c.fornecedorNome || (c.fornecedorId ? `Fornecedor #${c.fornecedorId}` : '—');
-            const dataInicio = c.dataVigenciaInicio || c.dataInicioVigencia;
-            const dataFim = c.dataVigenciaFim || c.dataFimVigencia;
-
-            return {
-              id: c.id,
-              codigo: `CTR-${String(c.id).padStart(4, '0')}`,
-              fornecedor: fornecedorNome,
-              tipo: c.tipoContrato || 'Transporte executivo',
-              inicio: dataInicio ? new Date(dataInicio).toLocaleDateString('pt-BR') : '—',
-              vencimento: dataFim ? new Date(dataFim).toLocaleDateString('pt-BR') : 'Indeterminado',
-              valorMensal: c.valorMensal ? `R$ ${Number(c.valorMensal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00',
-              responsavel: '—',
-              status: badgeStatus,
-              arquivo: c.nomeArquivo || (c.arquivoUrl ? c.arquivoUrl.split('/').pop() || 'contrato.pdf' : (c as any).caminhoArquivo ? (c as any).caminhoArquivo.split('/').pop() : 'contrato.pdf'),
-              escopo: c.descricao || 'Prestação de serviços de transporte e mobilidade.',
-              sla: 'Conforme termo contratual',
-              reajuste: 'Conforme contrato',
-            };
-          });
-          setContractsList(mapped);
-        }
-
-        if (bigNumbersRes.status === 'fulfilled' && bigNumbersRes.value.response) {
-          setBigNumbers(bigNumbersRes.value.response);
-        }
-
-        if (contractsRes.status === 'rejected') {
-          const msg = contractsRes.reason instanceof Error ? contractsRes.reason.message : 'Falha ao buscar contratos';
-          showToast({ type: 'error', title: 'Erro ao carregar contratos', description: msg });
-        }
-
-        if (suppliersRes.status === 'fulfilled') {
-          const apiSuppliers = extractListData<{ id: number; nome: string }>(suppliersRes.value);
-          if (apiSuppliers.length > 0) {
-            setSuppliersList(apiSuppliers);
-          }
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Erro ao processar dados de contratos';
-        showToast({ type: 'error', title: 'Erro ao carregar contratos', description: msg });
-      } finally {
-        if (isMounted) setIsLoading(false);
+          return {
+            id: c.id,
+            codigo: `CTR-${String(c.id).padStart(4, '0')}`,
+            fornecedor: fornecedorNome,
+            filial: filialNome,
+            inicio: dataInicio ? new Date(dataInicio).toLocaleDateString('pt-BR') : '—',
+            vencimento: dataFim ? new Date(dataFim).toLocaleDateString('pt-BR') : 'Indeterminado',
+            status: badgeStatus,
+            arquivo: c.caminhoArquivo ? c.caminhoArquivo.split('/').pop() || 'contrato.pdf' : 'contrato.pdf',
+          };
+        });
+        setContractsList(mapped);
       }
-    }
 
-    loadData();
-    return () => {
-      isMounted = false;
-    };
+      if (bigNumbersRes.status === 'fulfilled' && bigNumbersRes.value.response) {
+        setBigNumbers(bigNumbersRes.value.response);
+      }
+
+      if (contractsRes.status === 'rejected') {
+        const msg = contractsRes.reason instanceof Error ? contractsRes.reason.message : 'Falha ao buscar contratos';
+        showToast({ type: 'error', title: 'Erro ao carregar contratos', description: msg });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro ao processar dados de contratos';
+      showToast({ type: 'error', title: 'Erro ao carregar contratos', description: msg });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchContracts();
   }, []);
 
   const statusFilters = selectedFilters
     .filter((filter) => filter.startsWith('status:'))
     .map((filter) => filter.replace('status:', ''));
-
-  const typeFilters = selectedFilters
-    .filter((filter) => filter.startsWith('tipo:'))
-    .map((filter) => filter.replace('tipo:', ''));
 
   const filteredContracts = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
@@ -154,13 +123,12 @@ export const ContractsList = () => {
         normalizedQuery.length === 0 ||
         contract.codigo.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
         contract.fornecedor.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
-        contract.tipo.toLocaleLowerCase('pt-BR').includes(normalizedQuery);
+        contract.filial.toLocaleLowerCase('pt-BR').includes(normalizedQuery);
       const matchesStatus = statusFilters.length === 0 || statusFilters.includes(contract.status);
-      const matchesType = typeFilters.length === 0 || typeFilters.includes(contract.tipo);
 
-      return matchesQuery && matchesStatus && matchesType;
+      return matchesQuery && matchesStatus;
     });
-  }, [query, statusFilters, typeFilters, contractsList]);
+  }, [query, statusFilters, contractsList]);
 
   const totalPages = Math.max(1, Math.ceil(filteredContracts.length / PAGE_SIZE));
   const pageData = filteredContracts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -176,8 +144,8 @@ export const ContractsList = () => {
   const handleUploadSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!selectedSupplierId || !selectedFile) {
-      showToast({ type: 'warning', title: 'Dados incompletos', description: 'Selecione um fornecedor e anexe um arquivo PDF.' });
+    if (!selectedFile) {
+      showToast({ type: 'warning', title: 'Arquivo obrigatório', description: 'Por favor, anexe o arquivo PDF do contrato.' });
       return;
     }
 
@@ -185,15 +153,14 @@ export const ContractsList = () => {
       setIsSubmitting(true);
       await contractApi.create({
         arquivo: selectedFile,
-        fornecedorId: Number(selectedSupplierId),
-        tipoContrato: 'Transporte executivo',
-        valorMensal: 10000,
-        dataInicioVigencia: new Date().toISOString(),
+        dataVigenciaInicio: new Date(dataInicioVigencia).toISOString(),
+        dataFimVigencia: dataFimVigencia ? new Date(dataFimVigencia).toISOString() : undefined,
       });
       setIsModalOpen(false);
-      setSelectedSupplierId('');
       setSelectedFile(null);
-      showToast({ type: 'success', title: 'Contrato enviado com sucesso', description: `${selectedFile.name} foi salvo.` });
+      setDataFimVigencia('');
+      showToast({ type: 'success', title: 'Contrato enviado com sucesso', description: `${selectedFile.name} foi cadastrado.` });
+      fetchContracts();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Falha ao salvar contrato';
       showToast({ type: 'error', title: 'Erro ao enviar contrato', description: msg });
@@ -206,26 +173,23 @@ export const ContractsList = () => {
     <div className={styles.page}>
       <section className={styles.statsGrid} aria-label="Resumo de contratos">
         <StatCard
+          title="Total de contratos"
+          value={String(bigNumbers?.total ?? contractsList.length)}
+          isLoading={isLoading}
+        />
+        <StatCard
           title="Contratos ativos"
-          value={String(bigNumbers?.validos ?? bigNumbers?.totalAtivos ?? contractsList.length)}
-          trend={{ value: 8, direction: 'up', label: 'vs. mês anterior' }}
+          value={String(bigNumbers?.validos ?? contractsList.filter(c => c.status === 'aprovado').length)}
           isLoading={isLoading}
         />
         <StatCard
-          title="Valor mensal"
-          value={bigNumbers?.valorTotalMensal !== undefined ? `R$ ${Number(bigNumbers.valorTotalMensal).toLocaleString('pt-BR')}` : 'R$ 273.650'}
-          trend={{ value: 4.2, direction: 'up', label: 'vs. mês anterior' }}
+          title="A vencer em breve"
+          value={String(bigNumbers?.vencemEmBreve ?? '0')}
           isLoading={isLoading}
         />
         <StatCard
-          title="A vencer"
-          value={String(bigNumbers?.vencemEmBreve ?? bigNumbers?.totalVencendoEmBreve ?? '0')}
-          trend={{ value: 2, direction: 'down', label: 'nos próximos 60 dias' }}
-          isLoading={isLoading}
-        />
-        <StatCard
-          title="Fornecedores"
-          value={String(suppliersList.length || '0')}
+          title="Contratos vencidos"
+          value={String(bigNumbers?.vencidos ?? '0')}
           isLoading={isLoading}
         />
       </section>
@@ -274,7 +238,7 @@ export const ContractsList = () => {
             <div className={styles.modalHeader}>
               <div>
                 <h2 id="contract-upload-title">Inserir contrato</h2>
-                <p>Envie o PDF e vincule o documento a um fornecedor.</p>
+                <p>Envie o arquivo PDF e informe o período de vigência.</p>
               </div>
               <button className={styles.closeButton} type="button" aria-label="Fechar modal" onClick={() => setIsModalOpen(false)}>
                 <ErroIcon width={14} height={14} aria-hidden="true" />
@@ -282,17 +246,19 @@ export const ContractsList = () => {
             </div>
 
             <form className={styles.form} onSubmit={handleUploadSubmit}>
-              <Select
-                label="Fornecedor"
-                placeholder="Selecione um fornecedor"
-                value={selectedSupplierId}
-                options={
-                  suppliersList.length > 0
-                    ? suppliersList.map((s) => ({ label: s.nome, value: String(s.id) }))
-                    : defaultSuppliers.map((s, idx) => ({ label: s, value: String(idx + 1) }))
-                }
-                onChange={setSelectedSupplierId}
+              <Input
+                label="Início da vigência *"
+                type="date"
+                value={dataInicioVigencia}
+                onChange={(e) => setDataInicioVigencia(e.target.value)}
                 required
+              />
+
+              <Input
+                label="Fim da vigência (opcional)"
+                type="date"
+                value={dataFimVigencia}
+                onChange={(e) => setDataFimVigencia(e.target.value)}
               />
 
               <label className={styles.uploadBox}>
@@ -306,7 +272,7 @@ export const ContractsList = () => {
                   <CheckIcon width={22} height={22} />
                 </span>
                 <strong>{selectedFile?.name || 'Selecionar PDF do contrato'}</strong>
-                <small>Arquivo em PDF, preferencialmente assinado e com anexos consolidados.</small>
+                <small>Arquivo em PDF, assinado e com anexos consolidados.</small>
               </label>
 
               <div className={styles.modalActions}>
@@ -320,3 +286,4 @@ export const ContractsList = () => {
     </div>
   );
 };
+

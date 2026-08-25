@@ -27,8 +27,6 @@ export const BranchCreate = () => {
     neighborhood: '',
     city: '',
     state: '',
-    costCentersCount: '1',
-    suppliersCount: '0',
     latitude: -26.9078,
     longitude: -48.6619,
   });
@@ -313,34 +311,6 @@ export const BranchCreate = () => {
             />
           </div>
 
-          <div className={styles.cardHeader} style={{ marginTop: '2.5rem' }}>
-            <div>
-              <h3>Configuração de Frota e Custos</h3>
-              <p>Ajuste os parâmetros operacionais iniciais.</p>
-            </div>
-          </div>
-
-          <div className={styles.formGrid}>
-            <Input
-              label="Quantidade de Centros de Custo"
-              type="number"
-              min="0"
-              value={form.costCentersCount}
-              onChange={(e) => updateField('costCentersCount', e.target.value)}
-              required
-              disabled={isLoading}
-            />
-
-            <Input
-              label="Fornecedores vinculados inicialmente"
-              type="number"
-              min="0"
-              value={form.suppliersCount}
-              onChange={(e) => updateField('suppliersCount', e.target.value)}
-              required
-              disabled={isLoading}
-            />
-          </div>
         </article>
 
         <aside className={styles.sidePanel}>

@@ -107,21 +107,9 @@ export const ExecutiveView = () => {
 
       {}
       <section className={styles.statsGrid}>
-        <StatCard
-          title="Total de corridas"
-          value="54"
-          trend={{ value: 8.5, direction: 'up', label: 'Maior que ontem' }}
-        />
-        <StatCard
-          title="Corridas concluídas"
-          value="43"
-          trend={{ value: 10, direction: 'up', label: 'Maior que ontem' }}
-        />
-        <StatCard
-          title="Corridas emergenciais"
-          value="10"
-          trend={{ value: 1.5, direction: 'up', label: 'Maior que ontem' }}
-        />
+        <StatCard title="Total de corridas" value="54" />
+        <StatCard title="Corridas concluídas" value="43" />
+        <StatCard title="Corridas emergenciais" value="10" />
         <StatCard title="Top 1 fornecedor por gasto" value="VIEX" />
       </section>
 

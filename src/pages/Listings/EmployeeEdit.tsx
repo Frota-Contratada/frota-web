@@ -1,18 +1,16 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Input, LoadingState, Select, useToast } from '../../components/common';
 import {
   collaboratorApi,
-  driverApi,
   branchApi,
   costCenterApi,
+  DEFAULT_CENTROS_CUSTO,
   extractListData,
   type FilialDto,
   type CentroCustoDto,
   type ColaboradorDto,
-  type MotoristaDto,
 } from '../../services';
-import { formatCpf } from './listingsData';
 import styles from '../Rides/RideReview.module.css';
 import localStyles from './EmployeeCreate.module.css';
 
@@ -40,7 +38,6 @@ export const EmployeeEdit = () => {
   const [form, setForm] = useState({
     name: '',
     email: '',
-    cpf: '',
     role: 'Colaborador',
     branch: '',
     costCenterId: '',
@@ -64,7 +61,10 @@ export const EmployeeEdit = () => {
       if (!isMounted) return;
 
       const branches = branchesRes.status === 'fulfilled' ? extractListData<FilialDto>(branchesRes.value) : [];
-      const costCenters = ccRes.status === 'fulfilled' ? extractListData<CentroCustoDto>(ccRes.value) : [];
+      let costCenters = ccRes.status === 'fulfilled' ? extractListData<CentroCustoDto>(ccRes.value) : [];
+      if (costCenters.length === 0) {
+        costCenters = DEFAULT_CENTROS_CUSTO;
+      }
       const collabs = collabsRes.status === 'fulfilled' ? extractListData<ColaboradorDto>(collabsRes.value) : [];
 
       setBranchesList(branches);
@@ -82,13 +82,18 @@ export const EmployeeEdit = () => {
       setInitialProfiles(loadedProfiles);
 
       if (matchedCollab) {
+        const branchVal = matchedCollab.filialId ? String(matchedCollab.filialId) : (branches[0]?.id ? String(branches[0].id) : '1');
+        const availableCcs = costCenters.filter((c) => String(c.filialId) === branchVal);
+        const ccVal = matchedCollab.centroCustoId
+          ? String(matchedCollab.centroCustoId)
+          : (availableCcs[0]?.numero ? String(availableCcs[0].numero) : (costCenters[0]?.numero ? String(costCenters[0].numero) : '101'));
+
         setForm({
           name: matchedCollab.nome || '',
           email: matchedCollab.email || '',
-          cpf: matchedCollab.cpf ? formatCpf(matchedCollab.cpf) : '',
           role: matchedCollab.cargo || 'Colaborador',
-          branch: matchedCollab.filialId ? String(matchedCollab.filialId) : (branches[0]?.id ? String(branches[0].id) : '1'),
-          costCenterId: matchedCollab.centroCustoId ? String(matchedCollab.centroCustoId) : (costCenters[0]?.id ? String(costCenters[0].id) : '1'),
+          branch: branchVal,
+          costCenterId: ccVal,
           profiles: loadedProfiles,
         });
         return;
@@ -111,19 +116,53 @@ export const EmployeeEdit = () => {
   }, [employeeId, navigate, showToast]);
 
   const branchOptions = branchesList.map((b) => ({ label: `${b.nome} (${b.cnpj})`, value: String(b.id) }));
-  const costCenterOptions = costCentersList.map((c) => ({ label: `${c.nome} ${c.codigo ? `(${c.codigo})` : ''}`, value: String(c.id) }));
+
+  const selectedBranchId = Number(form.branch) || 1;
+  const filteredCostCenters = useMemo(() => {
+    const branchSpecific = costCentersList.filter((c) => Number(c.filialId) === selectedBranchId);
+    return branchSpecific.length > 0 ? branchSpecific : costCentersList;
+  }, [costCentersList, selectedBranchId]);
+
+  const costCenterOptions = useMemo(() => {
+    return filteredCostCenters.map((c) => ({
+      label: `${c.nome} (Nº ${c.numero})${c.temAprovador ? ' — Com Aprovador' : ' — Sem Aprovador'}`,
+      value: String(c.numero),
+    }));
+  }, [filteredCostCenters]);
 
   const updateField = (field: keyof typeof form, value: unknown) => {
-    setForm((current) => ({ ...current, [field]: value }));
+    if (field === 'branch') {
+      const newBranchId = Number(value);
+      const branchCcs = costCentersList.filter((c) => Number(c.filialId) === newBranchId);
+      const nextCc = branchCcs[0]?.numero ? String(branchCcs[0].numero) : '';
+      setForm((current) => ({ ...current, branch: String(value), costCenterId: nextCc }));
+    } else {
+      setForm((current) => ({ ...current, [field]: value }));
+    }
     setValidationErrors((current) => ({ ...current, [field]: '' }));
   };
 
   const handleProfileToggle = (profileName: string) => {
     setForm((current) => {
       const isSelected = current.profiles.includes(profileName);
-      const next = isSelected
-        ? current.profiles.filter((p) => p !== profileName)
-        : [...current.profiles, profileName];
+      let next: string[];
+
+      if (isSelected) {
+        next = current.profiles.filter((p) => p !== profileName);
+        if (profileName === 'Solicitante') {
+          next = next.filter((p) => p !== 'Solicitante de Emergência');
+        }
+      } else {
+        next = [...current.profiles, profileName];
+        if (profileName === 'Solicitante de Emergência' && !next.includes('Solicitante')) {
+          next.push('Solicitante');
+          showToast({
+            type: 'info',
+            title: 'Perfil vinculado',
+            description: 'O perfil de Solicitante foi selecionado automaticamente, pois é requisito para Solicitante de Emergência.',
+          });
+        }
+      }
 
       return { ...current, profiles: next };
     });
@@ -159,21 +198,28 @@ export const EmployeeEdit = () => {
 
       if (!isNaN(numericId)) {
         const filialId = Number(form.branch) || 1;
-        const centroCustoId = Number(form.costCenterId) || 1;
+        const centroCustoId = Number(form.costCenterId);
 
-        const promises: Promise<unknown>[] = [];
+        if (!centroCustoId || isNaN(centroCustoId)) {
+          showToast({
+            type: 'error',
+            title: 'Centro de custo inválido',
+            description: 'Por favor, selecione um centro de custo válido.',
+          });
+          return;
+        }
+
+        if (form.profiles.includes('Aprovador')) {
+          await collaboratorApi.turnAprovador(numericId, { filialId, centroCustoId });
+        }
 
         if (form.profiles.includes('Solicitante')) {
-          promises.push(collaboratorApi.turnSolicitante(numericId, { filialId, centroCustoId }));
-        }
-        if (form.profiles.includes('Aprovador')) {
-          promises.push(collaboratorApi.turnAprovador(numericId, { filialId, centroCustoId }));
-        }
-        if (form.profiles.includes('Solicitante de Emergência')) {
-          promises.push(collaboratorApi.turnSolicitanteEmergencia(numericId, { filialId, centroCustoId }));
+          await collaboratorApi.turnSolicitante(numericId, { filialId, centroCustoId });
         }
 
-        await Promise.allSettled(promises);
+        if (form.profiles.includes('Solicitante de Emergência')) {
+          await collaboratorApi.turnSolicitanteEmergencia(numericId, { filialId, centroCustoId });
+        }
       }
 
       showToast({
@@ -184,7 +230,11 @@ export const EmployeeEdit = () => {
       navigate(`/colaboradores/${employeeId}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao salvar alterações';
-      showToast({ type: 'error', title: message });
+      showToast({
+        type: 'error',
+        title: 'Falha ao atribuir perfil',
+        description: message,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -231,12 +281,6 @@ export const EmployeeEdit = () => {
               label="Email corporativo"
               type="email"
               value={form.email}
-              disabled
-            />
-
-            <Input
-              label="CPF"
-              value={form.cpf}
               disabled
             />
 

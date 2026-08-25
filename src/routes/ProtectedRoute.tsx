@@ -32,7 +32,7 @@ export const ProtectedRoute = ({
         return <Navigate to="/corridas/solicitacoes" replace />;
       }
       if (isDriver) {
-        return <Navigate to="/corridas/historico" replace />;
+        return <Navigate to="/corridas/solicitacoes" replace />;
       }
       return <Navigate to="/visao-executiva" replace />;
     }

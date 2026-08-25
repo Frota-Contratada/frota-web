@@ -88,11 +88,11 @@ export const RideRequestsList = () => {
         if (!isMounted) return;
         const apiData = extractListData<SolicitacaoDto>(res);
         const mapped: RideRequest[] = apiData.map((s) => {
-          const rawStatus = (s.status || 'PENDENTE').toUpperCase();
+          const rawStatus = String(s.status || 'P').toUpperCase().trim();
           let status: RequestStatus = 'P';
-          if (rawStatus.includes('APROV')) status = 'A';
-          else if (rawStatus.includes('RECUS') || rawStatus.includes('REPROV')) status = 'R';
-          else if (rawStatus.includes('CANCEL')) status = 'C';
+          if (rawStatus === 'A' || rawStatus.includes('APROV')) status = 'A';
+          else if (rawStatus === 'R' || rawStatus.includes('RECUS') || rawStatus.includes('REPROV')) status = 'R';
+          else if (rawStatus === 'C' || rawStatus.includes('CANCEL')) status = 'C';
 
           const costCentersCount = s.centrosCusto?.length ?? 1;
           const costCenterName = s.centrosCusto?.[0]?.centroCustoNome
@@ -179,7 +179,7 @@ export const RideRequestsList = () => {
     <div className={styles.page}>
       <section className={styles.statsGrid} aria-label="Resumo de solicitações de corridas">
         <StatCard title="Solicitações abertas" value={String(pendingRequests)} isLoading={isLoading} />
-        <StatCard title="Aprovadas" value={String(approvedRequests)} trend={{ value: 7.5, direction: 'up', label: 'vs. mês anterior' }} isLoading={isLoading} />
+        <StatCard title="Aprovadas" value={String(approvedRequests)} isLoading={isLoading} />
         <StatCard title="Passageiros" value={String(totalPassengers)} isLoading={isLoading} />
         <StatCard title="KM estimados" value={totalDistance.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} isLoading={isLoading} />
       </section>

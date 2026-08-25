@@ -83,26 +83,10 @@ export const ExpensesView = () => {
 
       {}
       <section className={styles.statsGrid}>
-        <StatCard
-          title="Gasto total"
-          value="R$ 20.000"
-          trend={{ value: 8.5, direction: 'up', label: 'Maior que ontem' }}
-        />
-        <StatCard
-          title="Preço médio"
-          value="R$ 229"
-          trend={{ value: 10, direction: 'up', label: 'Maior que ontem' }}
-        />
-        <StatCard
-          title="Top centro de custo"
-          value="CT-13313"
-          trend={{ value: 1.5, direction: 'up', label: 'Maior que ontem' }}
-        />
-        <StatCard
-          title="Maior preço"
-          value="R$ 600"
-          trend={{ value: 2.5, direction: 'up', label: 'Maior que ontem' }}
-        />
+        <StatCard title="Gasto total" value="R$ 20.000" />
+        <StatCard title="Preço médio" value="R$ 229" />
+        <StatCard title="Top centro de custo" value="CT-13313" />
+        <StatCard title="Maior preço" value="R$ 600" />
       </section>
 
       {}

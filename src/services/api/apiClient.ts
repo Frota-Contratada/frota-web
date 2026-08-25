@@ -159,6 +159,22 @@ export const apiClient = {
   get<T>(path: string, options?: ApiRequestOptions): Promise<T> {
     return request<T>(path, { ...options, method: 'GET' });
   },
+  async getBlob(path: string, options?: ApiRequestOptions): Promise<Blob> {
+    const { query, headers, skipAuth, body, ...fetchOptions } = options ?? {};
+    const response = await fetch(buildUrl(path, query), {
+      ...fetchOptions,
+      method: 'GET',
+      headers: {
+        'ngrok-skip-browser-warning': 'true',
+        ...getAuthHeaders(skipAuth),
+        ...headers,
+      },
+    });
+    if (!response.ok) {
+      throw new ApiError('Erro ao baixar arquivo.', response.status);
+    }
+    return response.blob();
+  },
   post<T>(path: string, body?: unknown, options?: ApiRequestOptions): Promise<T> {
     return request<T>(path, { ...options, method: 'POST', body });
   },
@@ -172,3 +188,4 @@ export const apiClient = {
     return request<T>(path, { ...options, method: 'DELETE' });
   },
 };
+

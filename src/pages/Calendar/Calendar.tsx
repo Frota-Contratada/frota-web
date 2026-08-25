@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { StatusBadge, type BadgeStatus } from '../../components/common';
 import SetaDireitaIcon from '../../assets/icons/seta-direita.svg?react';
-import SetaSmIcon from '../../assets/icons/seta-sm.svg?react';
 import { ridesApi, extractListData, type SolicitacaoDto } from '../../services';
 import styles from './Calendar.module.css';
 
@@ -270,17 +269,20 @@ export const Calendar = () => {
                   <StatusBadge status={rideStatusToBadgeStatus(ride.status)} />
                 </div>
                 <span className={styles.requester}>{ride.requester}</span>
-                <div className={styles.routeInfo}>
-                  <div>
-                    <span>Origem</span>
-                    <strong>{ride.origin}</strong>
+                <div className={styles.routeTimeline}>
+                  <div className={styles.routeStep}>
+                    <span className={styles.originDot} aria-hidden="true" />
+                    <div className={styles.routeDetails}>
+                      <span className={styles.routeLabel}>Origem</span>
+                      <strong className={styles.routeAddress} title={ride.origin}>{ride.origin}</strong>
+                    </div>
                   </div>
-                  <span className={styles.routeArrowWrapper} aria-hidden="true">
-                    <SetaSmIcon className={styles.routeArrow} width={10} height={10} />
-                  </span>
-                  <div>
-                    <span>Destino</span>
-                    <strong>{ride.destination}</strong>
+                  <div className={styles.routeStep}>
+                    <span className={styles.destinationDot} aria-hidden="true" />
+                    <div className={styles.routeDetails}>
+                      <span className={styles.routeLabel}>Destino</span>
+                      <strong className={styles.routeAddress} title={ride.destination}>{ride.destination}</strong>
+                    </div>
                   </div>
                 </div>
               </article>

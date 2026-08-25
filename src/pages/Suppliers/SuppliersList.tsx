@@ -174,7 +174,6 @@ export const SuppliersList = () => {
   const activeSuppliers = suppliersList.filter((supplier) => !supplier.deactivatedAt).length;
   const suppliersWithContracts = suppliersList.filter((supplier) => supplier.linkedContracts > 0).length;
   const totalVehicles = suppliersList.reduce((total, supplier) => total + supplier.vehicles, 0);
-  const pendingDocuments = suppliersList.filter((supplier) => !supplier.filePath).length;
   const totalPages = Math.max(1, Math.ceil(filteredSuppliers.length / PAGE_SIZE));
   const pageData = filteredSuppliers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 

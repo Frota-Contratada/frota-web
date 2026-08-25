@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../components/common';
+import { Button, StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../components/common';
 import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
 import { branchApi, extractListData, type FilialDto } from '../../services';
+import { formatCnpj } from '../../utils';
 import { type Branch } from './listingsData';
 import styles from './Listings.module.css';
 
@@ -48,7 +49,7 @@ const columns: ColumnDef<Branch>[] = [
     key: 'cnpj',
     header: 'CNPJ',
     sortable: true,
-    render: (_, row) => row.cnpj || '—',
+    render: (_, row) => (row.cnpj ? formatCnpj(row.cnpj) : '—'),
   },
   {
     key: 'address',
@@ -147,7 +148,7 @@ export const BranchesList = () => {
 
   return (
     <div className={styles.page}>
-      <section className={styles.statsGrid} aria-label="Resumo de filiais">
+      <section className={styles.statsGrid3} aria-label="Resumo de filiais">
         <StatCard
           title="Filiais cadastradas"
           value={String(branchesList.length)}

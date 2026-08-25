@@ -18,7 +18,7 @@ export { collaboratorApi } from './collaborator/collaboratorApi';
 export type { ColaboradorDto, ColaboradoresAdminQueryParams, ColaboradoresFilialQueryParams, ColaboradorBigNumbers, ColaboradoresListResponse, PerfisColaboradorResponse, VincularCentroCustoBody } from './collaborator/collaboratorApi';
 export { contractApi } from './contract/contractApi';
 export type { ContratoDto, CriarContratoParams, BuscarContratosAdminQueryParams, BuscarContratosFilialQueryParams, ContratoBigNumbers, ContratoResponse, ContratosListResponse, ContratoBigNumbersResponse } from './contract/contractApi';
-export { costCenterApi } from './costCenter/costCenterApi';
+export { costCenterApi, DEFAULT_CENTROS_CUSTO } from './costCenter/costCenterApi';
 export type { CentroCustoDto, CentrosCustoListResponse, VincularAprovadorParams, AprovadorCentroCustoDto, VincularAprovadorResponse } from './costCenter/costCenterApi';
 export { ridesApi } from './rides/ridesApi';
 export type { EnderecoSolicitacaoDto, MotivoSolicitacaoDto, TipoCorridaDto, TipoVeiculoDto, SimularSolicitacaoParams, SimulacaoSolicitacaoDto, CriarSolicitacaoParams, SolicitacaoDto, CancelarSolicitacaoParams } from './rides/ridesApi';

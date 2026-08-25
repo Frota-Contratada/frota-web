@@ -171,7 +171,7 @@ export const RideHistoryList = () => {
     <div className={styles.page}>
       <section className={styles.statsGrid} aria-label="Resumo do histórico de corridas">
         <StatCard title="Em andamento" value={String(activeRides)} isLoading={isLoading} />
-        <StatCard title="Finalizadas" value={String(finishedRides)} trend={{ value: 5.2, direction: 'up', label: 'vs. mês anterior' }} isLoading={isLoading} />
+        <StatCard title="Finalizadas" value={String(finishedRides)} isLoading={isLoading} />
         <StatCard title="KM percorridos" value={totalKm.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} isLoading={isLoading} />
         <StatCard title="Com despesas" value={String(ridesWithExpenses)} isLoading={isLoading} />
       </section>

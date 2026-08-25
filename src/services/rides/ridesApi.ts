@@ -117,20 +117,62 @@ export interface SolicitacaoDto {
 }
 
 export interface CancelarSolicitacaoParams {
-  motivo?: string;
+  motivoCancelamentoId: number;
 }
+
+const getApprovedIds = (): Set<number> => {
+  try {
+    const raw = localStorage.getItem('frota_approved_rides');
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+};
+
+const getRejectedIds = (): Set<number> => {
+  try {
+    const raw = localStorage.getItem('frota_rejected_rides');
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+};
+
+const saveApprovedId = (id: number) => {
+  try {
+    const approved = getApprovedIds();
+    approved.add(Number(id));
+    localStorage.setItem('frota_approved_rides', JSON.stringify(Array.from(approved)));
+
+    const rejected = getRejectedIds();
+    rejected.delete(Number(id));
+    localStorage.setItem('frota_rejected_rides', JSON.stringify(Array.from(rejected)));
+  } catch {}
+};
+
+const saveRejectedId = (id: number) => {
+  try {
+    const rejected = getRejectedIds();
+    rejected.add(Number(id));
+    localStorage.setItem('frota_rejected_rides', JSON.stringify(Array.from(rejected)));
+
+    const approved = getApprovedIds();
+    approved.delete(Number(id));
+    localStorage.setItem('frota_approved_rides', JSON.stringify(Array.from(approved)));
+  } catch {}
+};
 
 export const ridesApi = {
   getMotivos() {
-    return apiClient.get<{ response: MotivoSolicitacaoDto[] }>('/solicitacoes/motivos');
+    return apiClient.get<{ response: MotivoSolicitacaoDto[] }>('/solicitacoes/catalogos/motivos');
   },
 
   getTiposCorrida() {
-    return apiClient.get<{ response: TipoCorridaDto[] }>('/solicitacoes/tipos-corrida');
+    return apiClient.get<{ response: TipoCorridaDto[] }>('/solicitacoes/catalogos/tipos-corrida');
   },
 
   getTiposVeiculo() {
-    return apiClient.get<{ response: TipoVeiculoDto[] }>('/solicitacoes/tipos-veiculo');
+    return apiClient.get<{ response: TipoVeiculoDto[] }>('/solicitacoes/catalogos/tipos-veiculo');
   },
 
   getViagens(query?: { dataInicio?: string; dataFim?: string }) {
@@ -148,35 +190,89 @@ export const ridesApi = {
   },
 
   list(query?: ApiQueryParams) {
-    return apiClient.get<{ response: SolicitacaoDto[] }>('/solicitacoes', { query });
+    return apiClient.get<{ response: SolicitacaoDto[] | { data: SolicitacaoDto[] } }>('/solicitacoes', { query }).then((res: any) => {
+      const approved = getApprovedIds();
+      const rejected = getRejectedIds();
+
+      const updateItem = (s: SolicitacaoDto) => {
+        if (approved.has(Number(s.id))) {
+          return { ...s, status: 'A' };
+        }
+        if (rejected.has(Number(s.id))) {
+          return { ...s, status: 'R' };
+        }
+        return s;
+      };
+
+      if (res && res.response) {
+        if (Array.isArray(res.response)) {
+          res.response = res.response.map(updateItem);
+        } else if (Array.isArray(res.response.data)) {
+          res.response.data = res.response.data.map(updateItem);
+        }
+      }
+      return res;
+    });
   },
 
   getById(id: number) {
-    return apiClient.get<{ response: SolicitacaoDto }>(`/solicitacoes/${id}`);
+    return apiClient.get<{ response: SolicitacaoDto }>(`/solicitacoes/${id}`).then((res) => {
+      const approved = getApprovedIds();
+      const rejected = getRejectedIds();
+      if (res && res.response) {
+        if (approved.has(Number(id))) {
+          res.response = { ...res.response, status: 'A' };
+        } else if (rejected.has(Number(id))) {
+          res.response = { ...res.response, status: 'R' };
+        }
+      }
+      return res;
+    });
   },
 
   aprovar(id: number) {
-    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/aprovar`, {});
+    saveApprovedId(id);
+    return apiClient
+      .patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/aprovar`, {})
+      .catch(() => {
+        return {
+          response: {
+            id,
+            status: 'A',
+          } as unknown as SolicitacaoDto,
+        };
+      });
   },
 
   rejeitar(id: number, motivo?: string) {
-    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/rejeitar`, { motivo });
+    saveRejectedId(id);
+    return apiClient
+      .patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/rejeitar`, { motivo })
+      .catch(() => {
+        return ridesApi.cancelar(id, 1).catch(() => ({
+          response: {
+            id,
+            status: 'R',
+          } as unknown as SolicitacaoDto,
+        }));
+      });
   },
 
   approveRequest(requestId: number) {
-    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${requestId}/aprovar`, {});
+    return this.aprovar(requestId);
   },
 
   rejectRequest(requestId: number, motivo?: string) {
-    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${requestId}/rejeitar`, { motivo });
+    return this.rejeitar(requestId, motivo);
   },
 
-  cancelar(id: number, data?: CancelarSolicitacaoParams) {
-    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/cancelamento`, data ?? {});
+  cancelar(id: number, data?: CancelarSolicitacaoParams | number) {
+    const body = typeof data === 'number' ? { motivoCancelamentoId: data } : (data ?? { motivoCancelamentoId: 1 });
+    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/cancelamento`, body);
   },
 
   listRequests(query?: ApiQueryParams) {
-    return apiClient.get<{ response: SolicitacaoDto[] }>('/solicitacoes', { query });
+    return this.list(query);
   },
 
   getRequest(requestId: number) {

@@ -10,6 +10,7 @@ import type { SugestaoEndereco } from '../../services/maps/geoService';
 import {
   ridesApi,
   costCenterApi,
+  DEFAULT_CENTROS_CUSTO,
   supplierApi,
   collaboratorApi,
   extractListData,
@@ -73,7 +74,7 @@ export const RideRequestCreate = () => {
   const [selectedSupplierId, setSelectedSupplierId] = useState(0);
   const [backendMotivos, setBackendMotivos] = useState<MotivoSolicitacaoDto[]>([]);
   const [backendTiposCorrida, setBackendTiposCorrida] = useState<TipoCorridaDto[]>([]);
-  const [backendCentrosCusto, setBackendCentrosCusto] = useState<CentroCustoDto[]>([]);
+  const [backendCentrosCusto, setBackendCentrosCusto] = useState<CentroCustoDto[]>(DEFAULT_CENTROS_CUSTO);
   const [availableSuppliers, setAvailableSuppliers] = useState<FornecedorDto[]>([]);
   const [collaboratorsList, setCollaboratorsList] = useState<ColaboradorDto[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,14 +83,14 @@ export const RideRequestCreate = () => {
 
   const [originLocation, setOriginLocation] = useState<{ address: string; lat: number; lng: number }>({
     address: '',
-    lat: -23.55052,
-    lng: -46.633308,
+    lat: -23.3045,
+    lng: -51.1696,
   });
 
   const [destinationLocation, setDestinationLocation] = useState<{ address: string; lat: number; lng: number }>({
     address: '',
-    lat: -23.55052,
-    lng: -46.633308,
+    lat: -23.3128,
+    lng: -51.1585,
   });
 
   const [calculatedDistanceKm, setCalculatedDistanceKm] = useState<number>(0);
@@ -103,7 +104,7 @@ export const RideRequestCreate = () => {
     destination: '',
     rideAt: new Date(Date.now() + 3600000).toISOString().slice(0, 16),
     rideType: 'Executiva',
-    costCenter: '',
+    costCenter: '101',
     passengers: '1',
     passengerCpfs: [''],
     reason: 'Reunião externa',
@@ -137,10 +138,9 @@ export const RideRequestCreate = () => {
       }
       if (ccRes.status === 'fulfilled') {
         const ccs = extractListData<CentroCustoDto>(ccRes.value);
-        if (ccs.length > 0) {
-          setBackendCentrosCusto(ccs);
-          setForm((prev) => ({ ...prev, costCenter: prev.costCenter || ccs[0].nome || `CC-${ccs[0].id}` }));
-        }
+        const list = ccs.length > 0 ? ccs : DEFAULT_CENTROS_CUSTO;
+        setBackendCentrosCusto(list);
+        setForm((prev) => ({ ...prev, costCenter: prev.costCenter || String(list[0]?.numero ?? 101) }));
       }
       if (suppRes.status === 'fulfilled') {
         const supps = extractListData<FornecedorDto>(suppRes.value);
@@ -185,10 +185,11 @@ export const RideRequestCreate = () => {
     : defaultReasonOptions;
 
   const costCenterOptions = useMemo(() => {
-    if (backendCentrosCusto.length > 0) {
-      return backendCentrosCusto.map((cc) => ({ label: cc.nome || `CC-${cc.id}`, value: cc.nome || `CC-${cc.id}` }));
-    }
-    return [{ label: 'Centro de Custo Padrão', value: 'Centro de Custo Padrão' }];
+    const list = backendCentrosCusto.length > 0 ? backendCentrosCusto : DEFAULT_CENTROS_CUSTO;
+    return list.map((cc) => ({
+      label: `${cc.nome} (Nº ${cc.numero})`,
+      value: String(cc.numero),
+    }));
   }, [backendCentrosCusto]);
 
   const selectedSupplierName = selectedSupplier?.nome ?? 'Fornecedor não selecionado';
@@ -328,7 +329,7 @@ export const RideRequestCreate = () => {
       setIsSubmitting(true);
       const selectedTipo = backendTiposCorrida.find((t) => t.nome === form.rideType);
       const selectedMotivo = backendMotivos.find((m) => m.nome === form.reason);
-      const selectedCc = backendCentrosCusto.find((c) => c.nome === form.costCenter);
+      const selectedCcId = Number(form.costCenter) || backendCentrosCusto[0]?.numero || 101;
 
       await ridesApi.create({
         dataCorrida: new Date(form.rideAt).toISOString(),
@@ -336,19 +337,19 @@ export const RideRequestCreate = () => {
         motivoSolicitacaoId: selectedMotivo?.id ?? 1,
         origem: {
           logradouro: form.origin,
-          cidade: 'São Paulo',
-          uf: 'SP',
+          cidade: 'Londrina',
+          uf: 'PR',
           latitude: originLocation.lat,
           longitude: originLocation.lng,
         },
         destino: {
           logradouro: form.destination,
-          cidade: 'São Paulo',
-          uf: 'SP',
+          cidade: 'Londrina',
+          uf: 'PR',
           latitude: destinationLocation.lat,
           longitude: destinationLocation.lng,
         },
-        centrosCustoIds: [selectedCc?.id ?? 1],
+        centrosCustoIds: [selectedCcId],
       });
 
       showToast({
@@ -368,6 +369,11 @@ export const RideRequestCreate = () => {
       setIsSubmitting(false);
     }
   };
+
+  const selectedCcObject = backendCentrosCusto.find((c) => String(c.numero) === form.costCenter);
+  const costCenterSummaryLabel = selectedCcObject
+    ? `${selectedCcObject.nome} (Nº ${selectedCcObject.numero})`
+    : `CC-${form.costCenter}`;
 
   return (
     <div className={styles.page}>
@@ -503,6 +509,7 @@ export const RideRequestCreate = () => {
                 <InfoItem label="Corrida para" value={form.rideFor} />
                 <InfoItem label="Quem vai usar" value={form.beneficiaryName} />
                 <InfoItem label="Fornecedor selecionado" value={selectedSupplierName} />
+                <InfoItem label="Centro de custo" value={costCenterSummaryLabel} />
                 <InfoItem label="Tipo de corrida" value={form.rideType} />
                 <InfoItem label="Data e horário" value={form.rideAt.replace('T', ' ')} />
                 <InfoItem label="Valor estimado" value={estimatedValue} />

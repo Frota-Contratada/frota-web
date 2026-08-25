@@ -24,8 +24,6 @@ export const BranchEdit = () => {
     city: '',
     state: 'SC',
     zipCode: '',
-    costCenters: '1',
-    suppliers: '1',
     latitude: -26.9078,
     longitude: -48.6619,
   });
@@ -46,8 +44,6 @@ export const BranchEdit = () => {
             city: b.endereco?.cidade || '',
             state: b.endereco?.uf || 'SC',
             zipCode: b.endereco?.cep || '',
-            costCenters: '1',
-            suppliers: '1',
             latitude: b.endereco?.latitude || -26.9078,
             longitude: b.endereco?.longitude || -48.6619,
           });
@@ -263,32 +259,6 @@ export const BranchEdit = () => {
             />
           </div>
 
-          <div className={styles.cardHeader} style={{ marginTop: '2.5rem' }}>
-            <div>
-              <h3>Parâmetros Operacionais</h3>
-              <p>Ajuste o número de centros de custos e terceiros vinculados.</p>
-            </div>
-          </div>
-
-          <div className={styles.formGrid}>
-            <Input
-              label="Centros de Custo"
-              type="number"
-              min="0"
-              value={form.costCenters}
-              onChange={(e) => updateField('costCenters', e.target.value)}
-              disabled={isLoading}
-            />
-
-            <Input
-              label="Fornecedores Vinculados"
-              type="number"
-              min="0"
-              value={form.suppliers}
-              onChange={(e) => updateField('suppliers', e.target.value)}
-              disabled={isLoading}
-            />
-          </div>
         </article>
 
         <aside className={styles.sidePanel}>

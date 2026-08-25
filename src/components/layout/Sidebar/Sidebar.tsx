@@ -15,7 +15,6 @@ import GastosIcon from '../../../assets/icons/gastos.svg?react';
 import PrecoAuditoriaIcon from '../../../assets/icons/preco-auditoria.svg?react';
 import SolicitacoesIcon from '../../../assets/icons/solicitacoes.svg?react';
 import CalendarioIcon from '../../../assets/icons/calendario.svg?react';
-import HistoricoIcon from '../../../assets/icons/historico.svg?react';
 import TerceirosIcon from '../../../assets/icons/terceiros.svg?react';
 import FornecedoresIcon from '../../../assets/icons/fornecedores.svg?react';
 import SairIcon from '../../../assets/icons/sair.svg?react';
@@ -70,7 +69,6 @@ const allMenuItems: MenuItem[] = [
     submenu: [
       { id: 'solicitacoes', label: 'Solicitações', icon: <SolicitacoesIcon />, path: '/corridas/solicitacoes' },
       { id: 'calendario', label: 'Calendário', icon: <CalendarioIcon />, path: '/corridas/calendario' },
-      { id: 'historico', label: 'Histórico', icon: <HistoricoIcon />, path: '/corridas/historico' },
     ],
   },
   {

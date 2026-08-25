@@ -1,38 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../components/common';
+import { StatCard, Table, TableToolbar, useToast, type ColumnDef, type TableAction } from '../../components/common';
 import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
-import { collaboratorApi, driverApi, extractListData, type ColaboradorDto, type MotoristaDto, type ColaboradorBigNumbers } from '../../services';
-import { formatCpf, type Employee } from './listingsData';
+import { collaboratorApi, extractListData, type ColaboradorDto, type ColaboradorBigNumbers } from '../../services';
+import { type Employee } from './listingsData';
 import styles from './Listings.module.css';
 
 const PAGE_SIZE = 5;
-
-const filterSections: FilterSection[] = [
-  {
-    title: 'Status',
-    options: [
-      { label: 'Ativo', value: 'status:aprovado' },
-      { label: 'Indisponível', value: 'status:em_andamento' },
-      { label: 'Inativo', value: 'status:cancelado' },
-    ],
-  },
-  {
-    title: 'Perfil',
-    options: [
-      { label: 'Solicitante', value: 'perfil:Solicitante' },
-      { label: 'Aprovador', value: 'perfil:Aprovador' },
-      { label: 'Motorista', value: 'perfil:Motorista' },
-    ],
-  },
-  {
-    title: 'Vínculo',
-    options: [
-      { label: 'Filial', value: 'vinculo:filial' },
-      { label: 'Fornecedor', value: 'vinculo:fornecedor' },
-    ],
-  },
-];
 
 const getInitials = (name: string) => name
   .split(' ')
@@ -122,8 +96,9 @@ export const EmployeesList = () => {
         }
       })
       .catch((err) => {
-        const message = err instanceof Error ? err.message : 'Erro ao buscar colaboradores';
-        showToast({ type: 'error', title: message });
+        if (!isMounted) return;
+        const msg = err instanceof Error ? err.message : 'Falha ao carregar colaboradores';
+        showToast({ type: 'error', title: 'Erro ao listar colaboradores', description: msg });
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);
@@ -142,11 +117,11 @@ export const EmployeesList = () => {
         normalizedQuery.length === 0 ||
         employee.name.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
         employee.email.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
-        employee.role?.toLocaleLowerCase('pt-BR').includes(normalizedQuery);
+        (employee.role ?? '').toLocaleLowerCase('pt-BR').includes(normalizedQuery);
 
       return matchesQuery;
     });
-  }, [employeesList, query]);
+  }, [query, employeesList]);
 
   const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / PAGE_SIZE));
   const pageData = filteredEmployees.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -196,11 +171,6 @@ export const EmployeesList = () => {
               title: 'Exportação iniciada',
               description: 'A lista de colaboradores será preparada em instantes.',
             })
-          }
-          rightActions={
-            <Button onClick={() => navigate('/colaboradores/novo')}>
-              Cadastrar colaborador
-            </Button>
           }
           filterSections={[]}
           selectedFilters={selectedFilters}

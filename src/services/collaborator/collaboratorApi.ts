@@ -68,8 +68,8 @@ export interface PerfisColaboradorResponse {
 }
 
 export interface VincularCentroCustoBody {
-  filialId: number;
   centroCustoId: number;
+  filialId?: number;
 }
 
 export const collaboratorApi = {
@@ -112,14 +112,19 @@ export const collaboratorApi = {
   },
 
   turnSolicitante(id: number, data: VincularCentroCustoBody) {
-    return apiClient.put<void>(`/usuario/colaborador/${id}/perfis/solicitante`, data);
+    return apiClient.put<void>(`/usuario/colaborador/${id}/perfis/solicitante`, {
+      centroCustoId: data.centroCustoId,
+    });
   },
 
   turnAprovador(id: number, data: VincularCentroCustoBody) {
-    return apiClient.put<void>(`/usuario/colaborador/${id}/perfis/aprovador`, data);
+    return apiClient.put<void>(`/usuario/colaborador/${id}/perfis/aprovador`, {
+      centroCustoId: data.centroCustoId,
+    });
   },
 
-  turnSolicitanteEmergencia(id: number, data: VincularCentroCustoBody) {
-    return apiClient.put<void>(`/usuario/colaborador/${id}/perfis/solicitante-emergencia`, data);
+  turnSolicitanteEmergencia(id: number, _data?: VincularCentroCustoBody) {
+    return apiClient.put<void>(`/usuario/colaborador/${id}/perfis/solicitante-emergencia`, {});
   },
 };
+
