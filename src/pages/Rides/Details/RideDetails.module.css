@@ -43,6 +43,24 @@
   gap: var(--spacing-sm);
 }
 
+.priceNoticeBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-lg);
+  background-color: #fffbeb;
+  border: 1px solid #fef3c7;
+  color: #92400e;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  margin-bottom: var(--spacing-md);
+}
+
+.priceNoticeBanner strong {
+  color: #78350f;
+}
+
 .layoutGrid {
   display: grid;
   grid-template-columns: 1fr 340px;

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import CheckIcon from '../../assets/icons/check.svg?react';
-import ErroIcon from '../../assets/icons/erro.svg?react';
-import SetaSmIcon from '../../assets/icons/seta-sm.svg?react';
-import { Button, LoadingState, useToast } from '../../components/common';
-import { RouteMap } from '../../components/maps';
-import type { RoutePoint } from '../../services/maps/routingService';
-import { ridesApi, supplierApi, extractListData, type SolicitacaoDto, type FornecedorDto } from '../../services';
+import CheckIcon from '../../../assets/icons/check.svg?react';
+import ErroIcon from '../../../assets/icons/erro.svg?react';
+import SetaSmIcon from '../../../assets/icons/seta-sm.svg?react';
+import { Button, LoadingState, Select, useToast } from '../../../components/common';
+import { RouteMap } from '../../../components/maps';
+import type { RoutePoint } from '../../../services/maps/routingService';
+import { ridesApi, supplierApi, extractListData, type SolicitacaoDto, type FornecedorDto, type MotivoSolicitacaoDto } from '../../../services';
 import styles from './RideReview.module.css';
 
 type ReviewStep = 1 | 2 | 3;
@@ -41,13 +41,18 @@ export const RideReview = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [cancelReasons, setCancelReasons] = useState<MotivoSolicitacaoDto[]>([]);
+  const [selectedCancelReasonId, setSelectedCancelReasonId] = useState<string>('1');
+
   useEffect(() => {
     let isMounted = true;
     if (requestId && !isNaN(Number(requestId))) {
       Promise.allSettled([
         ridesApi.getById(Number(requestId)),
         supplierApi.list(),
-      ]).then(([reqRes, suppRes]) => {
+        ridesApi.getMotivosCancelamento(),
+      ]).then(([reqRes, suppRes, motivosCancelRes]) => {
         if (!isMounted) return;
         if (reqRes.status === 'fulfilled' && reqRes.value.response) {
           setSolicitacao(reqRes.value.response);
@@ -57,6 +62,13 @@ export const RideReview = () => {
           if (supps.length > 0) {
             setAvailableSuppliers(supps);
             setSelectedSupplierId(supps[0].id);
+          }
+        }
+        if (motivosCancelRes.status === 'fulfilled' && motivosCancelRes.value?.response) {
+          const motivos = extractListData<MotivoSolicitacaoDto>(motivosCancelRes.value);
+          if (motivos.length > 0) {
+            setCancelReasons(motivos);
+            setSelectedCancelReasonId(String(motivos[0].id));
           }
         }
       }).finally(() => {
@@ -169,6 +181,31 @@ export const RideReview = () => {
     }
   };
 
+  const cancelReview = async () => {
+    if (!solicitacao) return;
+    try {
+      setIsSubmitting(true);
+      const motivoId = Number(selectedCancelReasonId) || 1;
+      await ridesApi.cancelar(solicitacao.id, motivoId);
+      showToast({
+        type: 'warning',
+        title: 'Solicitação cancelada',
+        description: `A solicitação #${solicitacao.id} foi cancelada com sucesso.`,
+      });
+      setIsCancelModalOpen(false);
+      navigate('/corridas/solicitacoes');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Falha ao cancelar solicitação no servidor';
+      showToast({
+        type: 'error',
+        title: 'Erro no cancelamento',
+        description: msg,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className={styles.page}>
@@ -196,6 +233,14 @@ export const RideReview = () => {
 
   return (
     <div className={styles.page}>
+      {solicitacao.valorEstimado && Number(solicitacao.valorEstimado) > 0 && (
+        <div className={styles.priceNoticeBanner} role="status">
+          <div>
+            <strong>Aviso de Atualização Tarifária:</strong> O valor desta solicitação ({estimatedValue}) foi calculado com base na quilometragem estimada ({estimatedKm}) e na tabela de preços do fornecedor selecionado.
+          </div>
+        </div>
+      )}
+
       <nav className={styles.stepper} aria-label="Etapas da revisão">
         {steps.map((step) => {
           const isActive = step.id === currentStep;
@@ -228,15 +273,21 @@ export const RideReview = () => {
               <div className={styles.infoGrid}>
                 <InfoItem label="Solicitante" value={solicitacao.solicitanteNome || 'Colaborador Solicitante'} />
                 <InfoItem label="Quem vai usar" value={solicitacao.solicitanteNome || 'Colaborador Solicitante'} />
-                <InfoItem label="Tipo de corrida" value={solicitacao.tipoCorrida?.nome || 'Executiva'} />
                 <InfoItem
-                  label="Data e horário"
+                  label="Data da corrida"
                   value={solicitacao.dataCorrida ? new Date(solicitacao.dataCorrida).toLocaleString('pt-BR') : '—'}
                 />
-                <InfoItem label="Passageiros" value={`${solicitacao.Passageiros?.length || 1} pessoa(s)`} />
+                <InfoItem label="Tipo de corrida" value={solicitacao.tipoCorrida?.nome || 'Executiva'} />
                 <InfoItem label="Centro de custo" value={costCentersText} />
-                <InfoItem label="Valor Estimado" value={estimatedValue} />
-                <InfoItem label="Distância Estimada" value={estimatedKm} />
+                <InfoItem
+                  label="Passageiros"
+                  value={`${(solicitacao.passageiros || solicitacao.Passageiros)?.length || 1} passageiro(s)`}
+                />
+                <InfoItem
+                  label="Motivo da solicitação"
+                  value={solicitacao.motivoSolicitacao?.nome || solicitacao.motivo?.nome || 'Deslocamento a serviço'}
+                />
+                <InfoItem label="Status da solicitação" value={solicitacao.status || 'Pendente'} />
               </div>
 
               <div className={styles.routeCard}>
@@ -262,31 +313,32 @@ export const RideReview = () => {
               <div className={styles.cardHeader}>
                 <div>
                   <h3>Selecionar fornecedor</h3>
-                  <p>Escolha um fornecedor credenciado para atender a corrida.</p>
+                  <p>Escolha a empresa que atenderá essa solicitação.</p>
                 </div>
               </div>
 
-              <div className={styles.supplierGrid} role="radiogroup" aria-label="Selecionar fornecedor">
+              <div className={styles.supplierGrid} role="radiogroup" aria-label="Fornecedores disponíveis">
                 {availableSuppliers.map((supplier) => {
                   const isSelected = supplier.id === selectedSupplierId;
-                  const name = supplier.nome || `Fornecedor #${supplier.id}`;
 
                   return (
-                    <button
+                    <label
                       key={supplier.id}
-                      type="button"
-                      className={`${styles.supplierOption} ${isSelected ? styles.supplierSelected : ''}`}
-                      onClick={() => setSelectedSupplierId(supplier.id)}
-                      role="radio"
-                      aria-checked={isSelected}
+                      className={`${styles.supplierOption} ${isSelected ? styles.supplierOptionSelected : ''}`}
                     >
-                      <span className={styles.supplierOptionHeader}>
-                        <span className={styles.radioControl} aria-hidden="true" />
-                        <strong>{name}</strong>
-                      </span>
-                      <span>{supplier.cnpjCpf ? `CNPJ: ${supplier.cnpjCpf}` : 'Fornecedor Ativo'}</span>
-                      <span>Disponível para atendimento imediato</span>
-                    </button>
+                      <input
+                        type="radio"
+                        name="supplier"
+                        value={supplier.id}
+                        checked={isSelected}
+                        onChange={() => setSelectedSupplierId(supplier.id)}
+                      />
+                      <span className={styles.radioCustom} aria-hidden="true" />
+                      <div className={styles.supplierMeta}>
+                        <strong>{supplier.nome}</strong>
+                        <span>CNPJ/CPF: {supplier.cnpjCpf}</span>
+                      </div>
+                    </label>
                   );
                 })}
               </div>
@@ -364,13 +416,63 @@ export const RideReview = () => {
               >
                 Reprovar solicitação
               </Button>
+              <Button
+                className={styles.modalCancelButton}
+                variant="outline"
+                leftIcon={<ErroIcon width={14} height={14} />}
+                onClick={() => setIsCancelModalOpen(true)}
+                disabled={isSubmitting}
+              >
+                Cancelar solicitação
+              </Button>
               <Button variant="ghost" onClick={() => navigate('/corridas/solicitacoes')} disabled={isSubmitting}>
-                Cancelar revisão
+                Voltar à lista
               </Button>
             </div>
           </div>
         </aside>
       </section>
+
+      {isCancelModalOpen && (
+        <div className={styles.modalBackdrop} role="dialog" aria-modal="true" aria-labelledby="cancel-modal-title">
+          <div className={styles.modalCard}>
+            <div className={styles.modalHeader}>
+              <h3 id="cancel-modal-title">Cancelar solicitação #{solicitacao.id}</h3>
+              <p>Confirme o cancelamento desta corrida. Esta ação invalidará o pedido de transporte.</p>
+            </div>
+
+            <Select
+              label="Motivo do cancelamento *"
+              value={selectedCancelReasonId}
+              onChange={(val) => setSelectedCancelReasonId(val)}
+              options={
+                cancelReasons.length > 0
+                  ? cancelReasons.map((m) => ({ label: m.nome, value: String(m.id) }))
+                  : [
+                      { label: 'Mudança de agenda / Reunião cancelada', value: '1' },
+                      { label: 'Solicitação duplicada', value: '2' },
+                      { label: 'Alteração no trajeto ou horário', value: '3' },
+                      { label: 'Desistência do passageiro', value: '4' },
+                    ]
+              }
+            />
+
+            <div className={styles.modalActions}>
+              <Button variant="ghost" onClick={() => setIsCancelModalOpen(false)} disabled={isSubmitting}>
+                Voltar
+              </Button>
+              <Button
+                variant="primary"
+                className={styles.modalCancelButton}
+                onClick={cancelReview}
+                isLoading={isSubmitting}
+              >
+                Confirmar cancelamento
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

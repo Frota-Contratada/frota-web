@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import CheckIcon from '../../assets/icons/check.svg?react';
-import ErroIcon from '../../assets/icons/erro.svg?react';
-import SetaSmIcon from '../../assets/icons/seta-sm.svg?react';
-import { Button, Input, Select, useToast } from '../../components/common';
-import { RouteMap, AddressAutocomplete } from '../../components/maps';
-import type { RoutePoint, RouteResult } from '../../services/maps/routingService';
-import type { SugestaoEndereco } from '../../services/maps/geoService';
+import CheckIcon from '../../../assets/icons/check.svg?react';
+import ErroIcon from '../../../assets/icons/erro.svg?react';
+import SetaSmIcon from '../../../assets/icons/seta-sm.svg?react';
+import { Button, Input, Select, useToast } from '../../../components/common';
+import { RouteMap, AddressAutocomplete } from '../../../components/maps';
+import type { RoutePoint, RouteResult } from '../../../services/maps/routingService';
+import type { SugestaoEndereco } from '../../../services/maps/geoService';
 import {
   ridesApi,
   costCenterApi,
@@ -19,9 +19,9 @@ import {
   type CentroCustoDto,
   type FornecedorDto,
   type ColaboradorDto,
-} from '../../services';
-import { useAuthStore } from '../../stores/authStore';
-import styles from './RideReview.module.css';
+} from '../../../services';
+import { useAuthStore } from '../../../stores/authStore';
+import styles from '../Review/RideReview.module.css';
 
 type RequestStep = 1 | 2 | 3;
 

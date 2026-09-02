@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, LoadingState, StatusBadge, useToast } from '../../components/common';
-import { RouteMap } from '../../components/maps';
-import type { RoutePoint } from '../../services/maps/routingService';
-import SetaSmIcon from '../../assets/icons/seta-sm.svg?react';
-import { ridesApi, type SolicitacaoDto } from '../../services';
-import styles from './RideReview.module.css';
+import { Button, LoadingState, StatusBadge, useToast } from '../../../components/common';
+import { RouteMap } from '../../../components/maps';
+import type { RoutePoint } from '../../../services/maps/routingService';
+import SetaSmIcon from '../../../assets/icons/seta-sm.svg?react';
+import { ridesApi, type SolicitacaoDto } from '../../../services';
+import styles from './RideDetails.module.css';
 
 const mapStatusToBadge = (status?: string): 'em_andamento' | 'aprovado' | 'cancelado' | 'pendente' => {
   const s = status?.toUpperCase();
@@ -143,7 +143,10 @@ export const RideDetails = () => {
             {solicitacao.tipoCorrida?.nome || 'Transporte Executivo'}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <Button onClick={() => navigate(`/corridas/${solicitacao.id}/acompanhamento`)}>
+            Acompanhar ao vivo
+          </Button>
           <Button variant="outline" onClick={handlePrintReceipt}>
             Imprimir Recibo
           </Button>
@@ -152,6 +155,14 @@ export const RideDetails = () => {
           </Button>
         </div>
       </section>
+
+      {corrida?.valorFinal && solicitacao.valorEstimado && Number(corrida.valorFinal) !== Number(solicitacao.valorEstimado) && (
+        <div className={styles.priceNoticeBanner} role="status">
+          <div>
+            <strong>Aviso de Atualização Tarifária:</strong> O valor final realizado desta corrida foi de R$ {Number(corrida.valorFinal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}, com ajuste em relação à estimativa inicial de R$ {Number(solicitacao.valorEstimado).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.
+          </div>
+        </div>
+      )}
 
       <div className={styles.reviewLayout}>
         <article className={styles.mainCard}>
