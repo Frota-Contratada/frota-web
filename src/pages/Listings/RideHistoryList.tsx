@@ -4,6 +4,7 @@ import { StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSec
 import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
 import { type RideHistory, type RideStatus } from './listingsData';
 import { ridesApi, extractListData, type SolicitacaoDto } from '../../services';
+import { exportToCsv } from '../../utils/exportHelper';
 import styles from './Listings.module.css';
 
 const PAGE_SIZE = 5;
@@ -21,6 +22,14 @@ const rideStatusClass: Record<RideStatus, string> = {
 };
 
 const filterSections: FilterSection[] = [
+  {
+    title: 'Período',
+    options: [
+      { label: 'Últimos 7 dias', value: 'periodo:7d' },
+      { label: 'Últimos 30 dias', value: 'periodo:30d' },
+      { label: 'Este mês', value: 'periodo:mes' },
+    ],
+  },
   {
     title: 'Status',
     options: [
@@ -49,6 +58,7 @@ const columns: ColumnDef<RideHistory>[] = [
     render: (_, row) => <strong className={styles.primaryText}>#{row.id}</strong>,
   },
   { key: 'requestId', header: 'Solicitação', sortable: true, render: (_, row) => `#${row.requestId}` },
+  { key: 'collaborator', header: 'Colaborador', sortable: true },
   { key: 'driver', header: 'Motorista', sortable: true },
   { key: 'supplier', header: 'Fornecedor', sortable: true },
   { key: 'vehiclePlate', header: 'Placa', sortable: true },
@@ -107,10 +117,12 @@ export const RideHistoryList = () => {
             requestId: s.id || idx + 1,
             driver: driverName,
             supplier: supplierName,
+            collaborator: s.solicitanteNome || 'Colaborador Solicitante',
             vehiclePlate: plate,
             vehicleType: vehicleName,
             startedAt: startTime,
             finishedAt: finishTime,
+            rideDate: s.dataCorrida || s.dataCriacao || new Date().toISOString(),
             distanceKm: distance,
             finalValue: formattedVal,
             extraExpenses: '—',
@@ -132,23 +144,65 @@ export const RideHistoryList = () => {
     };
   }, [showToast]);
 
+  const dynamicFilterSections = useMemo(() => {
+    const uniqueCollabs = Array.from(new Set(historyList.map((r) => r.collaborator).filter(Boolean))) as string[];
+    const collabOptions = uniqueCollabs.map((name) => ({
+      label: name,
+      value: `colaborador:${name}`,
+    }));
+
+    if (collabOptions.length > 0) {
+      return [
+        ...filterSections,
+        {
+          title: 'Colaborador',
+          options: collabOptions,
+        },
+      ];
+    }
+    return filterSections;
+  }, [historyList]);
+
   const filteredRides = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
     const statusFilters = selectedFilters.filter((filter) => filter.startsWith('status:')).map((filter) => filter.replace('status:', ''));
     const vehicleFilters = selectedFilters.filter((filter) => filter.startsWith('veiculo:')).map((filter) => filter.replace('veiculo:', ''));
+    const collabFilters = selectedFilters.filter((filter) => filter.startsWith('colaborador:')).map((filter) => filter.replace('colaborador:', ''));
+    const periodFilters = selectedFilters.filter((filter) => filter.startsWith('periodo:')).map((filter) => filter.replace('periodo:', ''));
+
+    const now = new Date();
 
     return historyList.filter((ride) => {
       const matchesQuery =
         normalizedQuery.length === 0 ||
         String(ride.id).includes(normalizedQuery) ||
         String(ride.requestId).includes(normalizedQuery) ||
+        (ride.collaborator && ride.collaborator.toLocaleLowerCase('pt-BR').includes(normalizedQuery)) ||
         ride.driver.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
         ride.supplier.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
         ride.vehiclePlate.toLocaleLowerCase('pt-BR').includes(normalizedQuery);
+
       const matchesStatus = statusFilters.length === 0 || statusFilters.includes(ride.status);
       const matchesVehicle = vehicleFilters.length === 0 || vehicleFilters.includes(ride.vehicleType);
+      const matchesCollab = collabFilters.length === 0 || (ride.collaborator && collabFilters.includes(ride.collaborator));
 
-      return matchesQuery && matchesStatus && matchesVehicle;
+      let matchesPeriod = true;
+      if (periodFilters.length > 0 && ride.rideDate) {
+        const rideTime = new Date(ride.rideDate).getTime();
+        const daysDiff = (now.getTime() - rideTime) / (1000 * 3600 * 24);
+
+        matchesPeriod = periodFilters.some((p) => {
+          if (p === '7d') return daysDiff <= 7;
+          if (p === '30d') return daysDiff <= 30;
+          if (p === 'mes') {
+            const rDate = new Date(ride.rideDate!);
+            return rDate.getMonth() === now.getMonth() && rDate.getFullYear() === now.getFullYear();
+          }
+          return true;
+        });
+      }
+
+      return matchesQuery && matchesStatus && matchesVehicle && matchesCollab && matchesPeriod;
     });
   }, [historyList, query, selectedFilters]);
 
@@ -164,6 +218,11 @@ export const RideHistoryList = () => {
       icon: <RedirecionarIcon width={18} height={18} />,
       label: 'Visualizar corrida',
       onClick: (row) => navigate(`/corridas/historico/${row.id}`),
+    },
+    {
+      icon: <RedirecionarIcon width={18} height={18} />,
+      label: 'Acompanhar em tempo real',
+      onClick: (row) => navigate(`/corridas/${row.id}/acompanhamento`),
     },
   ];
 
@@ -182,8 +241,26 @@ export const RideHistoryList = () => {
             setQuery(value);
             setCurrentPage(1);
           }}
-          onExport={() => showToast({ type: 'success', title: 'Exportação iniciada', description: 'O histórico de corridas será preparado em instantes.' })}
-          filterSections={filterSections}
+          onExport={() => {
+            const ok = exportToCsv('historico-corridas', filteredRides, [
+              { key: 'id', label: 'Corrida' },
+              { key: 'requestId', label: 'Solicitação' },
+              { key: 'collaborator', label: 'Colaborador' },
+              { key: 'driver', label: 'Motorista' },
+              { key: 'supplier', label: 'Fornecedor' },
+              { key: 'vehiclePlate', label: 'Placa' },
+              { key: 'startedAt', label: 'Início' },
+              { key: 'distanceKm', label: 'KM Percorrido' },
+              { key: 'finalValue', label: 'Valor Final' },
+              { key: 'status', label: 'Status' },
+            ]);
+            if (ok) {
+              showToast({ type: 'success', title: 'Exportação concluída', description: 'O relatório em CSV foi baixado.' });
+            } else {
+              showToast({ type: 'warning', title: 'Aviso', description: 'Nenhum dado encontrado para exportar.' });
+            }
+          }}
+          filterSections={dynamicFilterSections}
           selectedFilters={selectedFilters}
           onFilterChange={(values) => {
             setSelectedFilters(values);

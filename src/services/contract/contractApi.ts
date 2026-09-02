@@ -112,5 +112,22 @@ export const contractApi = {
   getPdfBlob(id: number) {
     return apiClient.getBlob(`/contrato/${id}`);
   },
+
+  atualizarVigencia(id: number, data: { dataVigenciaInicio?: string; dataVigenciaFim?: string }) {
+    return apiClient.patch<ContratoResponse>(`/contrato/${id}/vigencia`, data);
+  },
+
+  ativar(id: number) {
+    return apiClient.patch<ContratoResponse>(`/contrato/${id}/ativar`, {});
+  },
+
+  inativar(id: number) {
+    return apiClient.patch<ContratoResponse>(`/contrato/${id}/inativar`, {});
+  },
+
+  toggleStatus(id: number, ativoAtual: boolean) {
+    return ativoAtual ? this.inativar(id) : this.ativar(id);
+  },
 };
+
 

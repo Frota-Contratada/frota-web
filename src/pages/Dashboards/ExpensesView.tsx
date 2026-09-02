@@ -52,6 +52,25 @@ export const ExpensesView = () => {
 
   const expensesFilterSections = [
     {
+      title: 'Período',
+      options: [
+        { label: 'Últimos 7 dias', value: 'periodo:7d' },
+        { label: 'Últimos 30 dias', value: 'periodo:30d' },
+        { label: 'Este mês', value: 'periodo:mes' },
+        { label: 'Último trimestre', value: 'periodo:tri' },
+      ],
+    },
+    {
+      title: 'Colaborador / Responsável',
+      options: [
+        { label: 'Carla Nogueira', value: 'resp:Carla Nogueira' },
+        { label: 'Diego Prado', value: 'resp:Diego Prado' },
+        { label: 'Eduarda Lima', value: 'resp:Eduarda Lima' },
+        { label: 'Carlos Eduardo', value: 'resp:Carlos Eduardo' },
+        { label: 'Fernanda Souza', value: 'resp:Fernanda Souza' },
+      ],
+    },
+    {
       title: 'Centro de Custo',
       options: [
         { label: 'CT-410203', value: 'cc:CT-410203' },
@@ -65,11 +84,13 @@ export const ExpensesView = () => {
 
   const filteredData = expensesTableData.filter((item) => {
     if (selectedFilters.length === 0) return true;
-    return selectedFilters.some((filter) => {
-      const [key, val] = filter.split(':');
-      if (key === 'cc') return item.centroCusto === val;
-      return true;
-    });
+    const ccFilters = selectedFilters.filter(f => f.startsWith('cc:')).map(f => f.replace('cc:', ''));
+    const respFilters = selectedFilters.filter(f => f.startsWith('resp:')).map(f => f.replace('resp:', ''));
+
+    const matchesCc = ccFilters.length === 0 || ccFilters.includes(item.centroCusto);
+    const matchesResp = respFilters.length === 0 || respFilters.includes(item.responsavel);
+
+    return matchesCc && matchesResp;
   });
 
   return (

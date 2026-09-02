@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Input, LoadingState, Select, useToast } from '../../components/common';
 import { branchApi, supplierApi, extractListData, type FilialDto } from '../../services';
 import { formatCnpj, cleanCnpj } from '../../utils';
-import styles from '../Rides/RideReview.module.css';
+import styles from '../Rides/Review/RideReview.module.css';
 
 const statusOptions = [
   { label: 'Aprovado / Ativo', value: 'aprovado' },

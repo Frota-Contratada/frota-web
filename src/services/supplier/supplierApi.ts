@@ -106,4 +106,17 @@ export const supplierApi = {
     formData.append('foto', file);
     return apiClient.patch<FornecedorResponse>(`/fornecedor/${id}/foto`, formData);
   },
+
+  inativar(id: number) {
+    return apiClient.patch<FornecedorResponse>(`/fornecedor/${id}/inativar`, {});
+  },
+
+  reativar(id: number) {
+    return apiClient.patch<FornecedorResponse>(`/fornecedor/${id}/reativar`, {});
+  },
+
+  toggleStatus(id: number, ativoAtual: boolean) {
+    return ativoAtual ? this.inativar(id) : this.reativar(id);
+  },
 };
+

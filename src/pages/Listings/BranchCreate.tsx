@@ -5,7 +5,7 @@ import { LocationPickerMap } from '../../components/maps';
 import { branchApi, collaboratorApi, geoService, extractListData, type ColaboradorDto } from '../../services';
 import { useAuthStore } from '../../stores/authStore';
 import { formatCnpj, cleanCnpj, stateSelectOptions } from '../../utils';
-import styles from '../Rides/RideReview.module.css';
+import styles from '../Rides/Review/RideReview.module.css';
 
 const stateOptions = stateSelectOptions;
 

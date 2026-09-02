@@ -4,7 +4,7 @@ import { Button, Input, LoadingState, Select, useToast } from '../../components/
 import { LocationPickerMap } from '../../components/maps';
 import { branchApi, geoService } from '../../services';
 import { stateSelectOptions } from '../../utils';
-import styles from '../Rides/RideReview.module.css';
+import styles from '../Rides/Review/RideReview.module.css';
 
 const stateOptions = stateSelectOptions;
 

@@ -102,6 +102,67 @@
   background-color: var(--danger-light);
 }
 
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(17, 24, 39, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: var(--z-modal-backdrop, 1040);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+}
+
+.modalCard {
+  background-color: var(--surface, #ffffff);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-xl);
+  width: 100%;
+  max-width: 500px;
+  box-shadow: var(--shadow-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  animation: fadeIn 0.2s ease;
+}
+
+.modalHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.modalHeader h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.modalHeader p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.modalActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
+.cancelActionBtn {
+  color: var(--danger, #ef4444) !important;
+  border-color: var(--danger, #ef4444) !important;
+}
+
+.cancelActionBtn:hover:not(:disabled) {
+  background-color: #fef2f2 !important;
+}
+
 @media (max-width: 1180px) {
   .statsGrid,
   .statsGrid3 {

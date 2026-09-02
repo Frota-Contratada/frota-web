@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Input, useToast } from '../../components/common';
 import CheckIcon from '../../assets/icons/check.svg?react';
 import { contractApi } from '../../services';
-import styles from '../Rides/RideReview.module.css';
+import styles from '../Rides/Review/RideReview.module.css';
 import contractsStyles from './Contracts.module.css';
 
 export const ContractCreate = () => {

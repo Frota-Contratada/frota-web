@@ -9,7 +9,7 @@ import {
   type FilialDto,
   type CentroCustoDto,
 } from '../../services';
-import styles from '../Rides/RideReview.module.css';
+import styles from '../Rides/Review/RideReview.module.css';
 import localStyles from './EmployeeCreate.module.css';
 
 const roleOptions = [

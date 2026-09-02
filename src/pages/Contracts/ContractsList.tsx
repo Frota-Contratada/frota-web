@@ -55,6 +55,16 @@ export const ContractsList = () => {
   const [dataFimVigencia, setDataFimVigencia] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
+  const [isVigenciaModalOpen, setIsVigenciaModalOpen] = useState(false);
+  const [selectedContractForVigencia, setSelectedContractForVigencia] = useState<Contract | null>(null);
+  const [novaDataInicio, setNovaDataInicio] = useState('');
+  const [novaDataFim, setNovaDataFim] = useState('');
+  const [isSavingVigencia, setIsSavingVigencia] = useState(false);
+
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [selectedContractForStatus, setSelectedContractForStatus] = useState<Contract | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
   const fetchContracts = async () => {
     try {
       setIsLoading(true);
@@ -74,16 +84,14 @@ export const ContractsList = () => {
 
           const fornecedorNome = c.vinculos?.[0]?.fornecedorNome || (c.vinculos && c.vinculos.length > 0 ? c.vinculos.map(v => v.fornecedorNome).join(', ') : '—');
           const filialNome = c.vinculos?.[0]?.filialNome || (c.vinculos && c.vinculos.length > 0 ? c.vinculos.map(v => v.filialNome).join(', ') : '—');
-          const dataInicio = c.dataVigenciaInicio;
-          const dataFim = c.dataVigenciaFim;
-
+          
           return {
             id: c.id,
-            codigo: `CTR-${String(c.id).padStart(4, '0')}`,
+            codigo: `CONT-${String(c.id).padStart(4, '0')}`,
             fornecedor: fornecedorNome,
             filial: filialNome,
-            inicio: dataInicio ? new Date(dataInicio).toLocaleDateString('pt-BR') : '—',
-            vencimento: dataFim ? new Date(dataFim).toLocaleDateString('pt-BR') : 'Indeterminado',
+            inicio: c.dataVigenciaInicio ? new Date(c.dataVigenciaInicio).toLocaleDateString('pt-BR') : '—',
+            vencimento: c.dataVigenciaFim ? new Date(c.dataVigenciaFim).toLocaleDateString('pt-BR') : 'Indeterminado',
             status: badgeStatus,
             arquivo: c.caminhoArquivo ? c.caminhoArquivo.split('/').pop() || 'contrato.pdf' : 'contrato.pdf',
           };
@@ -133,11 +141,96 @@ export const ContractsList = () => {
   const totalPages = Math.max(1, Math.ceil(filteredContracts.length / PAGE_SIZE));
   const pageData = filteredContracts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
+  const handleUpdateVigencia = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedContractForVigencia) return;
+    try {
+      setIsSavingVigencia(true);
+      await contractApi.atualizarVigencia(selectedContractForVigencia.id, {
+        dataVigenciaInicio: novaDataInicio ? new Date(novaDataInicio).toISOString() : undefined,
+        dataVigenciaFim: novaDataFim ? new Date(novaDataFim).toISOString() : undefined,
+      });
+
+      setContractsList((prev) =>
+        prev.map((c) =>
+          c.id === selectedContractForVigencia.id
+            ? {
+                ...c,
+                inicio: novaDataInicio ? new Date(novaDataInicio).toLocaleDateString('pt-BR') : c.inicio,
+                vencimento: novaDataFim ? new Date(novaDataFim).toLocaleDateString('pt-BR') : 'Indeterminado',
+              }
+            : c
+        )
+      );
+
+      showToast({
+        type: 'success',
+        title: 'Vigência atualizada',
+        description: `O período de vigência do contrato ${selectedContractForVigencia.codigo} foi salvo com sucesso.`,
+      });
+      setIsVigenciaModalOpen(false);
+      setSelectedContractForVigencia(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Falha ao atualizar vigência';
+      showToast({ type: 'error', title: 'Erro na atualização', description: msg });
+    } finally {
+      setIsSavingVigencia(false);
+    }
+  };
+
+  const handleToggleContractStatus = async () => {
+    if (!selectedContractForStatus) return;
+    const isCurrentlyActive = selectedContractForStatus.status === 'aprovado';
+    try {
+      setIsUpdatingStatus(true);
+      await contractApi.toggleStatus(selectedContractForStatus.id, isCurrentlyActive);
+
+      setContractsList((prev) =>
+        prev.map((c) =>
+          c.id === selectedContractForStatus.id
+            ? { ...c, status: isCurrentlyActive ? 'cancelado' : 'aprovado' }
+            : c
+        )
+      );
+
+      showToast({
+        type: isCurrentlyActive ? 'warning' : 'success',
+        title: isCurrentlyActive ? 'Contrato inativado' : 'Contrato ativado',
+        description: `O contrato ${selectedContractForStatus.codigo} foi ${isCurrentlyActive ? 'inativado' : 'ativado'} com sucesso.`,
+      });
+      setIsStatusModalOpen(false);
+      setSelectedContractForStatus(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Falha ao alterar status';
+      showToast({ type: 'error', title: 'Erro no status', description: msg });
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   const actions: TableAction<Contract>[] = [
     {
       icon: <RedirecionarIcon width={18} height={18} />,
       label: 'Visualizar contrato',
       onClick: (row) => navigate(`/terceiros/contratos/${row.id}`),
+    },
+    {
+      icon: <CheckIcon width={16} height={16} />,
+      label: 'Alterar vigência',
+      onClick: (row) => {
+        setSelectedContractForVigencia(row);
+        setNovaDataInicio(new Date().toISOString().slice(0, 10));
+        setNovaDataFim('');
+        setIsVigenciaModalOpen(true);
+      },
+    },
+    {
+      icon: <ErroIcon width={16} height={16} />,
+      label: 'Alterar status (ativar/inativar)',
+      onClick: (row) => {
+        setSelectedContractForStatus(row);
+        setIsStatusModalOpen(true);
+      },
     },
   ];
 
@@ -283,7 +376,83 @@ export const ContractsList = () => {
           </div>
         </div>
       )}
+
+      {isVigenciaModalOpen && selectedContractForVigencia && (
+        <div className={styles.modalOverlay} role="presentation" onMouseDown={() => setIsVigenciaModalOpen(false)}>
+          <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="vigencia-modal-title" onMouseDown={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h2 id="vigencia-modal-title">Atualizar vigência — {selectedContractForVigencia.codigo}</h2>
+                <p>Fornecedor: {selectedContractForVigencia.fornecedor}</p>
+              </div>
+              <button className={styles.closeButton} type="button" aria-label="Fechar" onClick={() => setIsVigenciaModalOpen(false)}>
+                <ErroIcon width={14} height={14} aria-hidden="true" />
+              </button>
+            </div>
+
+            <form className={styles.form} onSubmit={handleUpdateVigencia}>
+              <Input
+                label="Data de início da vigência *"
+                type="date"
+                value={novaDataInicio}
+                onChange={(e) => setNovaDataInicio(e.target.value)}
+                required
+              />
+
+              <Input
+                label="Data de término da vigência"
+                type="date"
+                value={novaDataFim}
+                onChange={(e) => setNovaDataFim(e.target.value)}
+              />
+
+              <div className={styles.modalActions}>
+                <Button type="button" variant="outline" onClick={() => setIsVigenciaModalOpen(false)} disabled={isSavingVigencia}>
+                  Cancelar
+                </Button>
+                <Button type="submit" isLoading={isSavingVigencia}>
+                  Salvar vigência
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isStatusModalOpen && selectedContractForStatus && (
+        <div className={styles.modalOverlay} role="presentation" onMouseDown={() => setIsStatusModalOpen(false)}>
+          <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="status-contract-title" onMouseDown={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h2 id="status-contract-title">
+                  {selectedContractForStatus.status === 'aprovado' ? 'Inativar contrato' : 'Ativar contrato'}
+                </h2>
+                <p>
+                  {selectedContractForStatus.status === 'aprovado'
+                    ? `Tem certeza que deseja inativar o contrato ${selectedContractForStatus.codigo}? Ele não poderá ser vinculado a novas corridas.`
+                    : `Deseja ativar o contrato ${selectedContractForStatus.codigo}?`}
+                </p>
+              </div>
+              <button className={styles.closeButton} type="button" aria-label="Fechar" onClick={() => setIsStatusModalOpen(false)}>
+                <ErroIcon width={14} height={14} aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className={styles.modalActions}>
+              <Button type="button" variant="outline" onClick={() => setIsStatusModalOpen(false)} disabled={isUpdatingStatus}>
+                Cancelar
+              </Button>
+              <Button
+                variant={selectedContractForStatus.status === 'aprovado' ? 'outline' : 'primary'}
+                onClick={handleToggleContractStatus}
+                isLoading={isUpdatingStatus}
+              >
+                {selectedContractForStatus.status === 'aprovado' ? 'Confirmar inativação' : 'Confirmar ativação'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-

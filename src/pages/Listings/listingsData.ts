@@ -25,10 +25,12 @@ export type RideHistory = {
   requestId: number;
   driver: string;
   supplier: string;
+  collaborator?: string;
   vehiclePlate: string;
   vehicleType: string;
   startedAt: string;
   finishedAt: string | null;
+  rideDate?: string;
   distanceKm: number;
   finalValue: string;
   extraExpenses: string;

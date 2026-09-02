@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction, type BadgeStatus } from '../../components/common';
 import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
+import ErroIcon from '../../assets/icons/erro.svg?react';
 import { supplierApi, extractListData, type FornecedorDto, type FornecedorBigNumbers } from '../../services';
 import { formatDocument, type Supplier } from './suppliersData';
 import styles from './Suppliers.module.css';
@@ -23,17 +24,18 @@ const filterSections: FilterSection[] = [
     options: [
       { label: 'Com contrato', value: 'link:contrato' },
       { label: 'Sem contrato', value: 'link:sem-contrato' },
-      { label: 'Com veículos', value: 'link:veiculos' },
     ],
   },
 ];
 
 const columns: ColumnDef<Supplier>[] = [
   {
-    key: 'name',
+    key: 'id',
     header: 'Fornecedor',
     sortable: true,
-    render: (_, row) => <strong className={styles.supplierName}>{row.name}</strong>,
+    render: (_, row) => (
+      <span className={styles.supplierName}>{row.name}</span>
+    ),
   },
   {
     key: 'document',
@@ -42,22 +44,20 @@ const columns: ColumnDef<Supplier>[] = [
     render: (_, row) => formatDocument(row.document),
   },
   {
-    key: 'linkedContracts',
-    header: 'Contratos vigentes',
-    sortable: true,
-    render: (_, row) => row.linkedContracts,
+    key: 'filePath',
+    header: 'Arquivo',
+    render: (_, row) => (
+      row.filePath ? (
+        <span className={styles.fileText}>Foto enviada</span>
+      ) : (
+        <span className={styles.emptyFile}>Sem anexo</span>
+      )
+    ),
   },
-  {
-    key: 'vehicles',
-    header: 'Veículos ativos',
-    sortable: true,
-    render: (_, row) => row.vehicles,
-  },
-  {
-    key: 'activatedAt',
-    header: 'Data de ativação',
-    sortable: true,
-  },
+  { key: 'activatedAt', header: 'Data de ativação', sortable: true },
+  { key: 'linkedBranches', header: 'Filiais atendidas', sortable: true },
+  { key: 'linkedContracts', header: 'Contratos vigentes', sortable: true },
+  { key: 'vehicles', header: 'Veículos ativos', sortable: true },
   {
     key: 'status',
     header: 'Status',
@@ -67,14 +67,18 @@ const columns: ColumnDef<Supplier>[] = [
 ];
 
 export const SuppliersList = () => {
-  const navigate = useNavigate();
   const { showToast } = useToast();
+  const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(1);
   const [query, setQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [suppliersList, setSuppliersList] = useState<Supplier[]>([]);
   const [bigNumbers, setBigNumbers] = useState<FornecedorBigNumbers | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [selectedSupplierForStatus, setSelectedSupplierForStatus] = useState<Supplier | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -84,17 +88,17 @@ export const SuppliersList = () => {
       supplierApi.list(),
       supplierApi.getAdminBigNumbers().catch(() => supplierApi.getFilialBigNumbers()),
     ])
-      .then(([suppliersRes, bigNumbersRes]) => {
+      .then(([suppliersRes, numbersRes]) => {
         if (!isMounted) return;
 
-        if (bigNumbersRes.status === 'fulfilled' && bigNumbersRes.value.response) {
-          setBigNumbers(bigNumbersRes.value.response);
+        if (numbersRes.status === 'fulfilled' && numbersRes.value && numbersRes.value.response) {
+          setBigNumbers(numbersRes.value.response);
         }
 
-        if (suppliersRes.status === 'fulfilled') {
-          const apiSuppliersData = extractListData<FornecedorDto>(suppliersRes.value);
-          const apiSuppliers: Supplier[] = apiSuppliersData.map((s) => {
-            let badgeStatus: BadgeStatus = 'em_andamento';
+        if (suppliersRes.status === 'fulfilled' && suppliersRes.value) {
+          const rawList = extractListData<FornecedorDto>(suppliersRes.value);
+          const apiSuppliers: Supplier[] = rawList.map((s) => {
+            let badgeStatus: BadgeStatus = 'aprovado';
             if (s.ativo === true) {
               badgeStatus = 'aprovado';
             } else if (s.ativo === false) {
@@ -104,6 +108,7 @@ export const SuppliersList = () => {
               if (raw === 'ativo' || raw === 'aprovado') badgeStatus = 'aprovado';
               else if (raw === 'pendente') badgeStatus = 'pendente';
               else if (raw === 'cancelado' || raw === 'inativo') badgeStatus = 'cancelado';
+              else badgeStatus = 'em_andamento';
             }
 
             const activeContractsCount = s.contratosVigentes ? s.contratosVigentes.length : (s.totalContratos ?? 0);
@@ -144,6 +149,41 @@ export const SuppliersList = () => {
     };
   }, [showToast]);
 
+  const handleToggleSupplierStatus = async () => {
+    if (!selectedSupplierForStatus) return;
+    const isCurrentlyActive = !selectedSupplierForStatus.deactivatedAt && selectedSupplierForStatus.status !== 'cancelado';
+    try {
+      setIsUpdatingStatus(true);
+      await supplierApi.toggleStatus(selectedSupplierForStatus.id, isCurrentlyActive);
+      
+      setSuppliersList((prev) =>
+        prev.map((s) => {
+          if (s.id !== selectedSupplierForStatus.id) return s;
+          const newStatus: BadgeStatus = isCurrentlyActive ? 'cancelado' : 'aprovado';
+          return {
+            ...s,
+            status: newStatus,
+            deactivatedAt: isCurrentlyActive ? 'Sim' : null,
+          };
+        })
+      );
+
+      showToast({
+        type: isCurrentlyActive ? 'warning' : 'success',
+        title: isCurrentlyActive ? 'Fornecedor inativado' : 'Fornecedor reativado',
+        description: `O fornecedor ${selectedSupplierForStatus.name} foi ${isCurrentlyActive ? 'inativado' : 'reativado'} com sucesso.`,
+      });
+
+      setIsStatusModalOpen(false);
+      setSelectedSupplierForStatus(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro ao alterar status do fornecedor';
+      showToast({ type: 'error', title: 'Falha na alteração', description: msg });
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   const filteredSuppliers = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
     const statusFilters = selectedFilters
@@ -158,20 +198,19 @@ export const SuppliersList = () => {
         normalizedQuery.length === 0 ||
         supplier.name.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
         supplier.document.includes(normalizedQuery) ||
-        formatDocument(supplier.document).toLocaleLowerCase('pt-BR').includes(normalizedQuery);
+        (supplier.filePath && supplier.filePath.toLocaleLowerCase('pt-BR').includes(normalizedQuery));
+
       const matchesStatus = statusFilters.length === 0 || statusFilters.includes(supplier.status);
-      const matchesLinks = linkFilters.length === 0 || linkFilters.some((filter) => {
-        if (filter === 'contrato') return supplier.linkedContracts > 0;
-        if (filter === 'sem-contrato') return supplier.linkedContracts === 0;
-        if (filter === 'veiculos') return supplier.vehicles > 0;
-        return false;
-      });
+      const matchesLinks =
+        linkFilters.length === 0 ||
+        (linkFilters.includes('contrato') && supplier.linkedContracts > 0) ||
+        (linkFilters.includes('sem-contrato') && supplier.linkedContracts === 0);
 
       return matchesQuery && matchesStatus && matchesLinks;
     });
   }, [suppliersList, query, selectedFilters]);
 
-  const activeSuppliers = suppliersList.filter((supplier) => !supplier.deactivatedAt).length;
+  const activeSuppliers = suppliersList.filter((supplier) => !supplier.deactivatedAt && supplier.status !== 'cancelado').length;
   const suppliersWithContracts = suppliersList.filter((supplier) => supplier.linkedContracts > 0).length;
   const totalVehicles = suppliersList.reduce((total, supplier) => total + supplier.vehicles, 0);
   const totalPages = Math.max(1, Math.ceil(filteredSuppliers.length / PAGE_SIZE));
@@ -183,7 +222,17 @@ export const SuppliersList = () => {
       label: 'Visualizar fornecedor',
       onClick: (row) => navigate(`/terceiros/fornecedores/${row.id}`),
     },
+    {
+      icon: <ErroIcon width={16} height={16} />,
+      label: 'Alterar status (inativar/reativar)',
+      onClick: (row) => {
+        setSelectedSupplierForStatus(row);
+        setIsStatusModalOpen(true);
+      },
+    },
   ];
+
+  const isSelectedActive = selectedSupplierForStatus && !selectedSupplierForStatus.deactivatedAt && selectedSupplierForStatus.status !== 'cancelado';
 
   return (
     <div className={styles.page}>
@@ -200,7 +249,7 @@ export const SuppliersList = () => {
         />
         <StatCard
           title="Sem contrato vigente"
-          value={String(bigNumbers?.fornecedoresSemContratoVigente ?? (activeSuppliers - suppliersWithContracts))}
+          value={String(bigNumbers?.fornecedoresSemContratoVigente ?? Math.max(0, activeSuppliers - suppliersWithContracts))}
           isLoading={isLoading}
         />
         <StatCard
@@ -242,6 +291,37 @@ export const SuppliersList = () => {
           pagination={{ currentPage, totalPages, onPageChange: setCurrentPage }}
         />
       </section>
+
+      {isStatusModalOpen && selectedSupplierForStatus && (
+        <div className={styles.modalBackdrop} role="dialog" aria-modal="true" aria-labelledby="status-modal-title">
+          <div className={styles.modalCard}>
+            <div className={styles.modalHeader}>
+              <h3 id="status-modal-title">
+                {isSelectedActive ? 'Inativar fornecedor' : 'Reativar fornecedor'}
+              </h3>
+              <p>
+                {isSelectedActive
+                  ? `Tem certeza que deseja inativar o fornecedor ${selectedSupplierForStatus.name}? Ele deixará de receber novas solicitações de transporte.`
+                  : `Deseja reativar o credenciamento do fornecedor ${selectedSupplierForStatus.name}?`}
+              </p>
+            </div>
+
+            <div className={styles.modalActions}>
+              <Button variant="ghost" onClick={() => setIsStatusModalOpen(false)} disabled={isUpdatingStatus}>
+                Cancelar
+              </Button>
+              <Button
+                variant={isSelectedActive ? 'outline' : 'primary'}
+                className={isSelectedActive ? styles.dangerActionBtn : undefined}
+                onClick={handleToggleSupplierStatus}
+                isLoading={isUpdatingStatus}
+              >
+                {isSelectedActive ? 'Confirmar inativação' : 'Confirmar reativação'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
