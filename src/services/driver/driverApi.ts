@@ -5,15 +5,20 @@ export interface MotoristaDto {
   nome: string;
   email: string;
   cpf: string;
+  telefone?: string;
+  cnh?: string;
   fornecedorId: number;
   fornecedorNome?: string;
   dataAtivacao?: string;
+  ativo?: boolean;
 }
 
 export interface CriarMotoristaParams {
   nome: string;
   email: string;
   cpf: string;
+  telefone?: string;
+  cnh?: string;
   fornecedorId: number;
 }
 
@@ -43,10 +48,18 @@ export const driverApi = {
   },
 
   list(query?: BuscarMotoristasQueryParams) {
-    return apiClient.get<MotoristasListResponse>('/usuario/motorista', { query: query as Record<string, string | number | boolean | null | undefined> });
+    return apiClient.get<MotoristasListResponse>('/usuario/motorista', {
+      query: query as Record<string, string | number | boolean | null | undefined>,
+    });
   },
 
   getById(id: number) {
     return apiClient.get<MotoristaResponse>(`/usuario/motorista/${id}`);
+  },
+
+  toggleStatus(id: number, ativoAtual: boolean) {
+    return apiClient.patch<{ response: MotoristaDto }>(`/usuario/motorista/${id}/status`, {
+      ativo: !ativoAtual,
+    });
   },
 };

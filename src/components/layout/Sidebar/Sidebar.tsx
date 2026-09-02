@@ -79,6 +79,8 @@ const allMenuItems: MenuItem[] = [
     submenu: [
       { id: 'fornecedores', label: 'Fornecedores', icon: <FornecedoresIcon />, path: '/terceiros/fornecedores' },
       { id: 'contratos-terceiros', label: 'Contratos', icon: <ContratosIcon />, path: '/terceiros/contratos' },
+      { id: 'motoristas', label: 'Motoristas', icon: <ColaboradoresIcon />, path: '/terceiros/motoristas' },
+      { id: 'veiculos', label: 'Veículos', icon: <CorridasIcon />, path: '/terceiros/veiculos' },
     ],
   },
   {

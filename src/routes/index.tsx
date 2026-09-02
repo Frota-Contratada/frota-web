@@ -12,6 +12,7 @@ import { SuppliersList } from '../pages/Suppliers/SuppliersList';
 import { SupplierDetails } from '../pages/Suppliers/SupplierDetails';
 import { SupplierCreate } from '../pages/Suppliers/SupplierCreate';
 import { SupplierEdit } from '../pages/Suppliers/SupplierEdit';
+import { DriversList, DriverCreate, VehiclesList, VehicleCreate } from '../pages/Fleet';
 import { RideRequestsList } from '../pages/Listings/RideRequestsList';
 import { RideHistoryList } from '../pages/Listings/RideHistoryList';
 import { EmployeesList } from '../pages/Listings/EmployeesList';
@@ -22,9 +23,7 @@ import { BranchesList } from '../pages/Listings/BranchesList';
 import { BranchCreate } from '../pages/Listings/BranchCreate';
 import { BranchDetails } from '../pages/Listings/BranchDetails';
 import { BranchEdit } from '../pages/Listings/BranchEdit';
-import { RideReview } from '../pages/Rides/RideReview';
-import { RideRequestCreate } from '../pages/Rides/RideRequestCreate';
-import { RideDetails } from '../pages/Rides/RideDetails';
+import { RideReview, RideRequestCreate, RideDetails, RideTracking } from '../pages/Rides';
 import { ExecutiveView } from '../pages/Dashboards/ExecutiveView';
 import { ExpensesView } from '../pages/Dashboards/ExpensesView';
 import { PriceAuditView } from '../pages/Dashboards/PriceAuditView';
@@ -57,6 +56,8 @@ export const AppRoutes = () => {
           <Route path="/corridas/calendario" element={<Calendar />} />
           <Route path="/corridas/historico" element={<RideHistoryList />} />
           <Route path="/corridas/historico/:rideId" element={<RideDetails />} />
+          <Route path="/corridas/:rideId/acompanhamento" element={<RideTracking />} />
+          <Route path="/corridas/historico/:rideId/acompanhamento" element={<RideTracking />} />
 
           <Route path="/terceiros" element={<Navigate to="/terceiros/fornecedores" replace />} />
           <Route path="/terceiros/fornecedores" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin-fornecedor', 'admin', 'fornecedor']}><SuppliersList /></ProtectedRoute>} />
@@ -66,6 +67,10 @@ export const AppRoutes = () => {
           <Route path="/terceiros/contratos" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin', 'fornecedor', 'admin-fornecedor']}><ContractsList /></ProtectedRoute>} />
           <Route path="/terceiros/contratos/novo" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><ContractCreate /></ProtectedRoute>} />
           <Route path="/terceiros/contratos/:contractId" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin', 'fornecedor', 'admin-fornecedor']}><ContractDetails /></ProtectedRoute>} />
+          <Route path="/terceiros/motoristas" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin', 'fornecedor', 'admin-fornecedor']}><DriversList /></ProtectedRoute>} />
+          <Route path="/terceiros/motoristas/novo" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin', 'fornecedor', 'admin-fornecedor']}><DriverCreate /></ProtectedRoute>} />
+          <Route path="/terceiros/veiculos" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin', 'fornecedor', 'admin-fornecedor']}><VehiclesList /></ProtectedRoute>} />
+          <Route path="/terceiros/veiculos/novo" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin', 'fornecedor', 'admin-fornecedor']}><VehicleCreate /></ProtectedRoute>} />
 
           <Route path="/colaboradores" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><EmployeesList /></ProtectedRoute>} />
           <Route path="/colaboradores/novo" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><EmployeeCreate /></ProtectedRoute>} />

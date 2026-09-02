@@ -28,4 +28,8 @@ export { geoService } from './maps/geoService';
 export type { EnderecoDetalhado, SugestaoEndereco } from './maps/geoService';
 export { routingService } from './maps/routingService';
 export type { RoutePoint, RouteResult } from './maps/routingService';
+export { trackingApi } from './tracking/trackingApi';
+export type { TrackingSnapshot, TrackingRoute, VehiclePosition } from './tracking/trackingApi';
+export { vehicleApi } from './vehicle/vehicleApi';
+export type { VeiculoDto, CriarVeiculoParams, BuscarVeiculosQueryParams, VeiculoResponse, VeiculosListResponse } from './vehicle/vehicleApi';
 

@@ -1,0 +1,156 @@
+.page {
+  min-height: 100%;
+  background-color: var(--color-gray-50, #f8fafc);
+  padding: var(--spacing-xl, 1.5rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg, 1.25rem);
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--spacing-lg, 1.25rem);
+}
+
+.tableSection {
+  background-color: var(--surface, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-xl, 1rem);
+  box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+  overflow: hidden;
+}
+
+.primaryText {
+  color: var(--text-primary, #0f172a);
+  font-weight: 700;
+}
+
+.secondaryText {
+  color: var(--text-muted, #64748b);
+  font-size: 0.85rem;
+}
+
+.plateBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background-color: #f1f5f9;
+  border: 1.5px solid #0f172a;
+  border-radius: 6px;
+  font-family: monospace;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.05em;
+  font-size: 0.875rem;
+}
+
+.formCard {
+  background-color: var(--surface, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-xl, 1rem);
+  padding: var(--spacing-xl, 1.5rem);
+  box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 720px;
+}
+
+.formHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  padding-bottom: 1rem;
+}
+
+.formHeader h2 {
+  margin: 0;
+  color: var(--text-primary, #0f172a);
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.formHeader p {
+  margin: 0;
+  color: var(--text-muted, #64748b);
+  font-size: 0.875rem;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.fullWidth {
+  grid-column: span 2;
+}
+
+.formActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  border-top: 1px solid var(--border, #e2e8f0);
+  padding-top: 1rem;
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.modalCard {
+  background: #ffffff;
+  border-radius: 1rem;
+  max-width: 520px;
+  width: 100%;
+  padding: 1.5rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.modalCard h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #0f172a;
+}
+
+.modalCard p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+  .fullWidth {
+    grid-column: span 1;
+  }
+}
