@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { geoService } from '../geoService';
+import { TOMTOM_CONFIG } from '../tomtomConfig';
 
 describe('geoService', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(TOMTOM_CONFIG, 'hasKey', 'get').mockReturnValue(true);
   });
 
-  it('fetches address by CEP and geocodes coordinates', async () => {
+  it('fetches address by CEP and geocodes coordinates via TomTom API', async () => {
     const mockViaCep = {
       cep: '01310-100',
       logradouro: 'Avenida Paulista',
@@ -15,13 +17,16 @@ describe('geoService', () => {
       uf: 'SP',
     };
 
-    const mockNominatim = [
-      {
-        lat: '-23.561',
-        lon: '-46.656',
-        display_name: 'Avenida Paulista, São Paulo, SP, Brasil',
-      },
-    ];
+    const mockTomTom = {
+      results: [
+        {
+          position: {
+            lat: -23.561,
+            lon: -46.656,
+          },
+        },
+      ],
+    };
 
     globalThis.fetch = vi
       .fn()
@@ -31,7 +36,7 @@ describe('geoService', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => mockNominatim,
+        json: async () => mockTomTom,
       });
 
     const result = await geoService.buscarEnderecoPorCep('01310100');
@@ -48,25 +53,29 @@ describe('geoService', () => {
     expect(result).toBeNull();
   });
 
-  it('fetches address suggestions from Nominatim', async () => {
-    const mockSuggestions = [
-      {
-        display_name: 'Seara Alimentos, Itajaí, SC, Brasil',
-        lat: '-26.9078',
-        lon: '-48.6619',
-        address: {
-          road: 'Av. Marginal Oeste',
-          suburb: 'Cordeiros',
-          city: 'Itajaí',
-          state: 'SC',
-          postcode: '88310-000',
+  it('fetches address suggestions from TomTom API', async () => {
+    const mockTomTomSuggestions = {
+      results: [
+        {
+          position: {
+            lat: -26.9078,
+            lon: -48.6619,
+          },
+          address: {
+            streetName: 'Av. Marginal Oeste',
+            municipalitySubdivision: 'Cordeiros',
+            municipality: 'Itajaí',
+            countrySubdivision: 'SC',
+            postalCode: '88310-000',
+            freeformAddress: 'Av. Marginal Oeste, Cordeiros, Itajaí - SC',
+          },
         },
-      },
-    ];
+      ],
+    };
 
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => mockSuggestions,
+      json: async () => mockTomTomSuggestions,
     });
 
     const results = await geoService.buscarSugestoesEndereco('Seara Itajaí');
@@ -76,21 +85,26 @@ describe('geoService', () => {
     expect(results[0].latitude).toBe(-26.9078);
   });
 
-  it('performs reverse geocoding for coordinates', async () => {
-    const mockReverse = {
-      display_name: 'Av. Paulista, Bela Vista, São Paulo, SP, Brasil',
-      address: {
-        road: 'Av. Paulista',
-        suburb: 'Bela Vista',
-        city: 'São Paulo',
-        state: 'SP',
-        postcode: '01310-100',
-      },
+  it('performs reverse geocoding for coordinates via TomTom API', async () => {
+    const mockTomTomReverse = {
+      addresses: [
+        {
+          address: {
+            streetName: 'Av. Paulista',
+            municipalitySubdivision: 'Bela Vista',
+            municipality: 'São Paulo',
+            countrySubdivision: 'SP',
+            postalCode: '01310-100',
+            freeformAddress: 'Av. Paulista, Bela Vista, São Paulo - SP',
+          },
+          position: '-23.561,-46.656',
+        },
+      ],
     };
 
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => mockReverse,
+      json: async () => mockTomTomReverse,
     });
 
     const result = await geoService.geocodificarCoordenadas(-23.561, -46.656);

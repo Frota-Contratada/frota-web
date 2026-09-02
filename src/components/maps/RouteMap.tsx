@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import tt from '@tomtom-international/web-sdk-maps';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Spinner } from '../common';
-import { originIcon, destinationIcon, stopIcon } from './mapIcons';
+import { originIcon, destinationIcon, stopIcon, createTomTomMarkerElement } from './mapIcons';
 import { routingService, type RoutePoint, type RouteResult } from '../../services/maps/routingService';
+import { TOMTOM_CONFIG } from '../../services/maps/tomtomConfig';
 import styles from './RouteMap.module.css';
 
 interface RouteMapProps {
@@ -14,7 +16,7 @@ interface RouteMapProps {
   className?: string;
 }
 
-const MapBoundsAdjuster = ({ coordinates }: { coordinates: Array<[number, number]> }) => {
+const LeafletBoundsAdjuster = ({ coordinates }: { coordinates: Array<[number, number]> }) => {
   const map = useMap();
 
   useEffect(() => {
@@ -40,6 +42,9 @@ export const RouteMap = ({
 }: RouteMapProps) => {
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const tomtomContainerRef = useRef<HTMLDivElement | null>(null);
+  const tomtomMapRef = useRef<tt.Map | null>(null);
+  const tomtomMarkersRef = useRef<tt.Marker[]>([]);
 
   const validPoints = points.filter(
     (p) => typeof p.lat === 'number' && typeof p.lng === 'number' && !isNaN(p.lat) && !isNaN(p.lng)
@@ -87,6 +92,119 @@ export const RouteMap = ({
     };
   }, [JSON.stringify(validPoints)]);
 
+  useEffect(() => {
+    if (!TOMTOM_CONFIG.hasKey || !tomtomContainerRef.current) return;
+
+    if (!tomtomMapRef.current) {
+      const mapInstance = tt.map({
+        key: TOMTOM_CONFIG.apiKey,
+        container: tomtomContainerRef.current,
+        center: [defaultCenter[1], defaultCenter[0]],
+        zoom: 13,
+        stylesVisibility: {
+          trafficFlow: true,
+          trafficIncidents: true,
+        },
+      });
+
+      mapInstance.addControl(new tt.NavigationControl());
+      mapInstance.addControl(new tt.FullscreenControl());
+
+      tomtomMapRef.current = mapInstance;
+    }
+
+    const map = tomtomMapRef.current;
+
+    tomtomMarkersRef.current.forEach((m) => m.remove());
+    tomtomMarkersRef.current = [];
+
+    validPoints.forEach((point, index) => {
+      const isOrigin = index === 0;
+      const isDest = index === validPoints.length - 1;
+      const markerType = isOrigin ? 'origin' : isDest ? 'destination' : 'stop';
+      const markerEl = createTomTomMarkerElement(markerType, index);
+
+      const labelText = point.label || (isOrigin ? 'Origem' : isDest ? 'Destino' : `Parada #${index}`);
+      const popup = new tt.Popup({ offset: [0, -35] }).setHTML(`<strong>${labelText}</strong>`);
+
+      const marker = new tt.Marker({ element: markerEl })
+        .setLngLat([point.lng, point.lat])
+        .setPopup(popup)
+        .addTo(map);
+
+      tomtomMarkersRef.current.push(marker);
+    });
+
+    const drawRouteOnMap = () => {
+      const coords = route?.coordinates && route.coordinates.length > 0
+        ? route.coordinates
+        : validPoints.map((p) => [p.lat, p.lng] as [number, number]);
+
+      if (map.getLayer('route-casing')) map.removeLayer('route-casing');
+      if (map.getLayer('route-line')) map.removeLayer('route-line');
+      if (map.getSource('route-source')) map.removeSource('route-source');
+
+      if (coords.length >= 2) {
+        const geojsonCoordinates = coords.map(([lat, lng]) => [lng, lat]);
+
+        map.addSource('route-source', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: geojsonCoordinates,
+            },
+          },
+        });
+
+        map.addLayer({
+          id: 'route-casing',
+          type: 'line',
+          source: 'route-source',
+          paint: {
+            'line-color': '#1E1B4B',
+            'line-width': 9,
+            'line-opacity': 0.2,
+          },
+        });
+
+        map.addLayer({
+          id: 'route-line',
+          type: 'line',
+          source: 'route-source',
+          paint: {
+            'line-color': '#E21B22',
+            'line-width': 5,
+            'line-opacity': 0.95,
+          },
+        });
+
+        const bounds = new tt.LngLatBounds();
+        geojsonCoordinates.forEach((c) => bounds.extend(c as [number, number]));
+        map.fitBounds(bounds, { padding: 60, maxZoom: 16 });
+      } else if (coords.length === 1) {
+        map.easeTo({ center: [coords[0][1], coords[0][0]], zoom: 14 });
+      }
+    };
+
+    if (map.loaded()) {
+      drawRouteOnMap();
+    } else {
+      map.once('load', drawRouteOnMap);
+    }
+  }, [TOMTOM_CONFIG.hasKey, route, JSON.stringify(validPoints)]);
+
+  useEffect(() => {
+    return () => {
+      if (tomtomMapRef.current) {
+        tomtomMapRef.current.remove();
+        tomtomMapRef.current = null;
+      }
+    };
+  }, []);
+
   const displayCoords = route?.coordinates && route.coordinates.length > 0
     ? route.coordinates
     : validPoints.map((p) => [p.lat, p.lng] as [number, number]);
@@ -112,64 +230,68 @@ export const RouteMap = ({
       {isLoading && (
         <div className={styles.loadingOverlay}>
           <Spinner size="sm" variant="primary" />
-          <span>Calculando melhor rota...</span>
+          <span>Calculando melhor rota no TomTom...</span>
         </div>
       )}
 
-      <MapContainer
-        center={defaultCenter}
-        zoom={13}
-        scrollWheelZoom={false}
-        className={styles.leafletMap}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-          subdomains="abcd"
-          maxZoom={20}
-        />
+      {TOMTOM_CONFIG.hasKey ? (
+        <div ref={tomtomContainerRef} style={{ width: '100%', height: '100%' }} />
+      ) : (
+        <MapContainer
+          center={defaultCenter}
+          zoom={13}
+          scrollWheelZoom={false}
+          className={styles.leafletMap}
+        >
+          <TileLayer
+            attribution={TOMTOM_CONFIG.getTileAttribution()}
+            url={TOMTOM_CONFIG.getTileUrl()}
+            subdomains={TOMTOM_CONFIG.getTileSubdomains()}
+            maxZoom={TOMTOM_CONFIG.getTileMaxZoom()}
+          />
 
-        {displayCoords.length >= 2 && (
-          <>
-            <Polyline
-              positions={displayCoords}
-              pathOptions={{
-                color: '#1E1B4B',
-                weight: 8,
-                opacity: 0.15,
-                lineCap: 'round',
-                lineJoin: 'round',
-              }}
-            />
-            <Polyline
-              positions={displayCoords}
-              pathOptions={{
-                color: '#E21B22',
-                weight: 5,
-                opacity: 0.95,
-                lineCap: 'round',
-                lineJoin: 'round',
-              }}
-            />
-          </>
-        )}
+          {displayCoords.length >= 2 && (
+            <>
+              <Polyline
+                positions={displayCoords}
+                pathOptions={{
+                  color: '#1E1B4B',
+                  weight: 8,
+                  opacity: 0.15,
+                  lineCap: 'round',
+                  lineJoin: 'round',
+                }}
+              />
+              <Polyline
+                positions={displayCoords}
+                pathOptions={{
+                  color: '#E21B22',
+                  weight: 5,
+                  opacity: 0.95,
+                  lineCap: 'round',
+                  lineJoin: 'round',
+                }}
+              />
+            </>
+          )}
 
-        {validPoints.map((point, index) => {
-          const isOrigin = index === 0;
-          const isDest = index === validPoints.length - 1;
-          const icon = isOrigin ? originIcon : isDest ? destinationIcon : stopIcon(index);
+          {validPoints.map((point, index) => {
+            const isOrigin = index === 0;
+            const isDest = index === validPoints.length - 1;
+            const icon = isOrigin ? originIcon : isDest ? destinationIcon : stopIcon(index);
 
-          return (
-            <Marker key={`${point.lat}-${point.lng}-${index}`} position={[point.lat, point.lng]} icon={icon}>
-              <Popup>
-                <strong>{point.label || (isOrigin ? 'Origem' : isDest ? 'Destino' : `Parada #${index}`)}</strong>
-              </Popup>
-            </Marker>
-          );
-        })}
+            return (
+              <Marker key={`${point.lat}-${point.lng}-${index}`} position={[point.lat, point.lng]} icon={icon}>
+                <Popup>
+                  <strong>{point.label || (isOrigin ? 'Origem' : isDest ? 'Destino' : `Parada #${index}`)}</strong>
+                </Popup>
+              </Marker>
+            );
+          })}
 
-        {displayCoords.length > 0 && <MapBoundsAdjuster coordinates={displayCoords} />}
-      </MapContainer>
+          {displayCoords.length > 0 && <LeafletBoundsAdjuster coordinates={displayCoords} />}
+        </MapContainer>
+      )}
     </div>
   );
 };

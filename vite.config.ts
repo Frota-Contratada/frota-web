@@ -11,5 +11,7 @@ export default defineConfig({
     css: false,
     pool: 'forks',
     testTimeout: 15000,
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    exclude: ['frota-backend/**', 'node_modules/**'],
   },
 });

@@ -1,3 +1,5 @@
+@import '@tomtom-international/web-sdk-maps/dist/maps.css';
+
 * {
   box-sizing: border-box;
 }
