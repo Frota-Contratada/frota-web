@@ -1,9 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input, Select, useToast } from '../../components/common';
-import { branchApi, supplierApi, extractListData, type FilialDto } from '../../services';
-import { formatCnpj, cleanCnpj } from '../../utils';
-import styles from '../Rides/Review/RideReview.module.css';
+import { Button, Input, Select, useToast } from '../../../components/common';
+import { branchApi, supplierApi, extractListData, type FilialDto } from '../../../services';
+import { formatCnpj, cleanCnpj } from '../../../utils';
+import styles from '../../Rides/Review/RideReview.module.css';
 
 export const SupplierCreate = () => {
   const navigate = useNavigate();

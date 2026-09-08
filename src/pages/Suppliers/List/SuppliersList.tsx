@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction, type BadgeStatus } from '../../components/common';
-import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
-import ErroIcon from '../../assets/icons/erro.svg?react';
-import { supplierApi, extractListData, type FornecedorDto, type FornecedorBigNumbers } from '../../services';
-import { formatDocument, type Supplier } from './suppliersData';
-import styles from './Suppliers.module.css';
+import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction, type BadgeStatus } from '../../../components/common';
+import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
+import ErroIcon from '../../../assets/icons/erro.svg?react';
+import { supplierApi, extractListData, type FornecedorDto, type FornecedorBigNumbers } from '../../../services';
+import { formatDocument, type Supplier } from '../suppliersData';
+import styles from './SuppliersList.module.css';
 
 const PAGE_SIZE = 5;
 

@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, LoadingState, StatusBadge, useToast } from '../../components/common';
-import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
-import CheckIcon from '../../assets/icons/check.svg?react';
-import { supplierApi, driverApi, extractListData, type FornecedorDto, type MotoristaDto } from '../../services';
-import { formatDocument } from './suppliersData';
-import { formatCpf } from '../Listings/listingsData';
-import styles from './Suppliers.module.css';
+import { Button, LoadingState, StatusBadge, useToast } from '../../../components/common';
+import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
+import CheckIcon from '../../../assets/icons/check.svg?react';
+import { supplierApi, driverApi, extractListData, type FornecedorDto, type MotoristaDto } from '../../../services';
+import { formatDocument } from '../suppliersData';
+import { formatCpf } from '../../../utils';
+import styles from './SupplierDetails.module.css';
 
 const getInitials = (name: string) =>
   name
