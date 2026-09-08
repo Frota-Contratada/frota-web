@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../components/common';
-import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
-import { branchApi, extractListData, type FilialDto } from '../../services';
-import { formatCnpj } from '../../utils';
-import { type Branch } from './listingsData';
-import styles from './Listings.module.css';
+import { Button, StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../../components/common';
+import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
+import { branchApi, extractListData, type FilialDto } from '../../../services';
+import { formatCnpj } from '../../../utils';
+import { type Branch } from '../branchesData';
+import styles from './BranchesList.module.css';
 
 const PAGE_SIZE = 5;
 

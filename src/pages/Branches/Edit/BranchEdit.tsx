@@ -1,95 +1,67 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button, Input, Select, useToast } from '../../components/common';
-import { LocationPickerMap } from '../../components/maps';
-import { branchApi, collaboratorApi, geoService, extractListData, type ColaboradorDto } from '../../services';
-import { useAuthStore } from '../../stores/authStore';
-import { formatCnpj, cleanCnpj, stateSelectOptions } from '../../utils';
-import styles from '../Rides/Review/RideReview.module.css';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Button, Input, LoadingState, Select, useToast } from '../../../components/common';
+import { LocationPickerMap } from '../../../components/maps';
+import { branchApi, geoService } from '../../../services';
+import { stateSelectOptions } from '../../../utils';
+import styles from '../../Rides/Review/RideReview.module.css';
 
 const stateOptions = stateSelectOptions;
 
-export const BranchCreate = () => {
+export const BranchEdit = () => {
   const navigate = useNavigate();
+  const { branchId } = useParams();
   const { showToast } = useToast();
-  const currentUser = useAuthStore((state) => state.user);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSearchingCep, setIsSearchingCep] = useState(false);
-  const [collaboratorsList, setCollaboratorsList] = useState<ColaboradorDto[]>([]);
 
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isSearchingCep, setIsSearchingCep] = useState(false);
   const [form, setForm] = useState({
     name: '',
-    cnpj: '',
-    administradorId: currentUser?.id ? String(currentUser.id) : '',
-    zipCode: '',
     address: '',
     number: '100',
     neighborhood: '',
     city: '',
-    state: '',
+    state: 'SC',
+    zipCode: '',
     latitude: -26.9078,
     longitude: -48.6619,
   });
 
-  useEffect(() => {
-    collaboratorApi.list().then((res) => {
-      const collabs = extractListData<ColaboradorDto>(res);
-      if (collabs.length > 0) {
-        setCollaboratorsList(collabs);
-        setForm((prev) => ({
-          ...prev,
-          administradorId: prev.administradorId || String(collabs[0].id),
-        }));
-      }
-    }).catch(() => {});
-  }, []);
-
-  const adminOptions = [
-    ...(currentUser?.id
-      ? [{ label: `${currentUser.name} (Você - Atual)`, value: String(currentUser.id) }]
-      : []),
-    ...collaboratorsList
-      .filter((c) => String(c.id) !== String(currentUser?.id))
-      .map((c) => ({ label: `${c.nome} (${c.email})`, value: String(c.id) })),
-  ];
-
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (branchId && !isNaN(Number(branchId))) {
+      setIsInitialLoading(true);
+      branchApi.getById(Number(branchId)).then((res) => {
+        if (res.response) {
+          const b = res.response;
+          setForm({
+            name: b.nome || '',
+            address: b.endereco?.logradouro || '',
+            number: b.endereco?.numero || '100',
+            neighborhood: b.endereco?.bairro || '',
+            city: b.endereco?.cidade || '',
+            state: b.endereco?.uf || 'SC',
+            zipCode: b.endereco?.cep || '',
+            latitude: b.endereco?.latitude || -26.9078,
+            longitude: b.endereco?.longitude || -48.6619,
+          });
+        }
+      }).catch((err) => {
+        const message = err instanceof Error ? err.message : 'Erro ao carregar filial';
+        showToast({ type: 'error', title: message });
+      }).finally(() => {
+        setIsInitialLoading(false);
+      });
+    } else {
+      setIsInitialLoading(false);
+    }
+  }, [branchId, showToast]);
 
   const updateField = (field: keyof typeof form, value: string | number) => {
     setForm((current) => ({ ...current, [field]: value }));
     setValidationErrors((current) => ({ ...current, [field]: '' }));
-  };
-
-  const validate = (): boolean => {
-    const errors: Record<string, string> = {};
-
-    if (!form.name.trim()) errors.name = 'Nome da filial é obrigatório';
-
-    const cnpjLimpo = cleanCnpj(form.cnpj);
-    if (!cnpjLimpo) {
-      errors.cnpj = 'CNPJ é obrigatório';
-    } else if (cnpjLimpo.length !== 14) {
-      errors.cnpj = 'CNPJ deve conter 14 caracteres alfanuméricos';
-    }
-
-    const cleanCep = form.zipCode.replace(/\D/g, '');
-    if (!cleanCep) {
-      errors.zipCode = 'CEP é obrigatório';
-    } else if (cleanCep.length !== 8) {
-      errors.zipCode = 'CEP deve conter 8 dígitos';
-    }
-
-    if (!form.address.trim()) errors.address = 'Endereço é obrigatório';
-    if (!form.neighborhood.trim()) errors.neighborhood = 'Bairro é obrigatório';
-    if (!form.city.trim()) errors.city = 'Cidade é obrigatória';
-    if (!form.state) errors.state = 'Estado (UF) é obrigatório';
-
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleCnpjChange = (val: string) => {
-    updateField('cnpj', formatCnpj(val));
   };
 
   const handleCepChange = async (val: string) => {
@@ -114,11 +86,6 @@ export const BranchCreate = () => {
             latitude: endereco.latitude || current.latitude,
             longitude: endereco.longitude || current.longitude,
           }));
-          showToast({
-            type: 'success',
-            title: 'Endereço localizado',
-            description: `${endereco.cidade} - ${endereco.uf}`,
-          });
         }
       } finally {
         setIsSearchingCep(false);
@@ -140,53 +107,72 @@ export const BranchCreate = () => {
     }
   };
 
+  const validate = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!form.name.trim()) errors.name = 'Nome da filial é obrigatório';
+    if (!form.address.trim()) errors.address = 'Endereço é obrigatório';
+    if (!form.city.trim()) errors.city = 'Cidade é obrigatória';
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validate()) {
-      showToast({ type: 'error', title: 'Erro de validação', description: 'Por favor, preencha os campos obrigatórios.' });
+      showToast({ type: 'error', title: 'Erro de validação', description: 'Por favor, corrija os erros.' });
       return;
     }
 
-    const adminId = Number(form.administradorId || currentUser?.id || 1);
-
     try {
       setIsLoading(true);
-      await branchApi.create({
-        nome: form.name,
-        cnpj: form.cnpj.replace(/\D/g, ''),
-        administradorId: adminId,
-        endereco: {
-          cep: form.zipCode.replace(/\D/g, ''),
-          logradouro: form.address,
-          numero: form.number || '100',
-          bairro: form.neighborhood,
-          cidade: form.city,
-          uf: form.state,
-          latitude: form.latitude,
-          longitude: form.longitude,
-        },
-      });
+      if (branchId && !isNaN(Number(branchId))) {
+        await branchApi.update(Number(branchId), {
+          nome: form.name,
+          endereco: {
+            logradouro: form.address,
+            numero: form.number || '100',
+            bairro: form.neighborhood,
+            cidade: form.city,
+            uf: form.state,
+            cep: form.zipCode.replace(/\D/g, ''),
+            latitude: form.latitude,
+            longitude: form.longitude,
+          },
+        });
+      }
 
       showToast({
         type: 'success',
-        title: 'Filial cadastrada',
-        description: `A filial ${form.name} foi adicionada à base de dados.`,
+        title: 'Filial atualizada',
+        description: `As informações de ${form.name} foram atualizadas com sucesso.`,
       });
-      navigate('/filiais');
+      navigate(`/filiais/${branchId}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao cadastrar filial';
+      const message = err instanceof Error ? err.message : 'Erro ao atualizar filial';
       showToast({ type: 'error', title: message });
     } finally {
       setIsLoading(false);
     }
   };
 
+  if (isInitialLoading) {
+    return (
+      <div className={styles.page}>
+        <LoadingState
+          variant="card"
+          message="Carregando dados da filial"
+          submessage="Preparando formulário de edição..."
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.detailHeader}>
         <div>
-          <h2>Cadastrar Filial</h2>
-          <p>Adicione um novo polo operacional ou escritório administrativo da Seara JBS.</p>
+          <h2>Editar Filial — {form.name || 'Filial'}</h2>
+          <p>Altere o endereço, identificação ou configurações operacionais desta unidade.</p>
         </div>
       </div>
 
@@ -194,15 +180,14 @@ export const BranchCreate = () => {
         <article className={styles.mainCard}>
           <div className={styles.cardHeader}>
             <div>
-              <h3>Identificação da Filial</h3>
-              <p>Preencha os dados institucionais e de registro.</p>
+              <h3>Identificação e Endereço</h3>
+              <p>Dados de localização da unidade.</p>
             </div>
           </div>
 
           <div className={styles.formGrid}>
             <Input
               label="Nome da filial"
-              placeholder="Ex: Seara Itajaí"
               value={form.name}
               onChange={(e) => updateField('name', e.target.value)}
               error={validationErrors.name}
@@ -211,48 +196,16 @@ export const BranchCreate = () => {
             />
 
             <Input
-              label="CNPJ"
-              placeholder="00.000.000/0000-00"
-              value={form.cnpj}
-              onChange={(e) => handleCnpjChange(e.target.value)}
-              error={validationErrors.cnpj}
-              required
-              disabled={isLoading}
-            />
-
-            {adminOptions.length > 0 && (
-              <Select
-                label="Administrador Responsável da Filial"
-                value={form.administradorId}
-                options={adminOptions}
-                onChange={(val) => updateField('administradorId', val)}
-                required
-              />
-            )}
-          </div>
-
-          <div className={styles.cardHeader} style={{ marginTop: '2.5rem' }}>
-            <div>
-              <h3>Endereço e Localização</h3>
-              <p>Informe o CEP para autopreenchimento e ajuste o pin no mapa.</p>
-            </div>
-          </div>
-
-          <div className={styles.formGrid}>
-            <Input
               label="CEP"
               placeholder="00000-000"
               value={form.zipCode}
               onChange={(e) => handleCepChange(e.target.value)}
-              error={validationErrors.zipCode}
-              required
               disabled={isLoading || isSearchingCep}
               rightIcon={isSearchingCep ? <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>Buscando...</span> : undefined}
             />
 
             <Input
-              label="Logradouro (Rua, Av.)"
-              placeholder="Rua, Avenida, etc."
+              label="Endereço (Rua, Av.)"
               value={form.address}
               onChange={(e) => updateField('address', e.target.value)}
               error={validationErrors.address}
@@ -262,7 +215,6 @@ export const BranchCreate = () => {
 
             <Input
               label="Número"
-              placeholder="100"
               value={form.number}
               onChange={(e) => updateField('number', e.target.value)}
               required
@@ -271,17 +223,13 @@ export const BranchCreate = () => {
 
             <Input
               label="Bairro"
-              placeholder="Digite o bairro"
               value={form.neighborhood}
               onChange={(e) => updateField('neighborhood', e.target.value)}
-              error={validationErrors.neighborhood}
-              required
               disabled={isLoading}
             />
 
             <Input
               label="Cidade"
-              placeholder="Digite a cidade"
               value={form.city}
               onChange={(e) => updateField('city', e.target.value)}
               error={validationErrors.city}
@@ -300,12 +248,12 @@ export const BranchCreate = () => {
 
           <div style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
             <span style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-              Ponto da Filial no Mapa
+              Localização da Filial no Mapa
             </span>
             <LocationPickerMap
               latitude={form.latitude}
               longitude={form.longitude}
-              label={form.name || 'Nova Filial'}
+              label={form.name || 'Filial'}
               height={300}
               onChange={handleLocationChange}
             />
@@ -315,17 +263,17 @@ export const BranchCreate = () => {
 
         <aside className={styles.sidePanel}>
           <div className={styles.actionsCard}>
-            <span className={styles.actionsTitle}>Ações do cadastro</span>
+            <span className={styles.actionsTitle}>Ações</span>
 
             <div className={styles.primaryActions}>
-              <Button type="submit" isLoading={isLoading}>Salvar Filial</Button>
+              <Button type="submit" isLoading={isLoading}>Salvar Alterações</Button>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate('/filiais')}
+                onClick={() => navigate(`/filiais/${branchId}`)}
                 disabled={isLoading}
               >
-                Voltar
+                Cancelar
               </Button>
             </div>
           </div>

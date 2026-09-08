@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, LoadingState, StatusBadge, useToast } from '../../components/common';
-import { LocationPickerMap } from '../../components/maps/LocationPickerMap';
-import CheckIcon from '../../assets/icons/check.svg?react';
-import { branchApi, type FilialDto } from '../../services';
-import { formatCnpj } from '../../utils';
-import styles from '../Suppliers/Suppliers.module.css';
+import { Button, LoadingState, StatusBadge, useToast } from '../../../components/common';
+import { LocationPickerMap } from '../../../components/maps/LocationPickerMap';
+import CheckIcon from '../../../assets/icons/check.svg?react';
+import { branchApi, type FilialDto } from '../../../services';
+import { formatCnpj } from '../../../utils';
+import styles from '../../Suppliers/Suppliers.module.css';
 
 const getInitials = (name: string) =>
   name
