@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:api": "node scripts/test-api.mjs"
   },
   "dependencies": {
     "@tomtom-international/web-sdk-maps": "^6.25.0",
