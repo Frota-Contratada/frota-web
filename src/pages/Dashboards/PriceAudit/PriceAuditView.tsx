@@ -11,9 +11,9 @@ import {
   LineChart,
   Line,
 } from 'recharts';
-import { StatCard, Table, TableToolbar, type ColumnDef } from '../../components/common';
-import { priceAuditTableData, type PriceAuditTableRow } from './dashboardsData';
-import styles from './Dashboards.module.css';
+import { StatCard, Table, TableToolbar, type ColumnDef } from '../../../components/common';
+import { priceAuditTableData, type PriceAuditTableRow } from '../dashboardsData';
+import styles from '../Dashboards.module.css';
 
 const doubleBarChartData = [
   { name: 'VIEX', estimado: 45, cobrado: 52 },

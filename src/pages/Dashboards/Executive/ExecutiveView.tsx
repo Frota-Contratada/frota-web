@@ -12,9 +12,9 @@ import {
   Cell,
   Legend,
 } from 'recharts';
-import { StatCard, Table, TableToolbar, StatusBadge, type ColumnDef, type BadgeStatus } from '../../components/common';
-import { executiveTableData, type ExecutiveTableRow } from './dashboardsData';
-import styles from './Dashboards.module.css';
+import { StatCard, Table, TableToolbar, StatusBadge, type ColumnDef, type BadgeStatus } from '../../../components/common';
+import { executiveTableData, type ExecutiveTableRow } from '../dashboardsData';
+import styles from '../Dashboards.module.css';
 
 const lineChartData = [
   { name: 'JAN', valor: 65 },

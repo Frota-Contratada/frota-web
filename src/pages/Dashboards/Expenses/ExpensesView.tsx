@@ -10,9 +10,9 @@ import {
   AreaChart,
   Area,
 } from 'recharts';
-import { StatCard, Table, TableToolbar, type ColumnDef } from '../../components/common';
-import { expensesTableData, type ExpensesTableRow } from './dashboardsData';
-import styles from './Dashboards.module.css';
+import { StatCard, Table, TableToolbar, type ColumnDef } from '../../../components/common';
+import { expensesTableData, type ExpensesTableRow } from '../dashboardsData';
+import styles from '../Dashboards.module.css';
 
 const costCenterChartData = [
   { name: 'RH', valor: 80 },
