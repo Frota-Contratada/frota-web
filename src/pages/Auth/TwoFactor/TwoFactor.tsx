@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type ChangeEvent, type ClipboardEvent, type FormEvent, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, useToast } from '../../components/common';
-import { authApi } from '../../services/auth/authApi';
-import { useAuthStore } from '../../stores/authStore';
-import { useAuth } from '../../hooks/useAuth';
-import emailIcon from '../../assets/icons/email.svg';
-import type { User } from '../../types/auth.types';
-import type { UserProfile } from '../../types/profile.types';
+import { Button, Card, useToast } from '../../../components/common';
+import { authApi } from '../../../services/auth/authApi';
+import { useAuthStore } from '../../../stores/authStore';
+import { useAuth } from '../../../hooks/useAuth';
+import emailIcon from '../../../assets/icons/email.svg';
+import type { User } from '../../../types/auth.types';
+import type { UserProfile } from '../../../types/profile.types';
 import styles from './TwoFactor.module.css';
 
 const CODE_LENGTH = 6;

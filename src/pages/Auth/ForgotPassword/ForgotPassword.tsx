@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input, Card, useToast } from '../../components/common';
-import { authApi } from '../../services/auth/authApi';
-import emailIcon from '../../assets/icons/email.svg';
+import { Button, Input, Card, useToast } from '../../../components/common';
+import { authApi } from '../../../services/auth/authApi';
+import emailIcon from '../../../assets/icons/email.svg';
 import styles from './ForgotPassword.module.css';
 
 const EmailIcon = () => (

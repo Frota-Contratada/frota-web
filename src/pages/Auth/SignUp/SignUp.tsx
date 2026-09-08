@@ -1,27 +1,30 @@
 import { useRef, useState, type ChangeEvent, type ClipboardEvent, type FormEvent, type KeyboardEvent } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Card, useToast } from '../../components/common';
-import { authApi } from '../../services/auth/authApi';
-import cadeadoIcon from '../../assets/icons/cadeado.svg';
-import styles from './ResetPassword.module.css';
+import { useNavigate } from 'react-router-dom';
+import { Button, Input, Card, useToast } from '../../../components/common';
+import { authApi } from '../../../services/auth/authApi';
+import emailIcon from '../../../assets/icons/email.svg';
+import cadeadoIcon from '../../../assets/icons/cadeado.svg';
+import styles from './SignUp.module.css';
 
 const CODE_LENGTH = 6;
 
-interface LocationState {
-  email?: string;
-}
+const EmailIcon = () => (
+  <img src={emailIcon} alt="" width="20" height="20" style={{ display: 'block' }} />
+);
 
 const LockIcon = () => (
   <img src={cadeadoIcon} alt="" width="20" height="20" style={{ display: 'block' }} />
 );
 
-export const ResetPassword = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { showToast } = useToast();
-  const email = (location.state as LocationState)?.email || '';
+type Step = 'email' | 'pin' | 'password';
 
-  const [step, setStep] = useState<'pin' | 'password'>('pin');
+export const SignUp = () => {
+  const navigate = useNavigate();
+  const { showToast } = useToast();
+
+  const [step, setStep] = useState<Step>('email');
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState<string | undefined>();
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -30,11 +33,6 @@ export const ResetPassword = () => {
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
 
   const codeValue = code.join('');
-
-  if (!email) {
-    navigate('/forgot-password', { replace: true });
-    return null;
-  }
 
   const focusInput = (index: number) => {
     inputsRef.current[index]?.focus();
@@ -86,10 +84,33 @@ export const ResetPassword = () => {
     focusInput(Math.min(pasted.length, CODE_LENGTH) - 1);
   };
 
+  const handleEmailSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!email) {
+      setEmailError('Email é obrigatório');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError('Email inválido');
+      return;
+    }
+    try {
+      setIsLoading(true);
+      await authApi.pinEnviar({ tipoToken: 'SIGN_UP', email });
+      showToast({ type: 'success', title: 'Código enviado para seu email.' });
+      setStep('pin');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao enviar código';
+      showToast({ type: 'error', title: message });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleReenviarPin = async () => {
     try {
       setIsLoading(true);
-      await authApi.pinEnviar({ tipoToken: 'REDEFINIR_SENHA', email });
+      await authApi.pinEnviar({ tipoToken: 'SIGN_UP', email });
       showToast({ type: 'success', title: 'Código reenviado para seu email.' });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao reenviar código';
@@ -109,7 +130,7 @@ export const ResetPassword = () => {
     }
     try {
       setIsLoading(true);
-      const res = await authApi.pinConfirmar({ pin: codeValue, email, tipoToken: 'REDEFINIR_SENHA' });
+      const res = await authApi.pinConfirmar({ pin: codeValue, email, tipoToken: 'SIGN_UP' });
       setResetToken(res.response.token);
       setStep('password');
     } catch (err) {
@@ -132,16 +153,53 @@ export const ResetPassword = () => {
     }
     try {
       setIsLoading(true);
-      await authApi.redefinirSenha({ token: resetToken || codeValue, senha: password });
-      showToast({ type: 'success', title: 'Senha redefinida com sucesso.' });
+      await authApi.signUp({ token: resetToken || codeValue, senha: password });
+      showToast({ type: 'success', title: 'Cadastro concluído. Faça seu login.' });
       navigate('/login', { replace: true });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao redefinir senha';
+      const message = err instanceof Error ? err.message : 'Erro ao cadastrar senha';
       showToast({ type: 'error', title: message });
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (step === 'email') {
+    return (
+      <div className={styles.container}>
+        <div className={styles.content}>
+          <Card variant="elevated" padding="lg" className={styles.card}>
+            <div className={styles.header}>
+              <h1 className={styles.title}>Primeiro acesso</h1>
+              <p className={styles.subtitle}>
+                Informe seu email cadastrado para criar sua senha de acesso.
+              </p>
+            </div>
+
+            <form onSubmit={handleEmailSubmit} className={styles.form}>
+              <Input
+                type="email" label="Email" placeholder="seu@email.com"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setEmailError(undefined); }}
+                error={emailError} leftIcon={<EmailIcon />}
+                required autoComplete="email" disabled={isLoading}
+              />
+
+              <Button type="submit" variant="primary" size="lg" fullWidth isLoading={isLoading}>
+                Enviar código
+              </Button>
+            </form>
+
+            <div className={styles.footer}>
+              <button type="button" className={styles.linkButton} onClick={() => navigate('/login')} disabled={isLoading}>
+                Voltar para login
+              </button>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   if (step === 'pin') {
     return (
@@ -199,9 +257,9 @@ export const ResetPassword = () => {
       <div className={styles.content}>
         <Card variant="elevated" padding="lg" className={styles.card}>
           <div className={styles.header}>
-            <h1 className={styles.title}>Redefinir senha</h1>
+            <h1 className={styles.title}>Criar senha</h1>
             <p className={styles.subtitle}>
-              Escolha uma nova senha para sua conta.
+              Escolha uma senha para sua conta.
             </p>
           </div>
 
@@ -211,7 +269,7 @@ export const ResetPassword = () => {
               <input
                 type="password"
                 className={`${styles.passwordInput}${validationError ? ` ${styles.passwordInputError}` : ''}`}
-                placeholder="Nova senha"
+                placeholder="Senha"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setValidationError(null); }}
                 disabled={isLoading}
@@ -241,7 +299,7 @@ export const ResetPassword = () => {
             )}
 
             <Button type="submit" variant="primary" size="lg" fullWidth isLoading={isLoading}>
-              Redefinir senha
+              Criar senha
             </Button>
           </form>
 

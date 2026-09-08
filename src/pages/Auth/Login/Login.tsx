@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import { Button, Input, Card, useToast } from '../../components/common';
-import emailIcon from '../../assets/icons/email.svg';
-import cadeadoIcon from '../../assets/icons/cadeado.svg';
-import searaJbsLogo from '../../assets/images/seara-jbs.svg';
+import { useAuth } from '../../../hooks/useAuth';
+import { Button, Input, Card, useToast } from '../../../components/common';
+import emailIcon from '../../../assets/icons/email.svg';
+import cadeadoIcon from '../../../assets/icons/cadeado.svg';
+import searaJbsLogo from '../../../assets/images/seara-jbs.svg';
 import styles from './Login.module.css';
 
 const EmailIcon = () => (
