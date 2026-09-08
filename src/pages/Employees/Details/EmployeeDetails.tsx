@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import CheckIcon from '../../assets/icons/check.svg?react';
-import { Button, LoadingState, StatusBadge, useToast } from '../../components/common';
-import { collaboratorApi, driverApi, extractListData, type ColaboradorDto, type MotoristaDto } from '../../services';
+import CheckIcon from '../../../assets/icons/check.svg?react';
+import { Button, LoadingState, StatusBadge, useToast } from '../../../components/common';
+import { collaboratorApi, driverApi, extractListData, type ColaboradorDto, type MotoristaDto } from '../../../services';
 import styles from './EmployeeDetails.module.css';
 
 const getInitials = (name: string) => name

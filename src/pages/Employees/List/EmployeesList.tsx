@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { StatCard, Table, TableToolbar, useToast, type ColumnDef, type TableAction } from '../../components/common';
-import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
-import { collaboratorApi, extractListData, type ColaboradorDto, type ColaboradorBigNumbers } from '../../services';
-import { type Employee } from './listingsData';
-import styles from './Listings.module.css';
+import { StatCard, Table, TableToolbar, useToast, type ColumnDef, type TableAction } from '../../../components/common';
+import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
+import { collaboratorApi, extractListData, type ColaboradorDto, type ColaboradorBigNumbers } from '../../../services';
+import { type Employee } from '../employeesData';
+import styles from './EmployeesList.module.css';
 
 const PAGE_SIZE = 5;
 

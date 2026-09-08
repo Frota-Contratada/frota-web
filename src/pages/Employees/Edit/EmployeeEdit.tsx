@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Input, LoadingState, Select, useToast } from '../../components/common';
+import { Button, Input, LoadingState, Select, useToast } from '../../../components/common';
 import {
   collaboratorApi,
   branchApi,
@@ -10,9 +10,9 @@ import {
   type FilialDto,
   type CentroCustoDto,
   type ColaboradorDto,
-} from '../../services';
-import styles from '../Rides/Review/RideReview.module.css';
-import localStyles from './EmployeeCreate.module.css';
+} from '../../../services';
+import styles from '../../Rides/Review/RideReview.module.css';
+import localStyles from './EmployeeEdit.module.css';
 
 const normalizeProfileName = (p: string): string => {
   const upper = p.toUpperCase();
