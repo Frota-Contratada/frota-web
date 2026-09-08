@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../components/common';
-import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
-import { type RideHistory, type RideStatus } from './listingsData';
-import { ridesApi, extractListData, type SolicitacaoDto } from '../../services';
-import { exportToCsv } from '../../utils/exportHelper';
-import styles from './Listings.module.css';
+import { StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../../components/common';
+import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
+import { type RideHistory, type RideStatus } from '../ridesData';
+import { ridesApi, extractListData, type SolicitacaoDto } from '../../../services';
+import { exportToCsv } from '../../../utils/exportHelper';
+import styles from './RideHistory.module.css';
 
 const PAGE_SIZE = 5;
 
