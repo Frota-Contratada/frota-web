@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import CheckIcon from '../../assets/icons/check.svg?react';
-import { Button, LoadingState, StatusBadge, useToast, type BadgeStatus } from '../../components/common';
-import { contractApi, extractListData, type ContratoDto } from '../../services';
-import styles from './Contracts.module.css';
+import CheckIcon from '../../../assets/icons/check.svg?react';
+import { Button, LoadingState, StatusBadge, useToast, type BadgeStatus } from '../../../components/common';
+import { contractApi, extractListData, type ContratoDto } from '../../../services';
+import styles from './ContractDetails.module.css';
 
 type ExtractedField = {
   label: string;

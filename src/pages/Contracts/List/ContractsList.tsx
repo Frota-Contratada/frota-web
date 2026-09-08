@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input, StatCard, StatusBadge, Table, TableToolbar, useToast, type BadgeStatus, type ColumnDef, type FilterSection, type TableAction } from '../../components/common';
-import RedirecionarIcon from '../../assets/icons/redirecionar.svg?react';
-import CheckIcon from '../../assets/icons/check.svg?react';
-import ErroIcon from '../../assets/icons/erro.svg?react';
-import { type Contract } from './contractsData';
-import { contractApi, extractListData, type ContratoDto, type ContratoBigNumbers } from '../../services';
-import styles from './Contracts.module.css';
+import { Button, Input, StatCard, StatusBadge, Table, TableToolbar, useToast, type BadgeStatus, type ColumnDef, type FilterSection, type TableAction } from '../../../components/common';
+import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
+import CheckIcon from '../../../assets/icons/check.svg?react';
+import ErroIcon from '../../../assets/icons/erro.svg?react';
+import { type Contract } from '../contractsData';
+import { contractApi, extractListData, type ContratoDto, type ContratoBigNumbers } from '../../../services';
+import styles from './ContractsList.module.css';
 
 const PAGE_SIZE = 5;
 
