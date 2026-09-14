@@ -27,6 +27,7 @@ dist-ssr
 .env
 .env.*
 
-# Backend folder
+# Backend folders
 frota-backend/
-
+frota-acompanhamento/
+frota-ia/
