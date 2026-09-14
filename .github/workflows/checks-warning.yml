@@ -1,0 +1,98 @@
+name: Web Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Validate web
+    runs-on: ubuntu-latest
+
+    env:
+      VITE_API_URL: http://localhost:3000
+      VITE_WS_URL: http://localhost:3000
+      VITE_ACOMPANHAMENTO_URL: http://localhost:3001
+      VITE_IA_API_URL: http://localhost:8000
+      VITE_TOMTOM_API_KEY: ci-placeholder
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        id: node
+        continue-on-error: true
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.3"
+          cache: npm
+
+      - name: Install dependencies
+        id: install
+        continue-on-error: true
+        run: npm ci
+
+      - name: Build
+        id: build
+        continue-on-error: true
+        run: npm run build
+
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Tests
+        id: tests
+        continue-on-error: true
+        run: npm test
+
+      - name: Validate production image
+        id: docker
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ ! -f Dockerfile ]; then
+            echo "Dockerfile ainda nao criado."
+            exit 1
+          fi
+
+          docker build \
+            -t frota-web:ci \
+            .
+
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          echo "## Web checks" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Check | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+
+          result() {
+            if [ "$2" = "success" ]; then
+              echo "| $1 | ✅ Passed |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "| $1 | ⚠️ $2 |" >> "$GITHUB_STEP_SUMMARY"
+              echo "::warning::$1: $2"
+            fi
+          }
+
+          result "Node.js" "${{ steps.node.outcome }}"
+          result "Dependencies" "${{ steps.install.outcome }}"
+          result "Build" "${{ steps.build.outcome }}"
+          result "Lint" "${{ steps.lint.outcome }}"
+          result "Tests" "${{ steps.tests.outcome }}"
+          result "Docker image" "${{ steps.docker.outcome }}"
