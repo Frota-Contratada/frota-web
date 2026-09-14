@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Input, Spinner } from '../common';
-import { geoService, type SugestaoEndereco } from '../../services/maps/geoService';
+import { Input, Spinner } from '../../common';
+import { geoService, type SugestaoEndereco } from '../../../services/maps/geoService';
 import styles from './AddressAutocomplete.module.css';
 
-interface AddressAutocompleteProps {
+export interface AddressAutocompleteProps {
   label?: string;
   placeholder?: string;
   value: string;
@@ -78,7 +78,11 @@ export const AddressAutocomplete = ({
   };
 
   const handleSelect = (suggestion: SugestaoEndereco) => {
-    const formattedAddress = suggestion.displayName || [suggestion.logradouro, suggestion.bairro, suggestion.cidade, suggestion.uf].filter(Boolean).join(', ');
+    const formattedAddress =
+      suggestion.displayName ||
+      [suggestion.logradouro, suggestion.bairro, suggestion.cidade, suggestion.uf]
+        .filter(Boolean)
+        .join(', ');
     onChange(formattedAddress);
     onSelectAddress?.(suggestion);
     setIsOpen(false);
@@ -104,7 +108,9 @@ export const AddressAutocomplete = ({
         {isOpen && suggestions.length > 0 && (
           <ul className={styles.suggestionsDropdown} role="listbox">
             {suggestions.map((item, index) => {
-              const mainText = [item.logradouro, item.bairro, item.cidade].filter(Boolean).join(', ') || item.displayName.split(',')[0];
+              const mainText =
+                [item.logradouro, item.bairro, item.cidade].filter(Boolean).join(', ') ||
+                item.displayName.split(',')[0];
               return (
                 <li
                   key={`${item.latitude}-${item.longitude}-${index}`}

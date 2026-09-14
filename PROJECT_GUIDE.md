@@ -104,6 +104,14 @@ src/
       MainLayout/
       Sidebar/
       index.ts
+    maps/
+      AddressAutocomplete/
+      LiveTrackingMap/
+      LocationPickerMap/
+      RouteMap/
+      icons/
+      styles/
+      index.ts
   hooks/
     useAuth.ts
     usePermissions.ts
@@ -128,6 +136,12 @@ src/
       authService.ts
     platform/
       platformApi.ts
+    maps/
+      geoService.ts
+      routingService.ts
+      openFreeMap.ts
+      tomtomConfig.ts
+      index.ts
     rides/
       ridesApi.ts
     index.ts
@@ -144,6 +158,7 @@ Responsabilidades:
 
 - `components/common`: componentes reutilizáveis e independentes de domínio.
 - `components/layout`: shell da aplicação autenticada: sidebar, header, conteúdo.
+- `components/maps`: componentes visuais de mapa, autocompletion de endereço e telemetria.
 - `pages`: telas por módulo/domínio.
 - `routes`: declaração das rotas e guards.
 - `services`: camada preparada para API NestJS.

@@ -1,0 +1,386 @@
+/* Estilos para mapa vetorial OpenFreeMap + MapLibre GL no frota-web */
+
+.maplibregl-map {
+  width: 100%;
+  height: 100%;
+  background-color: #f1f5f9 !important;
+  font-family: inherit;
+}
+
+.maplibregl-ctrl-bottom-right {
+  right: 8px;
+  bottom: 8px;
+  z-index: 5;
+}
+
+.maplibregl-ctrl-attrib {
+  border-radius: 6px;
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.75) !important;
+  backdrop-filter: blur(4px);
+}
+
+/* ============================================================
+   PINOS E MARCADORES CUSTOMIZADOS
+   ============================================================ */
+
+.custom-map-pin {
+  border: 0 !important;
+  background: transparent !important;
+  pointer-events: none;
+  user-select: none;
+}
+
+.custom-map-pin-interactive {
+  border: 0 !important;
+  background: transparent !important;
+  cursor: grab;
+  user-select: none;
+}
+
+.custom-map-pin-interactive:active {
+  cursor: grabbing;
+}
+
+/* Pino de Origem */
+.map-origin-pin {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border: 3.5px solid #ffffff;
+  border-radius: 50%;
+  background: #2563eb;
+  box-shadow: 0 3px 12px rgba(37, 99, 235, 0.45);
+  position: relative;
+}
+
+.map-origin-pin::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid rgba(37, 99, 235, 0.35);
+  animation: map-pulse 2.2s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
+}
+
+/* Pino de Destino */
+.map-destination-pin {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 3px solid #ffffff;
+  border-radius: 50% 50% 50% 6px;
+  background: linear-gradient(135deg, #1e224f 0%, #0f172a 100%);
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.35);
+  transform: rotate(-45deg);
+}
+
+.map-destination-pin svg {
+  width: 18px;
+  height: 18px;
+  transform: rotate(45deg);
+}
+
+/* Pino de Parada Intermediária */
+.map-stop-pin {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 2.5px solid #ffffff;
+  border-radius: 50%;
+  background: #0ea5e9;
+  color: #ffffff;
+  font: 700 12px/1 system-ui, sans-serif;
+  box-shadow: 0 3px 10px rgba(14, 165, 233, 0.38);
+}
+
+/* Pino de Localização / Filial (LocationPicker) */
+.map-location-picker-pin {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: grab;
+}
+
+.map-location-picker-pin:active {
+  cursor: grabbing;
+}
+
+.map-location-picker-pin-inner {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 3px solid #ffffff;
+  border-radius: 50% 50% 50% 6px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.45);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.map-location-picker-pin-inner svg {
+  width: 17px;
+  height: 17px;
+  transform: rotate(45deg);
+}
+
+.map-location-picker-pin:hover .map-location-picker-pin-inner {
+  transform: rotate(-45deg) scale(1.1);
+}
+
+/* ============================================================
+   MARCADOR DO VEÍCULO (TELEMETRIA AO VIVO)
+   ============================================================ */
+
+.map-vehicle-wrapper {
+  border: 0 !important;
+  background: transparent !important;
+  pointer-events: none;
+  user-select: none;
+  width: 52px;
+  height: 52px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-vehicle-shadow {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(15, 23, 42, 0.22) 0%, rgba(15, 23, 42, 0.08) 50%, transparent 75%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.map-vehicle-disc {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1e224f 0%, #171b3e 100%);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.35);
+  position: relative;
+  z-index: 2;
+  transition: transform 0.25s cubic-bezier(0.12, 0.9, 0.24, 1);
+}
+
+.map-vehicle-heading {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #38bdf8;
+}
+
+.map-vehicle-heading svg {
+  width: 22px;
+  height: 22px;
+  fill: #38bdf8;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+}
+
+/* ============================================================
+   POPUPS & CONTROLES
+   ============================================================ */
+
+.traffic-map-popup .maplibregl-popup-content {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.traffic-map-popup .maplibregl-popup-tip {
+  border-top-color: #ffffff;
+}
+
+@keyframes map-pulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.9;
+  }
+
+  70% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+/* ============================================================
+   MODO TELA CHEIA (FULLSCREEN COCKPIT)
+   ============================================================ */
+
+.map-fullscreen-active {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 99999 !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* ============================================================
+   PAINEL DE CONTROLE DE REPLAY / PLAYBACK
+   ============================================================ */
+
+.map-playback-container {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(100% - 28px), 540px);
+  z-index: 10;
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 10px 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #f8fafc;
+  user-select: none;
+}
+
+.map-playback-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.map-playback-play-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: none;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.map-playback-play-btn:hover {
+  background: #1d4ed8;
+  transform: scale(1.06);
+}
+
+.map-playback-play-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.map-playback-slider-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.map-playback-slider {
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+
+.map-playback-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #38bdf8;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.map-playback-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+}
+
+.map-playback-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.map-playback-speeds {
+  display: flex;
+  gap: 4px;
+}
+
+.map-playback-speed-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 6px;
+  padding: 3px 8px;
+  color: #cbd5e1;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.map-playback-speed-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.map-playback-speed-btn.active {
+  background: #38bdf8;
+  color: #0f172a;
+}
+
+.map-playback-telemetry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #e2e8f0;
+}
+
+.map-playback-telemetry strong {
+  color: #38bdf8;
+}

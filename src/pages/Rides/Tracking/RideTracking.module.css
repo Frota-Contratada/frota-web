@@ -80,6 +80,125 @@
   font-size: 0.875rem;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Modo de Câmera (Passageiro vs 3D) */
+.cameraToggleGroup {
+  display: inline-flex;
+  align-items: center;
+  background: #e2e8f0;
+  padding: 3px;
+  border-radius: 12px;
+}
+
+.cameraToggleBtn {
+  border: none;
+  background: transparent;
+  padding: 6px 14px;
+  border-radius: 9px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cameraToggleBtnActive {
+  background: #ffffff;
+  color: #1e224f;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  font-weight: 700;
+}
+
+.cameraToggleBtn svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Painel de Telemetria Resumida (Inspirado no passengerRideCard) */
+.passengerSummaryCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-xl, 1rem);
+  padding: 1.25rem 1.5rem;
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr auto;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.etaBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.etaBlock strong {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #1e224f;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.etaBlock span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.metricBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-left: 1.5rem;
+  border-left: 1px solid #e2e8f0;
+}
+
+.metricBlock strong {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.metricBlock span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.trafficChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.trafficChipDelayed {
+  background: #fff4e5;
+  color: #b54708;
+  border-color: #fed7aa;
+}
+
 .statsGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -251,9 +370,21 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background-color: #10b981;
+  background-color: #2563eb;
   border: 2.5px solid #ffffff;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.4);
+}
+
+.timelineDotStop {
+  position: absolute;
+  left: -1.5rem;
+  top: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: #0ea5e9;
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.4);
 }
 
 .timelineDotDest {
@@ -263,9 +394,9 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background-color: #ef4444;
+  background-color: #1e224f;
   border: 2.5px solid #ffffff;
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.4);
+  box-shadow: 0 0 0 2px rgba(30, 34, 79, 0.4);
 }
 
 .timelineItem small {
@@ -288,10 +419,21 @@
   .statsGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .passengerSummaryCard {
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  .metricBlock {
+    padding-left: 0;
+    border-left: none;
+  }
 }
 
 @media (max-width: 640px) {
   .statsGrid {
+    grid-template-columns: 1fr;
+  }
+  .passengerSummaryCard {
     grid-template-columns: 1fr;
   }
   .page {
