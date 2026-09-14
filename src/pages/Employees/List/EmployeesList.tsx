@@ -1,10 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { StatCard, Table, TableToolbar, useToast, type ColumnDef, type TableAction } from '../../../components/common';
+import { StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction, type BadgeStatus } from '../../../components/common';
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
 import { collaboratorApi, extractListData, type ColaboradorDto, type ColaboradorBigNumbers } from '../../../services';
-import { type Employee } from '../employeesData';
 import styles from './EmployeesList.module.css';
+
+export type Employee = {
+  id: number;
+  name: string;
+  branch: string | null;
+  supplier: string | null;
+  searaCode: string | null;
+  email: string;
+  role: string | null;
+  cpf: string | null;
+  available: boolean;
+  activatedAt: string;
+  deactivatedAt: string | null;
+  profiles: string[];
+  status: BadgeStatus;
+};
 
 const PAGE_SIZE = 5;
 
@@ -109,19 +124,96 @@ export const EmployeesList = () => {
     };
   }, [showToast]);
 
+  const filterSections = useMemo<FilterSection[]>(() => {
+    const allProfiles = Array.from(new Set(employeesList.flatMap((e) => e.profiles))).filter(Boolean).sort();
+    const roles = Array.from(new Set(employeesList.map((e) => e.role).filter(Boolean))).sort() as string[];
+    const branches = Array.from(new Set(employeesList.map((e) => e.branch).filter(Boolean))).sort() as string[];
+
+    const sections: FilterSection[] = [];
+
+    if (allProfiles.length > 0) {
+      const formatProfileLabel = (p: string) => {
+        const map: Record<string, string> = {
+          ADMINISTRADOR_FILIAL: 'Administrador de Filial',
+          ADMINISTRADOR_MATRIZ: 'Administrador Matriz',
+          APROVADOR: 'Aprovador',
+          SOLICITANTE: 'Solicitante',
+          SOLICITANTE_EMERGENCIA: 'Solicitante de Emergência',
+          MOTORISTA: 'Motorista',
+        };
+        return map[p] || p;
+      };
+
+      sections.push({
+        id: 'perfil',
+        title: 'Perfil de Acesso',
+        options: allProfiles.map((p) => ({
+          label: formatProfileLabel(p),
+          value: `perfil:${p}`,
+        })),
+      });
+    }
+
+    if (roles.length > 0) {
+      sections.push({
+        id: 'cargo',
+        title: 'Cargo',
+        options: roles.map((r) => ({
+          label: r,
+          value: `cargo:${r}`,
+        })),
+      });
+    }
+
+    if (branches.length > 0) {
+      sections.push({
+        id: 'filial',
+        title: 'Filial',
+        options: branches.map((b) => ({
+          label: b,
+          value: `filial:${b}`,
+        })),
+      });
+    }
+
+    return sections;
+  }, [employeesList]);
+
   const filteredEmployees = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
+    const perfilFilters = selectedFilters
+      .filter((f) => f.startsWith('perfil:'))
+      .map((f) => f.replace('perfil:', ''));
+    const cargoFilters = selectedFilters
+      .filter((f) => f.startsWith('cargo:'))
+      .map((f) => f.replace('cargo:', ''));
+    const filialFilters = selectedFilters
+      .filter((f) => f.startsWith('filial:'))
+      .map((f) => f.replace('filial:', ''));
 
     return employeesList.filter((employee) => {
       const matchesQuery =
         normalizedQuery.length === 0 ||
         employee.name.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
         employee.email.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
-        (employee.role ?? '').toLocaleLowerCase('pt-BR').includes(normalizedQuery);
+        (employee.role ?? '').toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
+        (employee.branch ?? '').toLocaleLowerCase('pt-BR').includes(normalizedQuery);
 
-      return matchesQuery;
+      const matchesPerfil =
+        perfilFilters.length === 0 ||
+        employee.profiles.some((p) => perfilFilters.includes(p));
+
+      const matchesCargo =
+        cargoFilters.length === 0 ||
+        (employee.role && cargoFilters.includes(employee.role));
+
+      const matchesFilial =
+        filialFilters.length === 0 ||
+        (employee.branch && filialFilters.includes(employee.branch));
+
+      return matchesQuery && matchesPerfil && matchesCargo && matchesFilial;
     });
-  }, [query, employeesList]);
+  }, [query, selectedFilters, employeesList]);
 
   const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / PAGE_SIZE));
   const pageData = filteredEmployees.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -172,11 +264,17 @@ export const EmployeesList = () => {
               description: 'A lista de colaboradores será preparada em instantes.',
             })
           }
-          filterSections={[]}
+          filterSections={filterSections}
           selectedFilters={selectedFilters}
           onFilterChange={(values) => {
             setSelectedFilters(values);
             setCurrentPage(1);
+          }}
+          onFilterApply={() => showToast({ type: 'success', title: 'Filtro aplicado', description: 'A tabela foi atualizada.' })}
+          onFilterClear={() => {
+            setSelectedFilters([]);
+            setCurrentPage(1);
+            showToast({ type: 'info', title: 'Filtros limpos' });
           }}
         />
 
