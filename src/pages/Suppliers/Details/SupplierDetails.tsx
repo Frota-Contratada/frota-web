@@ -4,7 +4,7 @@ import { Button, LoadingState, StatusBadge, useToast } from '../../../components
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
 import CheckIcon from '../../../assets/icons/check.svg?react';
 import { supplierApi, driverApi, extractListData, type FornecedorDto, type MotoristaDto } from '../../../services';
-import { formatDocument } from '../suppliersData';
+import { formatDocument } from '../List';
 import { formatCpf } from '../../../utils';
 import styles from './SupplierDetails.module.css';
 

@@ -4,29 +4,34 @@ import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type Colu
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
 import ErroIcon from '../../../assets/icons/erro.svg?react';
 import { supplierApi, extractListData, type FornecedorDto, type FornecedorBigNumbers } from '../../../services';
-import { formatDocument, type Supplier } from '../suppliersData';
 import styles from './SuppliersList.module.css';
 
-const PAGE_SIZE = 5;
+export type Supplier = {
+  id: number;
+  name: string;
+  document: string;
+  filePath: string | null;
+  activatedAt: string;
+  deactivatedAt: string | null;
+  linkedBranches: number;
+  linkedContracts: number;
+  vehicles: number;
+  status: BadgeStatus;
+};
 
-const filterSections: FilterSection[] = [
-  {
-    title: 'Status',
-    options: [
-      { label: 'Ativo', value: 'status:aprovado' },
-      { label: 'Pendente', value: 'status:pendente' },
-      { label: 'Em andamento', value: 'status:em_andamento' },
-      { label: 'Inativo', value: 'status:cancelado' },
-    ],
-  },
-  {
-    title: 'Vínculos',
-    options: [
-      { label: 'Com contrato', value: 'link:contrato' },
-      { label: 'Sem contrato', value: 'link:sem-contrato' },
-    ],
-  },
-];
+export const formatDocument = (document: string) => {
+  if (document.length === 14) {
+    return document.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+  }
+
+  if (document.length === 11) {
+    return document.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+  }
+
+  return document;
+};
+
+const PAGE_SIZE = 5;
 
 const columns: ColumnDef<Supplier>[] = [
   {
@@ -184,6 +189,51 @@ export const SuppliersList = () => {
     }
   };
 
+  const filterSections = useMemo<FilterSection[]>(() => {
+    const statuses = Array.from(new Set(suppliersList.map((s) => s.status))).filter(Boolean);
+    const hasWithContract = suppliersList.some((s) => s.linkedContracts > 0);
+    const hasWithoutContract = suppliersList.some((s) => s.linkedContracts === 0);
+    const hasVehicles = suppliersList.some((s) => s.vehicles > 0);
+    const hasNoVehicles = suppliersList.some((s) => s.vehicles === 0);
+
+    const sections: FilterSection[] = [];
+
+    if (statuses.length > 0) {
+      sections.push({
+        id: 'status',
+        title: 'Status do Fornecedor',
+        options: statuses.map((status) => ({
+          label: status === 'aprovado' ? 'Ativo / Aprovado' : status === 'cancelado' ? 'Inativo / Cancelado' : status === 'pendente' ? 'Pendente' : 'Em andamento',
+          value: `status:${status}`,
+        })),
+      });
+    }
+
+    const linkOptions = [];
+    if (hasWithContract) linkOptions.push({ label: 'Com contrato vigente', value: 'link:contrato' });
+    if (hasWithoutContract) linkOptions.push({ label: 'Sem contrato vigente', value: 'link:sem-contrato' });
+    if (linkOptions.length > 0) {
+      sections.push({
+        id: 'contratos',
+        title: 'Contratos',
+        options: linkOptions,
+      });
+    }
+
+    const vehicleOptions = [];
+    if (hasVehicles) vehicleOptions.push({ label: 'Com veículos na frota', value: 'veiculos:com' });
+    if (hasNoVehicles) vehicleOptions.push({ label: 'Sem veículos cadastrados', value: 'veiculos:sem' });
+    if (vehicleOptions.length > 0) {
+      sections.push({
+        id: 'veiculos',
+        title: 'Frota de Veículos',
+        options: vehicleOptions,
+      });
+    }
+
+    return sections;
+  }, [suppliersList]);
+
   const filteredSuppliers = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
     const statusFilters = selectedFilters
@@ -192,6 +242,9 @@ export const SuppliersList = () => {
     const linkFilters = selectedFilters
       .filter((filter) => filter.startsWith('link:'))
       .map((filter) => filter.replace('link:', ''));
+    const vehicleFilters = selectedFilters
+      .filter((filter) => filter.startsWith('veiculos:'))
+      .map((filter) => filter.replace('veiculos:', ''));
 
     return suppliersList.filter((supplier) => {
       const matchesQuery =
@@ -205,8 +258,12 @@ export const SuppliersList = () => {
         linkFilters.length === 0 ||
         (linkFilters.includes('contrato') && supplier.linkedContracts > 0) ||
         (linkFilters.includes('sem-contrato') && supplier.linkedContracts === 0);
+      const matchesVehicles =
+        vehicleFilters.length === 0 ||
+        (vehicleFilters.includes('com') && supplier.vehicles > 0) ||
+        (vehicleFilters.includes('sem') && supplier.vehicles === 0);
 
-      return matchesQuery && matchesStatus && matchesLinks;
+      return matchesQuery && matchesStatus && matchesLinks && matchesVehicles;
     });
   }, [suppliersList, query, selectedFilters]);
 
