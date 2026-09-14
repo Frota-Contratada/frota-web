@@ -72,7 +72,9 @@ export const authApi = {
   },
 
   logout() {
-    return apiClient.post<void>('/autenticacao/logout');
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('refresh_token');
+    return Promise.resolve();
   },
 };
 

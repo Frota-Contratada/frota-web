@@ -77,34 +77,73 @@ const breadcrumbMap: Record<string, BreadcrumbItem[]> = {
   ],
 };
 
-const notifications = [
-  {
-    id: 1,
-    title: 'Nova solicitação de corrida',
-    description: 'Rafael Mendes solicitou uma corrida operacional.',
-    time: 'Agora',
-    unread: true,
-  },
-  {
-    id: 2,
-    title: 'Contrato próximo do vencimento',
-    description: 'Mobilidade Prime possui contrato vencendo em 15 dias.',
-    time: '1h atrás',
-    unread: true,
-  },
-  {
-    id: 3,
-    title: 'Fornecedor aprovado',
-    description: 'Transporte Executivo BR foi aprovado para novas corridas.',
-    time: 'Ontem',
-    unread: false,
-  },
-];
+import { notificationApi, type NotificacaoDto } from '../../../services';
 
 export const Header = () => {
   const location = useLocation();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notificationsList, setNotificationsList] = useState<NotificacaoDto[]>([]);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
+
+  const fetchNotificationCount = async () => {
+    try {
+      const res = await notificationApi.getUnreadCount();
+      if (typeof res?.response?.quantidade === 'number') {
+        setUnreadCount(res.response.quantidade);
+      }
+    } catch {
+      // Falha silenciosa se token expirou ou offline
+    }
+  };
+
+  const fetchNotificationsList = async () => {
+    try {
+      setIsLoadingNotifications(true);
+      const res = await notificationApi.list();
+      if (Array.isArray(res?.response)) {
+        setNotificationsList(res.response);
+      }
+    } catch {
+      setNotificationsList([]);
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotificationCount();
+    const interval = setInterval(fetchNotificationCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (isNotificationsOpen) {
+      fetchNotificationsList();
+    }
+  }, [isNotificationsOpen]);
+
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      await notificationApi.markAsRead(id);
+      setNotificationsList((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, lidaEm: new Date().toISOString() } : n))
+      );
+      setUnreadCount((count) => Math.max(0, count - 1));
+    } catch {
+      // Ignorar erro
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    const unread = notificationsList.filter((n) => !n.lidaEm);
+    await Promise.allSettled(unread.map((n) => notificationApi.markAsRead(n.id)));
+    setNotificationsList((prev) =>
+      prev.map((n) => ({ ...n, lidaEm: n.lidaEm || new Date().toISOString() }))
+    );
+    setUnreadCount(0);
+  };
   const isContractDetails = location.pathname.startsWith('/terceiros/contratos/');
   const isSupplierDetails = location.pathname.startsWith('/terceiros/fornecedores/');
   const isEmployeeDetails = location.pathname.startsWith('/colaboradores/');
@@ -221,7 +260,9 @@ export const Header = () => {
               onClick={() => setIsNotificationsOpen((current) => !current)}
             >
               <img src={notificacoesIcon} alt="" className={styles.notificationIcon} />
-              <span className={styles.badge}>3</span>
+              {unreadCount > 0 && (
+                <span className={styles.badge}>{unreadCount > 99 ? '99+' : unreadCount}</span>
+              )}
             </button>
 
             {isNotificationsOpen && (
@@ -229,25 +270,47 @@ export const Header = () => {
                 <div className={styles.notificationsHeader}>
                   <div>
                     <strong>Notificações</strong>
-                    <span>3 atualizações recentes</span>
+                    <span>{unreadCount > 0 ? `${unreadCount} não ${unreadCount === 1 ? 'lida' : 'lidas'}` : 'Todas as mensagens lidas'}</span>
                   </div>
-                  <button type="button" className={styles.markReadButton}>Marcar como lidas</button>
+                  {unreadCount > 0 && (
+                    <button type="button" className={styles.markReadButton} onClick={handleMarkAllAsRead}>
+                      Marcar como lidas
+                    </button>
+                  )}
                 </div>
 
                 <div className={styles.notificationsList}>
-                  {notifications.map((notification) => (
-                    <button type="button" className={styles.notificationItem} key={notification.id}>
-                      <span className={`${styles.notificationDot} ${notification.unread ? styles.notificationUnread : ''}`} />
-                      <span className={styles.notificationContent}>
-                        <strong>{notification.title}</strong>
-                        <span>{notification.description}</span>
-                        <small>{notification.time}</small>
-                      </span>
-                    </button>
-                  ))}
+                  {isLoadingNotifications ? (
+                    <div style={{ padding: '1.25rem', textAlign: 'center', color: '#6b7280', fontSize: '0.875rem' }}>
+                      Carregando notificações...
+                    </div>
+                  ) : notificationsList.length === 0 ? (
+                    <div style={{ padding: '1.5rem', textAlign: 'center', color: '#6b7280', fontSize: '0.875rem' }}>
+                      Nenhuma notificação encontrada.
+                    </div>
+                  ) : (
+                    notificationsList.map((notification) => {
+                      const isUnread = !notification.lidaEm;
+                      return (
+                        <button
+                          type="button"
+                          className={styles.notificationItem}
+                          key={notification.id}
+                          onClick={() => isUnread && handleMarkAsRead(notification.id)}
+                        >
+                          <span className={`${styles.notificationDot} ${isUnread ? styles.notificationUnread : ''}`} />
+                          <span className={styles.notificationContent}>
+                            <strong>{notification.titulo}</strong>
+                            <span>{notification.mensagem}</span>
+                            <small>
+                              {notification.criadaEm ? new Date(notification.criadaEm).toLocaleString('pt-BR') : ''}
+                            </small>
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
-
-                <button type="button" className={styles.viewAllButton}>Ver todas as notificações</button>
               </div>
             )}
           </div>

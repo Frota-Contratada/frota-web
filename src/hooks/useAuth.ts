@@ -19,32 +19,22 @@ export const useAuth = () => {
         localStorage.setItem('auth_token', accessToken);
         localStorage.setItem('refresh_token', refreshToken);
 
-        let user: User;
-        try {
-          const meResponse = await authApi.me();
-          const meData = meResponse.response;
-          const mainProfile = (meData.perfis && meData.perfis.length > 0)
-            ? (meData.perfis[0].tipoPerfil as UserProfile)
-            : ('admin-master' as UserProfile);
+        const meResponse = await authApi.me();
+        const meData = meResponse.response;
+        const mainProfile = (meData.perfis && meData.perfis.length > 0)
+          ? (meData.perfis[0].tipoPerfil as UserProfile)
+          : ('solicitante' as UserProfile);
 
-          user = {
-            id: String(meData.id),
-            name: meData.nome,
-            email: meData.email,
-            cpf: meData.cpf,
-            profile: mainProfile,
-            fotoPerfil: meData.fotoPerfil,
-            dataAtivacao: meData.dataAtivacao,
-            perfis: meData.perfis,
-          };
-        } catch {
-          user = {
-            id: '1',
-            name: credentials.email.split('@')[0],
-            email: credentials.email,
-            profile: 'admin-master',
-          };
-        }
+        const user: User = {
+          id: String(meData.id),
+          name: meData.nome,
+          email: meData.email,
+          cpf: meData.cpf,
+          profile: mainProfile,
+          fotoPerfil: meData.fotoPerfil,
+          dataAtivacao: meData.dataAtivacao,
+          perfis: meData.perfis,
+        };
 
         storeLogin(user, accessToken, refreshToken);
         navigate('/visao-executiva', { replace: true });

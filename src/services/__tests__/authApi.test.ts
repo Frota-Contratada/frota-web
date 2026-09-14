@@ -103,11 +103,13 @@ describe('authApi', () => {
     expect(result.response.nome).toBe('Admin User');
   });
 
-  it('calls logout', async () => {
-    const postSpy = vi.spyOn(apiClient, 'post').mockResolvedValue(undefined);
+  it('cleans session tokens on logout', async () => {
+    localStorage.setItem('auth_token', 'test-token');
+    localStorage.setItem('refresh_token', 'test-refresh');
 
     await authApi.logout();
 
-    expect(postSpy).toHaveBeenCalledWith('/autenticacao/logout');
+    expect(localStorage.getItem('auth_token')).toBeNull();
+    expect(localStorage.getItem('refresh_token')).toBeNull();
   });
 });
