@@ -10,6 +10,7 @@ export interface FilterOption {
 }
 
 export interface FilterSection {
+  id?: string;
   title: string;
   options: FilterOption[];
 }
