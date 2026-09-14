@@ -66,8 +66,12 @@ export const contractApi = {
   create(data: CriarContratoParams) {
     const formData = new FormData();
     formData.append('arquivo', data.arquivo);
-    const inicio = data.dataVigenciaInicio || data.dataInicioVigencia || new Date().toISOString();
-    const fim = data.dataVigenciaFim || data.dataFimVigencia;
+    const formatToDateOnly = (d?: string) => {
+      if (!d) return undefined;
+      return d.includes('T') ? d.split('T')[0] : d;
+    };
+    const inicio = formatToDateOnly(data.dataVigenciaInicio || data.dataInicioVigencia) || new Date().toISOString().split('T')[0];
+    const fim = formatToDateOnly(data.dataVigenciaFim || data.dataFimVigencia);
 
     formData.append('dataVigenciaInicio', inicio);
     if (fim) {
@@ -111,22 +115,6 @@ export const contractApi = {
 
   getPdfBlob(id: number) {
     return apiClient.getBlob(`/contrato/${id}`);
-  },
-
-  atualizarVigencia(id: number, data: { dataVigenciaInicio?: string; dataVigenciaFim?: string }) {
-    return apiClient.patch<ContratoResponse>(`/contrato/${id}/vigencia`, data);
-  },
-
-  ativar(id: number) {
-    return apiClient.patch<ContratoResponse>(`/contrato/${id}/ativar`, {});
-  },
-
-  inativar(id: number) {
-    return apiClient.patch<ContratoResponse>(`/contrato/${id}/inativar`, {});
-  },
-
-  toggleStatus(id: number, ativoAtual: boolean) {
-    return ativoAtual ? this.inativar(id) : this.ativar(id);
   },
 };
 
