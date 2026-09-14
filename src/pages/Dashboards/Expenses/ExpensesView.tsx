@@ -1,190 +1,187 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { StatCard, Table, TableToolbar, type ColumnDef, StatusBadge } from '../../../components/common';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-} from 'recharts';
-import { StatCard, Table, TableToolbar, type ColumnDef } from '../../../components/common';
-import { expensesTableData, type ExpensesTableRow } from '../dashboardsData';
+  costCenterApi,
+  ridesApi,
+  extractListData,
+  type CentroCustoDto,
+  type SolicitacaoDto,
+} from '../../../services';
 import styles from '../Dashboards.module.css';
 
-const costCenterChartData = [
-  { name: 'RH', valor: 80 },
-  { name: 'Qualidade', valor: 25 },
-  { name: 'Jurídico', valor: 78 },
-  { name: 'Financeiro', valor: 45 },
-  { name: 'Engenharia', valor: 90 },
-];
+export interface ExpensesRow {
+  id: number;
+  centroCusto: string;
+  nome: string;
+  aprovador: string;
+  ativo: boolean;
+}
 
-const monthlyExpensesData = [
-  { name: 'Jan', valor: 12000 },
-  { name: 'Fev', valor: 15000 },
-  { name: 'Mar', valor: 18000 },
-  { name: 'Abr', valor: 14000 },
-  { name: 'Mai', valor: 20000 },
-  { name: 'Jun', valor: 17000 },
-];
-
-const columns: ColumnDef<ExpensesTableRow>[] = [
+const columns: ColumnDef<ExpensesRow>[] = [
   {
     key: 'centroCusto',
-    header: 'Centro de custo',
+    header: 'Centro de Custo',
     sortable: true,
     render: (val) => <strong className={styles.primaryText}>{String(val)}</strong>,
   },
-  { key: 'responsavel', header: 'Responsável', sortable: true },
+  { key: 'nome', header: 'Nome do Centro', sortable: true },
+  { key: 'aprovador', header: 'Aprovador Vinculado', sortable: true },
   {
-    key: 'valor',
-    header: 'Valor total',
+    key: 'ativo',
+    header: 'Status',
     sortable: true,
-    render: (val) => <strong>{String(val)}</strong>,
+    render: (val) => <StatusBadge status={val ? 'aprovado' : 'cancelado'} />,
   },
 ];
 
 export const ExpensesView = () => {
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [costCenters, setCostCenters] = useState<CentroCustoDto[]>([]);
+  const [rides, setRides] = useState<SolicitacaoDto[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+
+    Promise.allSettled([
+      costCenterApi.list(),
+      ridesApi.list(),
+    ]).then(([ccRes, ridesRes]) => {
+      if (!isMounted) return;
+
+      if (ccRes.status === 'fulfilled') {
+        setCostCenters(extractListData<CentroCustoDto>(ccRes.value));
+      }
+      if (ridesRes.status === 'fulfilled') {
+        setRides(extractListData<SolicitacaoDto>(ridesRes.value));
+      }
+    }).finally(() => {
+      if (isMounted) setIsLoading(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const tableData: ExpensesRow[] = useMemo(() => {
+    return costCenters.map((cc) => ({
+      id: cc.numero,
+      centroCusto: `CC-${cc.numero}`,
+      nome: cc.nome,
+      aprovador: cc.temAprovador ? 'Vinculado' : 'Pendente',
+      ativo: cc.ativo !== false,
+    }));
+  }, [costCenters]);
 
   const expensesFilterSections = [
     {
-      title: 'Período',
+      title: 'Status',
       options: [
-        { label: 'Últimos 7 dias', value: 'periodo:7d' },
-        { label: 'Últimos 30 dias', value: 'periodo:30d' },
-        { label: 'Este mês', value: 'periodo:mes' },
-        { label: 'Último trimestre', value: 'periodo:tri' },
+        { label: 'Ativo', value: 'status:ativo' },
+        { label: 'Inativo', value: 'status:inativo' },
       ],
     },
     {
-      title: 'Colaborador / Responsável',
+      title: 'Aprovador',
       options: [
-        { label: 'Carla Nogueira', value: 'resp:Carla Nogueira' },
-        { label: 'Diego Prado', value: 'resp:Diego Prado' },
-        { label: 'Eduarda Lima', value: 'resp:Eduarda Lima' },
-        { label: 'Carlos Eduardo', value: 'resp:Carlos Eduardo' },
-        { label: 'Fernanda Souza', value: 'resp:Fernanda Souza' },
-      ],
-    },
-    {
-      title: 'Centro de Custo',
-      options: [
-        { label: 'CT-410203', value: 'cc:CT-410203' },
-        { label: 'CT-122132', value: 'cc:CT-122132' },
-        { label: 'CT-672652', value: 'cc:CT-672652' },
-        { label: 'CT-096443', value: 'cc:CT-096443' },
-        { label: 'CT-875426', value: 'cc:CT-875426' },
+        { label: 'Com aprovador', value: 'aprovador:Vinculado' },
+        { label: 'Sem aprovador', value: 'aprovador:Pendente' },
       ],
     },
   ];
 
-  const filteredData = expensesTableData.filter((item) => {
+  const filteredData = tableData.filter((item) => {
     if (selectedFilters.length === 0) return true;
-    const ccFilters = selectedFilters.filter(f => f.startsWith('cc:')).map(f => f.replace('cc:', ''));
-    const respFilters = selectedFilters.filter(f => f.startsWith('resp:')).map(f => f.replace('resp:', ''));
+    const statusFilters = selectedFilters.filter(f => f.startsWith('status:')).map(f => f.replace('status:', ''));
+    const aprovadorFilters = selectedFilters.filter(f => f.startsWith('aprovador:')).map(f => f.replace('aprovador:', ''));
 
-    const matchesCc = ccFilters.length === 0 || ccFilters.includes(item.centroCusto);
-    const matchesResp = respFilters.length === 0 || respFilters.includes(item.responsavel);
+    const matchesStatus = statusFilters.length === 0 || statusFilters.includes(item.ativo ? 'ativo' : 'inativo');
+    const matchesAprovador = aprovadorFilters.length === 0 || aprovadorFilters.includes(item.aprovador);
 
-    return matchesCc && matchesResp;
+    return matchesStatus && matchesAprovador;
   });
+
+  const totalSpent = rides.reduce((sum, r) => {
+    const val = Number(r.corrida?.valorFinal ?? r.valorEstimado ?? 0);
+    return sum + (isNaN(val) ? 0 : val);
+  }, 0);
+
+  const ccsWithApprover = costCenters.filter((c) => c.temAprovador).length;
 
   return (
     <div className={styles.page}>
-      {}
       <TableToolbar
         filterSections={expensesFilterSections}
         selectedFilters={selectedFilters}
         onFilterChange={setSelectedFilters}
       />
 
-      {}
       <section className={styles.statsGrid}>
-        <StatCard title="Gasto total" value="R$ 20.000" />
-        <StatCard title="Preço médio" value="R$ 229" />
-        <StatCard title="Top centro de custo" value="CT-13313" />
-        <StatCard title="Maior preço" value="R$ 600" />
+        <StatCard
+          title="Centros de custo cadastrados"
+          value={String(costCenters.length)}
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Com aprovador atribuído"
+          value={String(ccsWithApprover)}
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Total estimado de viagens"
+          value={totalSpent > 0 ? `R$ ${totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Solicitações alocadas"
+          value={String(rides.length)}
+          isLoading={isLoading}
+        />
       </section>
 
-      {}
       <section className={styles.chartsGrid}>
-        {}
         <article className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <div>
               <span className={styles.chartEyebrow}>Estatísticas</span>
-              <h3 className={styles.chartTitle}>Maiores gastos por centro de custo</h3>
+              <h3 className={styles.chartTitle}>Gastos agregados por centro de custo</h3>
             </div>
           </div>
 
           <div className={styles.chartContainer}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                layout="vertical"
-                data={costCenterChartData}
-                margin={{ top: 10, right: 20, left: 10, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
-                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
-                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#374151' }} />
-                <Tooltip
-                  formatter={(val: any) => [`${val}%`, 'Participação']}
-                  contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
-                />
-                <Bar dataKey="valor" fill="#0052cc" radius={[0, 4, 4, 0]} barSize={16} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#6b7280', textAlign: 'center', padding: '1rem', background: 'var(--color-surface, #f9fafb)', borderRadius: '8px', border: '1px dashed #d1d5db' }}>
+              <span style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#374151' }}>Métrica Analítica em Preparação</span>
+              <small>O backend ainda não possui endpoint de agregação contábil por centro de custo. Gráfico preparado para integração futura.</small>
+            </div>
           </div>
         </article>
 
-        {}
         <article className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <div>
               <span className={styles.chartEyebrow}>Estatísticas</span>
-              <h3 className={styles.chartTitle}>Evolução mensal de gastos</h3>
+              <h3 className={styles.chartTitle}>Evolução mensal de despesas</h3>
             </div>
           </div>
 
           <div className={styles.chartContainer}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={monthlyExpensesData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="expensesGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00a3ff" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#00a3ff" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: '#6b7280' }}
-                  tickFormatter={(val) => `R$${val / 1000}k`}
-                />
-                <Tooltip
-                  formatter={(val: any) => [`R$ ${Number(val).toLocaleString('pt-BR')}`, 'Gasto']}
-                  contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
-                />
-                <Area type="monotone" dataKey="valor" stroke="#00a3ff" strokeWidth={3} fillOpacity={1} fill="url(#expensesGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#6b7280', textAlign: 'center', padding: '1rem', background: 'var(--color-surface, #f9fafb)', borderRadius: '8px', border: '1px dashed #d1d5db' }}>
+              <span style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#374151' }}>Métrica Analítica em Preparação</span>
+              <small>Aguardando disponibilização de série temporal de liquidação financeira no backend.</small>
+            </div>
           </div>
         </article>
       </section>
 
-      {}
       <section className={styles.tableSection}>
         <Table
           columns={columns}
           data={filteredData}
-          keyExtractor={(row) => row.id}
-          emptyMessage="Nenhum gasto encontrado."
+          keyExtractor={(item) => item.id}
+          emptyMessage="Nenhum centro de custo registrado."
+          isLoading={isLoading}
         />
       </section>
     </div>

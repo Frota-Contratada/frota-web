@@ -123,32 +123,24 @@ export interface CancelarSolicitacaoParams {
 
 
 export const ridesApi = {
-  getMotivos() {
-    return apiClient.get<{ response: MotivoSolicitacaoDto[] }>('/solicitacoes/catalogos/motivos');
+  getMotivos(tipo?: 'solicitacao' | 'cancelamento' | 'recusa') {
+    return apiClient.get<{ response: MotivoSolicitacaoDto[] }>('/solicitacoes/motivos', {
+      query: tipo ? { tipo } : undefined,
+    });
   },
 
   getMotivosCancelamento() {
-    return apiClient
-      .get<{ response: MotivoSolicitacaoDto[] }>('/solicitacoes/catalogos/motivos', {
-        query: { tipo: 2 },
-      })
-      .catch(() => ({
-        response: [
-          { id: 1, nome: 'Mudança de agenda / Reunião cancelada' },
-          { id: 2, nome: 'Solicitação duplicada' },
-          { id: 3, nome: 'Alteração no trajeto ou horário' },
-          { id: 4, nome: 'Desistência do passageiro' },
-          { id: 5, nome: 'Outro motivo administrativo' },
-        ],
-      }));
+    return apiClient.get<{ response: MotivoSolicitacaoDto[] }>('/solicitacoes/motivos', {
+      query: { tipo: 'cancelamento' },
+    });
   },
 
   getTiposCorrida() {
-    return apiClient.get<{ response: TipoCorridaDto[] }>('/solicitacoes/catalogos/tipos-corrida');
+    return apiClient.get<{ response: TipoCorridaDto[] }>('/solicitacoes/tipos-corrida');
   },
 
   getTiposVeiculo() {
-    return apiClient.get<{ response: TipoVeiculoDto[] }>('/solicitacoes/catalogos/tipos-veiculo');
+    return apiClient.get<{ response: TipoVeiculoDto[] }>('/solicitacoes/tipos-veiculo');
   },
 
   getViagens(query?: { dataInicio?: string; dataFim?: string }) {
@@ -173,12 +165,18 @@ export const ridesApi = {
     return apiClient.get<{ response: SolicitacaoDto }>(`/solicitacoes/${id}`);
   },
 
-  aprovar(id: number) {
-    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/aprovar`, {});
+  /**
+   * @deprecated Endpoint ainda não suportado no backend (pendente implementação de endpoint de decisão pelo aprovador)
+   */
+  aprovar(_id: number): Promise<{ response: SolicitacaoDto }> {
+    return Promise.reject(new Error('Funcionalidade de aprovação de solicitação ainda não implementada no backend.'));
   },
 
-  rejeitar(id: number, motivo?: string) {
-    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/rejeitar`, { motivo });
+  /**
+   * @deprecated Endpoint ainda não suportado no backend (pendente implementação de endpoint de decisão pelo aprovador)
+   */
+  rejeitar(_id: number, _motivo?: string): Promise<{ response: SolicitacaoDto }> {
+    return Promise.reject(new Error('Funcionalidade de reprovação de solicitação ainda não implementada no backend.'));
   },
 
   approveRequest(requestId: number) {

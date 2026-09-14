@@ -39,7 +39,7 @@ describe('ridesApi - Cancelamento pelo aprovador/solicitante', () => {
     });
   });
 
-  it('fetches cancellation motives from catalog with tipo: 2', async () => {
+  it('fetches cancellation motives from /solicitacoes/motivos with tipo: cancelamento', async () => {
     const mockMotivos = {
       response: [
         { id: 1, nome: 'Mudança de agenda' },
@@ -51,8 +51,8 @@ describe('ridesApi - Cancelamento pelo aprovador/solicitante', () => {
 
     const result = await ridesApi.getMotivosCancelamento();
 
-    expect(getSpy).toHaveBeenCalledWith('/solicitacoes/catalogos/motivos', {
-      query: { tipo: 2 },
+    expect(getSpy).toHaveBeenCalledWith('/solicitacoes/motivos', {
+      query: { tipo: 'cancelamento' },
     });
     expect(result.response).toHaveLength(2);
     expect(result.response[0].nome).toBe('Mudança de agenda');

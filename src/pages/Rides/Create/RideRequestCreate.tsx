@@ -10,7 +10,6 @@ import type { SugestaoEndereco } from '../../../services/maps/geoService';
 import {
   ridesApi,
   costCenterApi,
-  DEFAULT_CENTROS_CUSTO,
   supplierApi,
   collaboratorApi,
   extractListData,
@@ -74,27 +73,45 @@ export const RideRequestCreate = () => {
   const [selectedSupplierId, setSelectedSupplierId] = useState(0);
   const [backendMotivos, setBackendMotivos] = useState<MotivoSolicitacaoDto[]>([]);
   const [backendTiposCorrida, setBackendTiposCorrida] = useState<TipoCorridaDto[]>([]);
-  const [backendCentrosCusto, setBackendCentrosCusto] = useState<CentroCustoDto[]>(DEFAULT_CENTROS_CUSTO);
+  const [backendCentrosCusto, setBackendCentrosCusto] = useState<CentroCustoDto[]>([]);
   const [availableSuppliers, setAvailableSuppliers] = useState<FornecedorDto[]>([]);
   const [collaboratorsList, setCollaboratorsList] = useState<ColaboradorDto[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const userName = currentUser?.name || 'Usuário Atual';
 
-  const [originLocation, setOriginLocation] = useState<{ address: string; lat: number; lng: number }>({
+  const [originLocation, setOriginLocation] = useState<{
+    address: string;
+    lat: number;
+    lng: number;
+    cidade?: string;
+    uf?: string;
+  }>({
     address: '',
     lat: -23.3045,
     lng: -51.1696,
+    cidade: '',
+    uf: '',
   });
 
-  const [destinationLocation, setDestinationLocation] = useState<{ address: string; lat: number; lng: number }>({
+  const [destinationLocation, setDestinationLocation] = useState<{
+    address: string;
+    lat: number;
+    lng: number;
+    cidade?: string;
+    uf?: string;
+  }>({
     address: '',
     lat: -23.3128,
     lng: -51.1585,
+    cidade: '',
+    uf: '',
   });
 
   const [calculatedDistanceKm, setCalculatedDistanceKm] = useState<number>(0);
   const [calculatedDurationMin, setCalculatedDurationMin] = useState<number>(0);
+  const [simulatedValue, setSimulatedValue] = useState<number | null>(null);
+  const [isSimulating, setIsSimulating] = useState<boolean>(false);
 
   const [form, setForm] = useState({
     requester: userName,
@@ -104,7 +121,7 @@ export const RideRequestCreate = () => {
     destination: '',
     rideAt: new Date(Date.now() + 3600000).toISOString().slice(0, 16),
     rideType: 'Executiva',
-    costCenter: '101',
+    costCenter: '',
     passengers: '1',
     passengerCpfs: [''],
     reason: 'Reunião externa',
@@ -138,9 +155,10 @@ export const RideRequestCreate = () => {
       }
       if (ccRes.status === 'fulfilled') {
         const ccs = extractListData<CentroCustoDto>(ccRes.value);
-        const list = ccs.length > 0 ? ccs : DEFAULT_CENTROS_CUSTO;
-        setBackendCentrosCusto(list);
-        setForm((prev) => ({ ...prev, costCenter: prev.costCenter || String(list[0]?.numero ?? 101) }));
+        setBackendCentrosCusto(ccs);
+        if (ccs.length > 0) {
+          setForm((prev) => ({ ...prev, costCenter: prev.costCenter || String(ccs[0].numero) }));
+        }
       }
       if (suppRes.status === 'fulfilled') {
         const supps = extractListData<FornecedorDto>(suppRes.value);
@@ -156,6 +174,54 @@ export const RideRequestCreate = () => {
     }).catch(() => {});
   }, []);
 
+  const runSimulation = async (originLat?: number, originLng?: number, destLat?: number, destLng?: number) => {
+    const latO = originLat ?? originLocation.lat;
+    const lngO = originLng ?? originLocation.lng;
+    const latD = destLat ?? destinationLocation.lat;
+    const lngD = destLng ?? destinationLocation.lng;
+
+    if (!form.origin || !form.destination || !latO || !latD) return;
+
+    try {
+      setIsSimulating(true);
+      const selectedTipo = backendTiposCorrida.find((t) => t.nome === form.rideType);
+      const res = await ridesApi.simular({
+        dataCorrida: form.rideAt ? new Date(form.rideAt).toISOString() : new Date().toISOString(),
+        tipoCorridaId: selectedTipo?.id ?? 1,
+        origem: {
+          logradouro: form.origin,
+          cidade: originLocation.cidade || 'São Paulo',
+          uf: originLocation.uf || 'SP',
+          latitude: latO,
+          longitude: lngO,
+        },
+        destino: {
+          logradouro: form.destination,
+          cidade: destinationLocation.cidade || originLocation.cidade || 'São Paulo',
+          uf: destinationLocation.uf || originLocation.uf || 'SP',
+          latitude: latD,
+          longitude: lngD,
+        },
+      });
+
+      if (res?.response) {
+        if (typeof res.response.valorEstimado === 'number') {
+          setSimulatedValue(res.response.valorEstimado);
+        }
+        if (typeof res.response.distanciaKm === 'number') {
+          setCalculatedDistanceKm(res.response.distanciaKm);
+        }
+        if (typeof res.response.duracaoMinutos === 'number') {
+          setCalculatedDurationMin(res.response.duracaoMinutos);
+        }
+      }
+    } catch {
+      setSimulatedValue(null);
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
   const beneficiaryOptions = useMemo(() => {
     if (collaboratorsList.length > 0) {
       return collaboratorsList.map((c) => ({ label: c.nome, value: c.nome }));
@@ -169,12 +235,14 @@ export const RideRequestCreate = () => {
   );
 
   const estimatedKm = calculatedDistanceKm > 0 ? `${calculatedDistanceKm.toLocaleString('pt-BR')} km` : 'A calcular';
-  const estimatedValue = calculatedDistanceKm > 0
-    ? `R$ ${(calculatedDistanceKm * 5.2 + 25).toLocaleString('pt-BR', {
+  const estimatedValue = simulatedValue !== null
+    ? `R$ ${simulatedValue.toLocaleString('pt-BR', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       })}`
-    : 'R$ 0,00';
+    : isSimulating
+      ? 'Calculando simulação...'
+      : 'A simular';
 
   const rideTypeOptions = backendTiposCorrida.length > 0
     ? backendTiposCorrida.map((t) => ({ label: t.nome, value: t.nome }))
@@ -185,8 +253,7 @@ export const RideRequestCreate = () => {
     : defaultReasonOptions;
 
   const costCenterOptions = useMemo(() => {
-    const list = backendCentrosCusto.length > 0 ? backendCentrosCusto : DEFAULT_CENTROS_CUSTO;
-    return list.map((cc) => ({
+    return backendCentrosCusto.map((cc) => ({
       label: `${cc.nome} (Nº ${cc.numero})`,
       value: String(cc.numero),
     }));
@@ -203,19 +270,38 @@ export const RideRequestCreate = () => {
   };
 
   const handleSelectOrigin = (sug: SugestaoEndereco) => {
-    setOriginLocation({ address: sug.displayName, lat: sug.latitude, lng: sug.longitude });
+    setOriginLocation({
+      address: sug.displayName,
+      lat: sug.latitude,
+      lng: sug.longitude,
+      cidade: sug.cidade || '',
+      uf: sug.uf || '',
+    });
     updateField('origin', sug.displayName);
+    if (destinationLocation.address) {
+      runSimulation(sug.latitude, sug.longitude, destinationLocation.lat, destinationLocation.lng);
+    }
   };
 
   const handleSelectDestination = (sug: SugestaoEndereco) => {
-    setDestinationLocation({ address: sug.displayName, lat: sug.latitude, lng: sug.longitude });
+    setDestinationLocation({
+      address: sug.displayName,
+      lat: sug.latitude,
+      lng: sug.longitude,
+      cidade: sug.cidade || '',
+      uf: sug.uf || '',
+    });
     updateField('destination', sug.displayName);
+    if (originLocation.address) {
+      runSimulation(originLocation.lat, originLocation.lng, sug.latitude, sug.longitude);
+    }
   };
 
   const handleRouteCalculated = (res: RouteResult) => {
     if (res.distanceKm > 0) {
       setCalculatedDistanceKm(res.distanceKm);
       setCalculatedDurationMin(res.durationMinutes);
+      runSimulation();
     }
   };
 
@@ -317,7 +403,7 @@ export const RideRequestCreate = () => {
 
   const goNext = () => {
     if (!validateCurrentStep()) return;
-
+    runSimulation();
     setCurrentStep((step) => Math.min(step + 1, 3) as RequestStep);
   };
   const goBack = () => setCurrentStep((step) => Math.max(step - 1, 1) as RequestStep);
@@ -331,21 +417,26 @@ export const RideRequestCreate = () => {
       const selectedMotivo = backendMotivos.find((m) => m.nome === form.reason);
       const selectedCcId = Number(form.costCenter) || backendCentrosCusto[0]?.numero || 101;
 
+      const origemCidade = originLocation.cidade || destinationLocation.cidade || 'São Paulo';
+      const origemUf = originLocation.uf || destinationLocation.uf || 'SP';
+      const destinoCidade = destinationLocation.cidade || originLocation.cidade || 'São Paulo';
+      const destinoUf = destinationLocation.uf || originLocation.uf || 'SP';
+
       await ridesApi.create({
         dataCorrida: new Date(form.rideAt).toISOString(),
         tipoCorridaId: selectedTipo?.id ?? 1,
         motivoSolicitacaoId: selectedMotivo?.id ?? 1,
         origem: {
           logradouro: form.origin,
-          cidade: 'Londrina',
-          uf: 'PR',
+          cidade: origemCidade,
+          uf: origemUf,
           latitude: originLocation.lat,
           longitude: originLocation.lng,
         },
         destino: {
           logradouro: form.destination,
-          cidade: 'Londrina',
-          uf: 'PR',
+          cidade: destinoCidade,
+          uf: destinoUf,
           latitude: destinationLocation.lat,
           longitude: destinationLocation.lng,
         },

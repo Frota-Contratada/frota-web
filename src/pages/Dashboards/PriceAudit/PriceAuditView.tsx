@@ -1,36 +1,28 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { StatCard, Table, TableToolbar, type ColumnDef, StatusBadge, type BadgeStatus } from '../../../components/common';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-} from 'recharts';
-import { StatCard, Table, TableToolbar, type ColumnDef } from '../../../components/common';
-import { priceAuditTableData, type PriceAuditTableRow } from '../dashboardsData';
+  supplierApi,
+  ridesApi,
+  extractListData,
+  type FornecedorDto,
+  type SolicitacaoDto,
+} from '../../../services';
 import styles from '../Dashboards.module.css';
 
-const doubleBarChartData = [
-  { name: 'VIEX', estimado: 45, cobrado: 52 },
-  { name: 'CARS COMPANY', estimado: 30, cobrado: 28 },
-  { name: 'EXPRESS', estimado: 60, cobrado: 68 },
-  { name: 'FRETADO', estimado: 80, cobrado: 82 },
-];
+export interface AuditRideRow {
+  id: number;
+  data: string;
+  solicitante: string;
+  email: string;
+  origem: string;
+  destino: string;
+  distanciaEstimada: string;
+  distanciaPercorrida: string;
+  status: BadgeStatus;
+  preco: string;
+}
 
-const deviationTrendData = [
-  { name: 'Semana 1', desvio: 2.1 },
-  { name: 'Semana 2', desvio: 4.8 },
-  { name: 'Semana 3', desvio: 3.2 },
-  { name: 'Semana 4', desvio: 6.5 },
-  { name: 'Semana 5', desvio: 5.0 },
-];
-
-const columns: ColumnDef<PriceAuditTableRow>[] = [
+const columns: ColumnDef<AuditRideRow>[] = [
   { key: 'data', header: 'Data', sortable: true },
   {
     key: 'solicitante',
@@ -43,18 +35,19 @@ const columns: ColumnDef<PriceAuditTableRow>[] = [
       </div>
     ),
   },
-  { key: 'fornecedor', header: 'Fornecedor', sortable: true },
-  { key: 'distanciaEstimada', header: 'Distância estimada' },
-  { key: 'distanciaPercorrida', header: 'Distância percorrida' },
+  { key: 'origem', header: 'Origem', sortable: true },
+  { key: 'destino', header: 'Destino', sortable: true },
+  { key: 'distanciaEstimada', header: 'KM Estimado' },
+  { key: 'distanciaPercorrida', header: 'KM Real' },
   {
-    key: 'desvios',
-    header: 'Desvio',
+    key: 'status',
+    header: 'Status',
     sortable: true,
-    render: (val) => <span style={{ color: '#d97706', fontWeight: 600 }}>{String(val)}</span>,
+    render: (_, row) => <StatusBadge status={row.status} />,
   },
   {
     key: 'preco',
-    header: 'Preço',
+    header: 'Valor',
     sortable: true,
     render: (val) => <strong className={styles.primaryText}>{String(val)}</strong>,
   },
@@ -62,101 +55,155 @@ const columns: ColumnDef<PriceAuditTableRow>[] = [
 
 export const PriceAuditView = () => {
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [suppliers, setSuppliers] = useState<FornecedorDto[]>([]);
+  const [rides, setRides] = useState<SolicitacaoDto[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+
+    Promise.allSettled([
+      supplierApi.list(),
+      ridesApi.list(),
+    ]).then(([suppRes, ridesRes]) => {
+      if (!isMounted) return;
+
+      if (suppRes.status === 'fulfilled') {
+        setSuppliers(extractListData<FornecedorDto>(suppRes.value));
+      }
+      if (ridesRes.status === 'fulfilled') {
+        setRides(extractListData<SolicitacaoDto>(ridesRes.value));
+      }
+    }).finally(() => {
+      if (isMounted) setIsLoading(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const tableData: AuditRideRow[] = useMemo(() => {
+    return rides.map((r) => {
+      const rawStatus = (r.status || '').toUpperCase();
+      let badgeStatus: BadgeStatus = 'em_andamento';
+      if (rawStatus === 'CONCLUIDA' || rawStatus === 'FINALIZADA') badgeStatus = 'aprovado';
+      else if (rawStatus === 'CANCELADA' || rawStatus === 'RECUSADA') badgeStatus = 'cancelado';
+      else if (rawStatus === 'PENDENTE' || rawStatus === 'AGUARDANDO_APROVACAO') badgeStatus = 'pendente';
+
+      const valorCalculado = r.corrida?.valorFinal ?? r.valorEstimado;
+      const precoFmt = valorCalculado
+        ? `R$ ${Number(valorCalculado).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+        : '—';
+
+      return {
+        id: r.id,
+        data: r.dataCorrida ? new Date(r.dataCorrida).toLocaleDateString('pt-BR') : '—',
+        solicitante: r.solicitanteNome || 'Colaborador',
+        email: '—',
+        origem: r.origem?.logradouro || r.origem?.cidade || '—',
+        destino: r.destino?.logradouro || r.destino?.cidade || '—',
+        distanciaEstimada: (r.distanciaEstimadaKm ?? r.distanciaKm) ? `${r.distanciaEstimadaKm ?? r.distanciaKm} km` : '—',
+        distanciaPercorrida: r.corrida?.kmPercorrido ? `${r.corrida.kmPercorrido} km` : '—',
+        status: badgeStatus,
+        preco: precoFmt,
+      };
+    });
+  }, [rides]);
 
   const priceAuditFilterSections = [
     {
-      title: 'Fornecedor',
+      title: 'Status',
       options: [
-        { label: 'Viex', value: 'fornecedor:Viex' },
-        { label: 'Fretado', value: 'fornecedor:Fretado' },
-        { label: 'Express', value: 'fornecedor:Express' },
-        { label: 'Cars Company', value: 'fornecedor:Cars Company' },
+        { label: 'Concluído', value: 'status:aprovado' },
+        { label: 'Pendente', value: 'status:pendente' },
+        { label: 'Em andamento', value: 'status:em_andamento' },
       ],
     },
   ];
 
-  const filteredData = priceAuditTableData.filter((item) => {
+  const filteredData = tableData.filter((item) => {
     if (selectedFilters.length === 0) return true;
     return selectedFilters.some((filter) => {
       const [key, val] = filter.split(':');
-      if (key === 'fornecedor') return item.fornecedor === val;
+      if (key === 'status') return item.status === val;
       return true;
     });
   });
 
   return (
     <div className={styles.page}>
-      {}
       <TableToolbar
         filterSections={priceAuditFilterSections}
         selectedFilters={selectedFilters}
         onFilterChange={setSelectedFilters}
       />
 
-      {}
       <section className={styles.statsGrid}>
-        <StatCard title="Sobrepreço total" value="R$ 54" />
-        <StatCard title="Corridas com desvio alto" value="23" />
-        <StatCard title="Maior desvio do período" value="10%" />
-        <StatCard title="Fornecedores em risco" value="64" />
+        <StatCard
+          title="Fornecedores homologados"
+          value={String(suppliers.length)}
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Solicitações monitoradas"
+          value={String(rides.length)}
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Conformidade de rota"
+          value="Em auditoria"
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Auditoria de desvios"
+          value="Regular"
+          isLoading={isLoading}
+        />
       </section>
 
-      {}
       <section className={styles.chartsGrid}>
-        {}
         <article className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <div>
               <span className={styles.chartEyebrow}>Estatísticas</span>
-              <h3 className={styles.chartTitle}>Conformidade de quilometragem</h3>
+              <h3 className={styles.chartTitle}>Conformidade de quilometragem estimada vs real</h3>
             </div>
           </div>
 
           <div className={styles.chartContainer}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={doubleBarChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6b7280' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
-                <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
-                <Legend verticalAlign="top" height={36} />
-                <Bar dataKey="estimado" name="KM estimado" fill="#00a3ff" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="cobrado" name="KM cobrado" fill="#70d6ff" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#6b7280', textAlign: 'center', padding: '1rem', background: 'var(--color-surface, #f9fafb)', borderRadius: '8px', border: '1px dashed #d1d5db' }}>
+              <span style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#374151' }}>Métrica Analítica em Preparação</span>
+              <small>O backend ainda não disponibiliza endpoint de telemetria comparativa de KM por fornecedor. Gráfico preparado para integração futura.</small>
+            </div>
           </div>
         </article>
 
-        {}
         <article className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <div>
               <span className={styles.chartEyebrow}>Estatísticas</span>
-              <h3 className={styles.chartTitle}>Evolução de desvios médios (%)</h3>
+              <h3 className={styles.chartTitle}>Evolução de desvios tarifários</h3>
             </div>
           </div>
 
           <div className={styles.chartContainer}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={deviationTrendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} tickFormatter={(val) => `${val}%`} />
-                <Tooltip formatter={(val: any) => [`${val}%`, 'Desvio médio']} contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
-                <Line type="monotone" dataKey="desvio" stroke="#d97706" strokeWidth={3} dot={{ r: 5, fill: '#d97706' }} />
-              </LineChart>
-            </ResponsiveContainer>
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#6b7280', textAlign: 'center', padding: '1rem', background: 'var(--color-surface, #f9fafb)', borderRadius: '8px', border: '1px dashed #d1d5db' }}>
+              <span style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#374151' }}>Métrica Analítica em Preparação</span>
+              <small>Aguardando disponibilização de modelo analítico de auditoria de sobrepreço no backend.</small>
+            </div>
           </div>
         </article>
       </section>
 
-      {}
       <section className={styles.tableSection}>
         <Table
           columns={columns}
           data={filteredData}
-          keyExtractor={(row) => row.id}
-          emptyMessage="Nenhum registro de auditoria encontrado."
+          keyExtractor={(item) => item.id}
+          emptyMessage="Nenhuma corrida registrada para auditoria."
+          isLoading={isLoading}
         />
       </section>
     </div>

@@ -135,52 +135,6 @@ export const RideReview = () => {
   const goNext = () => setCurrentStep((step) => Math.min(step + 1, 3) as ReviewStep);
   const goBack = () => setCurrentStep((step) => Math.max(step - 1, 1) as ReviewStep);
 
-  const finishReview = async () => {
-    if (!solicitacao) return;
-    try {
-      setIsSubmitting(true);
-      await ridesApi.aprovar(solicitacao.id);
-      showToast({
-        type: 'success',
-        title: 'Solicitação aprovada',
-        description: `A solicitação #${solicitacao.id} foi aprovada com sucesso.`,
-      });
-      navigate('/corridas/solicitacoes');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Falha ao aprovar a solicitação no servidor';
-      showToast({
-        type: 'error',
-        title: 'Erro na aprovação',
-        description: msg,
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const rejectReview = async () => {
-    if (!solicitacao) return;
-    try {
-      setIsSubmitting(true);
-      await ridesApi.rejeitar(solicitacao.id, 'Reprovado na revisão de rota');
-      showToast({
-        type: 'warning',
-        title: 'Solicitação reprovada',
-        description: `A solicitação #${solicitacao.id} foi recusada.`,
-      });
-      navigate('/corridas/solicitacoes');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Falha ao recusar a solicitação no servidor';
-      showToast({
-        type: 'error',
-        title: 'Erro na reprovação',
-        description: msg,
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const cancelReview = async () => {
     if (!solicitacao) return;
     try {
@@ -233,13 +187,9 @@ export const RideReview = () => {
 
   return (
     <div className={styles.page}>
-      {solicitacao.valorEstimado && Number(solicitacao.valorEstimado) > 0 && (
-        <div className={styles.priceNoticeBanner} role="status">
-          <div>
-            <strong>Aviso de Atualização Tarifária:</strong> O valor desta solicitação ({estimatedValue}) foi calculado com base na quilometragem estimada ({estimatedKm}) e na tabela de preços do fornecedor selecionado.
-          </div>
-        </div>
-      )}
+      <div style={{ padding: '0.875rem 1rem', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '8px', color: '#92400e', marginBottom: '1.25rem', fontSize: '0.875rem' }}>
+        <strong>Aviso do Sistema:</strong> Os endpoints de decisão (aprovação e reprovação) pelo aprovador ainda não estão disponíveis no backend atual. As ações correspondentes estão desabilitadas para evitar erros de comunicação (404). O cancelamento da solicitação está plenamente funcional.
+      </div>
 
       <nav className={styles.stepper} aria-label="Etapas da revisão">
         {steps.map((step) => {
@@ -395,8 +345,12 @@ export const RideReview = () => {
               {currentStep < 3 ? (
                 <Button onClick={goNext}>Próximo</Button>
               ) : (
-                <Button leftIcon={<CheckIcon width={16} height={16} />} onClick={finishReview} isLoading={isSubmitting}>
-                  Finalizar revisão
+                <Button
+                  leftIcon={<CheckIcon width={16} height={16} />}
+                  disabled={true}
+                  title="Endpoint de aprovação ainda não implementado no backend"
+                >
+                  Aprovação pendente no backend
                 </Button>
               )}
               {currentStep > 1 && (
@@ -411,10 +365,10 @@ export const RideReview = () => {
                 className={styles.rejectButton}
                 variant="outline"
                 leftIcon={<ErroIcon width={14} height={14} />}
-                onClick={rejectReview}
-                isLoading={isSubmitting}
+                disabled={true}
+                title="Endpoint de reprovação ainda não implementado no backend"
               >
-                Reprovar solicitação
+                Reprovação pendente no backend
               </Button>
               <Button
                 className={styles.modalCancelButton}
@@ -438,23 +392,14 @@ export const RideReview = () => {
           <div className={styles.modalCard}>
             <div className={styles.modalHeader}>
               <h3 id="cancel-modal-title">Cancelar solicitação #{solicitacao.id}</h3>
-              <p>Confirme o cancelamento desta corrida. Esta ação invalidará o pedido de transporte.</p>
+              <p>Confirme o cancelamento desta corrida. Esta ação cancelará o pedido de transporte.</p>
             </div>
 
             <Select
               label="Motivo do cancelamento *"
               value={selectedCancelReasonId}
               onChange={(val) => setSelectedCancelReasonId(val)}
-              options={
-                cancelReasons.length > 0
-                  ? cancelReasons.map((m) => ({ label: m.nome, value: String(m.id) }))
-                  : [
-                      { label: 'Mudança de agenda / Reunião cancelada', value: '1' },
-                      { label: 'Solicitação duplicada', value: '2' },
-                      { label: 'Alteração no trajeto ou horário', value: '3' },
-                      { label: 'Desistência do passageiro', value: '4' },
-                    ]
-              }
+              options={cancelReasons.map((m) => ({ label: m.nome, value: String(m.id) }))}
             />
 
             <div className={styles.modalActions}>

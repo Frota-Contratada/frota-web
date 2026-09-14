@@ -1,49 +1,36 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-} from 'recharts';
-import { StatCard, Table, TableToolbar, StatusBadge, type ColumnDef, type BadgeStatus } from '../../../components/common';
-import { executiveTableData, type ExecutiveTableRow } from '../dashboardsData';
+  StatCard,
+  Table,
+  TableToolbar,
+  StatusBadge,
+  type ColumnDef,
+  type BadgeStatus,
+} from '../../../components/common';
+import {
+  ridesApi,
+  supplierApi,
+  contractApi,
+  extractListData,
+  type SolicitacaoDto,
+  type FornecedorBigNumbers,
+  type ContratoBigNumbers,
+} from '../../../services';
 import styles from '../Dashboards.module.css';
 
-const lineChartData = [
-  { name: 'JAN', valor: 65 },
-  { name: 'FEV', valor: 85 },
-  { name: 'MAR', valor: 140 },
-  { name: 'ABR', valor: 90 },
-  { name: 'MAI', valor: 160 },
-  { name: 'JUN', valor: 110 },
-  { name: 'JUL', valor: 180 },
-  { name: 'AGO', valor: 120 },
-  { name: 'SET', valor: 190 },
-  { name: 'OUT', valor: 130 },
-  { name: 'NOV', valor: 175 },
-  { name: 'DEZ', valor: 150 },
-];
+export interface ExecRideRow {
+  id: number;
+  data: string;
+  solicitante: string;
+  email: string;
+  destino: string;
+  status: BadgeStatus;
+  distanciaEstimada: string;
+  distanciaPercorrida: string;
+  preco: string;
+}
 
-const pieChartData = [
-  { name: 'Viex', value: 33000, color: '#0052cc' },
-  { name: 'Cars Company', value: 25000, color: '#00a3ff' },
-  { name: 'Fretado', value: 18000, color: '#70d6ff' },
-];
-
-const statusMap: Record<ExecutiveTableRow['status'], BadgeStatus> = {
-  Concluído: 'aprovado',
-  Pendente: 'pendente',
-  'Em andamento': 'em_andamento',
-};
-
-const columns: ColumnDef<ExecutiveTableRow>[] = [
+const columns: ColumnDef<ExecRideRow>[] = [
   { key: 'data', header: 'Data', sortable: true },
   {
     key: 'solicitante',
@@ -61,7 +48,7 @@ const columns: ColumnDef<ExecutiveTableRow>[] = [
     key: 'status',
     header: 'Status',
     sortable: true,
-    render: (value) => <StatusBadge status={statusMap[value as ExecutiveTableRow['status']]} />,
+    render: (_, row) => <StatusBadge status={row.status} />,
   },
   { key: 'distanciaEstimada', header: 'Distância estimada' },
   { key: 'distanciaPercorrida', header: 'Distância percorrida' },
@@ -75,19 +62,80 @@ const columns: ColumnDef<ExecutiveTableRow>[] = [
 
 export const ExecutiveView = () => {
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [rides, setRides] = useState<SolicitacaoDto[]>([]);
+  const [supplierBigNumbers, setSupplierBigNumbers] = useState<FornecedorBigNumbers | null>(null);
+  const [contractBigNumbers, setContractBigNumbers] = useState<ContratoBigNumbers | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+
+    Promise.allSettled([
+      ridesApi.list(),
+      supplierApi.getAdminBigNumbers().catch(() => supplierApi.getFilialBigNumbers()),
+      contractApi.getAdminBigNumbers().catch(() => contractApi.getFilialBigNumbers()),
+    ]).then(([ridesRes, suppRes, contRes]) => {
+      if (!isMounted) return;
+
+      if (ridesRes.status === 'fulfilled') {
+        setRides(extractListData<SolicitacaoDto>(ridesRes.value));
+      }
+      if (suppRes.status === 'fulfilled' && suppRes.value?.response) {
+        setSupplierBigNumbers(suppRes.value.response);
+      }
+      if (contRes.status === 'fulfilled' && contRes.value?.response) {
+        setContractBigNumbers(contRes.value.response);
+      }
+    }).finally(() => {
+      if (isMounted) setIsLoading(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const tableData: ExecRideRow[] = useMemo(() => {
+    return rides.map((r) => {
+      const rawStatus = (r.status || '').toUpperCase();
+      let badgeStatus: BadgeStatus = 'em_andamento';
+      if (rawStatus === 'CONCLUIDA' || rawStatus === 'FINALIZADA') badgeStatus = 'aprovado';
+      else if (rawStatus === 'CANCELADA' || rawStatus === 'RECUSADA') badgeStatus = 'cancelado';
+      else if (rawStatus === 'PENDENTE' || rawStatus === 'AGUARDANDO_APROVACAO') badgeStatus = 'pendente';
+
+      const valorCalculado = r.corrida?.valorFinal ?? r.valorEstimado;
+      const precoFmt = valorCalculado
+        ? `R$ ${Number(valorCalculado).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+        : '—';
+
+      return {
+        id: r.id,
+        data: r.dataCorrida ? new Date(r.dataCorrida).toLocaleDateString('pt-BR') : '—',
+        solicitante: r.solicitanteNome || 'Colaborador',
+        email: '—',
+        destino: r.destino?.logradouro || r.destino?.cidade || '—',
+        status: badgeStatus,
+        distanciaEstimada: (r.distanciaEstimadaKm ?? r.distanciaKm) ? `${r.distanciaEstimadaKm ?? r.distanciaKm} km` : '—',
+        distanciaPercorrida: r.corrida?.kmPercorrido ? `${r.corrida.kmPercorrido} km` : '—',
+        preco: precoFmt,
+      };
+    });
+  }, [rides]);
 
   const executiveFilterSections = [
     {
       title: 'Status',
       options: [
-        { label: 'Concluído', value: 'status:Concluído' },
-        { label: 'Pendente', value: 'status:Pendente' },
-        { label: 'Em andamento', value: 'status:Em andamento' },
+        { label: 'Concluído', value: 'status:aprovado' },
+        { label: 'Pendente', value: 'status:pendente' },
+        { label: 'Em andamento', value: 'status:em_andamento' },
+        { label: 'Cancelado', value: 'status:cancelado' },
       ],
     },
   ];
 
-  const filteredTableData = executiveTableData.filter((item) => {
+  const filteredTableData = tableData.filter((item) => {
     if (selectedFilters.length === 0) return true;
     return selectedFilters.some((filter) => {
       const [key, val] = filter.split(':');
@@ -96,104 +144,83 @@ export const ExecutiveView = () => {
     });
   });
 
+  const completedCount = rides.filter((r) => {
+    const s = (r.status || '').toUpperCase();
+    return s === 'CONCLUIDA' || s === 'FINALIZADA';
+  }).length;
+
   return (
     <div className={styles.page}>
-      {}
       <TableToolbar
         filterSections={executiveFilterSections}
         selectedFilters={selectedFilters}
         onFilterChange={setSelectedFilters}
       />
 
-      {}
       <section className={styles.statsGrid}>
-        <StatCard title="Total de corridas" value="54" />
-        <StatCard title="Corridas concluídas" value="43" />
-        <StatCard title="Corridas emergenciais" value="10" />
-        <StatCard title="Top 1 fornecedor por gasto" value="VIEX" />
+        <StatCard
+          title="Total de solicitações"
+          value={String(rides.length)}
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Corridas concluídas"
+          value={String(completedCount)}
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Fornecedores ativos"
+          value={String(supplierBigNumbers?.fornecedoresAtivos ?? '—')}
+          isLoading={isLoading}
+        />
+        <StatCard
+          title="Contratos vigentes"
+          value={String(contractBigNumbers?.validos ?? '—')}
+          isLoading={isLoading}
+        />
       </section>
 
-      {}
       <section className={styles.chartsGrid}>
-        {}
         <article className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <div>
               <span className={styles.chartEyebrow}>Estatísticas</span>
-              <h3 className={styles.chartTitle}>Gasto total</h3>
+              <h3 className={styles.chartTitle}>Gasto temporal consolidado</h3>
             </div>
           </div>
 
           <div className={styles.chartContainer}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={lineChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="execColorGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2C2C9E" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#2C2C9E" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: '#6b7280' }}
-                  tickFormatter={(val) => `$${val}K`}
-                />
-                <Tooltip
-                  formatter={(val: any) => [`$${val}K`, 'Gasto']}
-                  contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-                />
-                <Area type="monotone" dataKey="valor" stroke="#2C2C9E" strokeWidth={3} fillOpacity={1} fill="url(#execColorGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#6b7280', textAlign: 'center', padding: '1rem', background: 'var(--color-surface, #f9fafb)', borderRadius: '8px', border: '1px dashed #d1d5db' }}>
+              <span style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#374151' }}>Métrica Analítica em Preparação</span>
+              <small>O backend atual não disponibiliza endpoint de série temporal agregada de gastos. Interface pronta para integração futura.</small>
+            </div>
           </div>
         </article>
 
-        {}
         <article className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <div>
               <span className={styles.chartEyebrow}>Estatísticas</span>
-              <h3 className={styles.chartTitle}>Gasto por Fornecedor</h3>
+              <h3 className={styles.chartTitle}>Rateio de gastos por fornecedor</h3>
             </div>
           </div>
 
           <div className={styles.chartContainer}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieChartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={65}
-                  outerRadius={90}
-                  paddingAngle={4}
-                  dataKey="value"
-                >
-                  {pieChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(val: any) => [`R$ ${Number(val).toLocaleString('pt-BR')}`, 'Valor']}
-                  contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
-                />
-                <Legend verticalAlign="bottom" height={36} iconType="circle" />
-              </PieChart>
-            </ResponsiveContainer>
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#6b7280', textAlign: 'center', padding: '1rem', background: 'var(--color-surface, #f9fafb)', borderRadius: '8px', border: '1px dashed #d1d5db' }}>
+              <span style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#374151' }}>Métrica Analítica em Preparação</span>
+              <small>Aguardando disponibilização de endpoint de conciliação financeira por fornecedor no backend.</small>
+            </div>
           </div>
         </article>
       </section>
 
-      {}
       <section className={styles.tableSection}>
         <Table
           columns={columns}
           data={filteredTableData}
           keyExtractor={(row) => row.id}
           emptyMessage="Nenhuma corrida registrada na visão executiva."
+          isLoading={isLoading}
         />
       </section>
     </div>
