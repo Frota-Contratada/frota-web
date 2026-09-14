@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, LoadingState, StatusBadge, useToast } from '../../../components/common';
-import { LocationPickerMap } from '../../../components/maps/LocationPickerMap';
+import { LocationPickerMap } from '../../../components/maps';
 import CheckIcon from '../../../assets/icons/check.svg?react';
 import { branchApi, type FilialDto } from '../../../services';
 import { formatCnpj } from '../../../utils';

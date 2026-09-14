@@ -1,42 +1,49 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../../components/common';
+import {
+  Button,
+  StatCard,
+  Table,
+  TableToolbar,
+  useToast,
+  type BadgeStatus,
+  type ColumnDef,
+  type FilterSection,
+  type TableAction,
+} from '../../../components/common';
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
-import { branchApi, extractListData, type FilialDto } from '../../../services';
+import {
+  branchApi,
+  costCenterApi,
+  contractApi,
+  ridesApi,
+  extractListData,
+  type FilialDto,
+  type CentroCustoDto,
+  type ContratoDto,
+  type SolicitacaoDto,
+} from '../../../services';
 import { formatCnpj } from '../../../utils';
-import { type Branch } from '../branchesData';
 import styles from './BranchesList.module.css';
 
-const PAGE_SIZE = 5;
+export type Branch = {
+  id: number;
+  name: string;
+  cnpj?: string;
+  address: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  costCenters: number;
+  suppliers: number;
+  requests: number;
+  activatedAt: string;
+  deactivatedAt: string | null;
+  status: BadgeStatus;
+};
 
-const filterSections: FilterSection[] = [
-  {
-    title: 'Status',
-    options: [
-      { label: 'Ativa', value: 'status:aprovado' },
-      { label: 'Pendente', value: 'status:pendente' },
-      { label: 'Em implantação', value: 'status:em_andamento' },
-      { label: 'Inativa', value: 'status:cancelado' },
-    ],
-  },
-  {
-    title: 'UF',
-    options: [
-      { label: 'SC', value: 'uf:SC' },
-      { label: 'SP', value: 'uf:SP' },
-      { label: 'PR', value: 'uf:PR' },
-      { label: 'PE', value: 'uf:PE' },
-    ],
-  },
-  {
-    title: 'Vínculos',
-    options: [
-      { label: 'Com fornecedores', value: 'vinculo:fornecedores' },
-      { label: 'Com solicitações', value: 'vinculo:solicitacoes' },
-      { label: 'Com centros de custo', value: 'vinculo:centros-custo' },
-    ],
-  },
-];
+const PAGE_SIZE = 5;
 
 const columns: ColumnDef<Branch>[] = [
   {
@@ -75,42 +82,154 @@ export const BranchesList = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
     setIsLoading(true);
-    branchApi.list()
-      .then((res) => {
-        const branches = extractListData<FilialDto>(res);
-        const apiBranches: Branch[] = branches.map((b) => ({
-          id: b.id,
-          name: b.nome,
-          cnpj: b.cnpj,
-          zipCode: b.endereco?.cep || '',
-          address: b.endereco?.logradouro ? `${b.endereco.logradouro}${b.endereco.numero ? `, ${b.endereco.numero}` : ''}` : '',
-          neighborhood: b.endereco?.bairro || '',
-          city: b.endereco?.cidade || '',
-          state: b.endereco?.uf || 'SC',
-          costCenters: 0,
-          suppliers: 0,
-          requests: 0,
-          activatedAt: '—',
-          deactivatedAt: null,
-          status: 'aprovado',
-        }));
+
+    Promise.allSettled([
+      branchApi.list(),
+      costCenterApi.list(),
+      contractApi.list(),
+      ridesApi.list(),
+    ])
+      .then(([branchesRes, costCentersRes, contractsRes, ridesRes]) => {
+        if (!isMounted) return;
+
+        const rawBranches =
+          branchesRes.status === 'fulfilled' ? extractListData<FilialDto>(branchesRes.value) : [];
+
+        const costCenters =
+          costCentersRes.status === 'fulfilled'
+            ? extractListData<CentroCustoDto>(costCentersRes.value)
+            : [];
+
+        const contracts =
+          contractsRes.status === 'fulfilled'
+            ? extractListData<ContratoDto>(contractsRes.value)
+            : [];
+
+        const rides =
+          ridesRes.status === 'fulfilled'
+            ? extractListData<SolicitacaoDto>(ridesRes.value)
+            : [];
+
+        const apiBranches: Branch[] = rawBranches.map((b) => {
+          const numId = Number(b.id);
+          const ccsCount = costCenters.filter((c) => Number(c.filialId) === numId).length;
+          const suppliersCount = contracts.filter((c) =>
+            c.vinculos?.some((v) => Number(v.filialId) === numId)
+          ).length;
+          const requestsCount = rides.filter((r) =>
+            Number((r as any).filialId) === numId ||
+            (r.origem && r.origem.cidade && b.endereco && r.origem.cidade.toLowerCase() === b.endereco.cidade.toLowerCase())
+          ).length;
+
+          const isDeactivated = Boolean((b as any).dataDesativacao || (b as any).dDesativacao);
+          const status: BadgeStatus = isDeactivated ? 'cancelado' : 'aprovado';
+
+          return {
+            id: b.id,
+            name: b.nome,
+            cnpj: b.cnpj,
+            zipCode: b.endereco?.cep || '',
+            address: b.endereco?.logradouro
+              ? `${b.endereco.logradouro}${b.endereco.numero ? `, ${b.endereco.numero}` : ''}`
+              : '',
+            neighborhood: b.endereco?.bairro || '',
+            city: b.endereco?.cidade || '',
+            state: b.endereco?.uf || '',
+            costCenters: ccsCount,
+            suppliers: suppliersCount,
+            requests: requestsCount,
+            activatedAt: (b as any).dataAtivacao
+              ? new Date((b as any).dataAtivacao).toLocaleDateString('pt-BR')
+              : '—',
+            deactivatedAt: isDeactivated ? 'Inativa' : null,
+            status,
+          };
+        });
+
         setBranchesList(apiBranches);
       })
       .catch((err) => {
+        if (!isMounted) return;
         const message = err instanceof Error ? err.message : 'Erro ao buscar filiais';
         showToast({ type: 'error', title: message });
       })
       .finally(() => {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       });
+
+    return () => {
+      isMounted = false;
+    };
   }, [showToast]);
+
+  // Seções de filtro geradas dinamicamente com base nos dados reais retornados da API
+  const filterSections: FilterSection[] = useMemo(() => {
+    const sections: FilterSection[] = [];
+
+    // 1. UFs dinâmicas vindas da API
+    const uniqueUfs = Array.from(
+      new Set(branchesList.map((b) => b.state).filter(Boolean))
+    ).sort();
+
+    if (uniqueUfs.length > 0) {
+      sections.push({
+        title: 'UF',
+        options: uniqueUfs.map((uf) => ({ label: uf, value: `uf:${uf}` })),
+      });
+    }
+
+    // 2. Cidades dinâmicas vindas da API
+    const uniqueCities = Array.from(
+      new Set(branchesList.map((b) => b.city).filter(Boolean))
+    ).sort();
+
+    if (uniqueCities.length > 0) {
+      sections.push({
+        title: 'Cidade',
+        options: uniqueCities.map((city) => ({ label: city, value: `cidade:${city}` })),
+      });
+    }
+
+    // 3. Status dinâmico
+    sections.push({
+      title: 'Status',
+      options: [
+        { label: 'Ativa', value: 'status:aprovado' },
+        { label: 'Inativa', value: 'status:cancelado' },
+      ],
+    });
+
+    // 4. Vínculos reais baseados nos dados da API
+    sections.push({
+      title: 'Vínculos',
+      options: [
+        { label: 'Com centros de custo', value: 'vinculo:centros-custo' },
+        { label: 'Sem centros de custo', value: 'vinculo:sem-centros-custo' },
+        { label: 'Com fornecedores', value: 'vinculo:fornecedores' },
+        { label: 'Sem fornecedores', value: 'vinculo:sem-fornecedores' },
+        { label: 'Com solicitações', value: 'vinculo:solicitacoes' },
+      ],
+    });
+
+    return sections;
+  }, [branchesList]);
 
   const filteredBranches = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
-    const statusFilters = selectedFilters.filter((filter) => filter.startsWith('status:')).map((filter) => filter.replace('status:', ''));
-    const stateFilters = selectedFilters.filter((filter) => filter.startsWith('uf:')).map((filter) => filter.replace('uf:', ''));
-    const linkFilters = selectedFilters.filter((filter) => filter.startsWith('vinculo:')).map((filter) => filter.replace('vinculo:', ''));
+    const statusFilters = selectedFilters
+      .filter((filter) => filter.startsWith('status:'))
+      .map((filter) => filter.replace('status:', ''));
+    const stateFilters = selectedFilters
+      .filter((filter) => filter.startsWith('uf:'))
+      .map((filter) => filter.replace('uf:', ''));
+    const cityFilters = selectedFilters
+      .filter((filter) => filter.startsWith('cidade:'))
+      .map((filter) => filter.replace('cidade:', ''));
+    const linkFilters = selectedFilters
+      .filter((filter) => filter.startsWith('vinculo:'))
+      .map((filter) => filter.replace('vinculo:', ''));
 
     return branchesList.filter((branch) => {
       const matchesQuery =
@@ -120,16 +239,23 @@ export const BranchesList = () => {
         branch.neighborhood.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
         branch.city.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
         branch.zipCode.includes(normalizedQuery);
+
       const matchesStatus = statusFilters.length === 0 || statusFilters.includes(branch.status);
       const matchesState = stateFilters.length === 0 || stateFilters.includes(branch.state);
-      const matchesLink = linkFilters.length === 0 || linkFilters.some((link) => {
-        if (link === 'fornecedores') return branch.suppliers > 0;
-        if (link === 'solicitacoes') return branch.requests > 0;
-        if (link === 'centros-custo') return branch.costCenters > 0;
-        return false;
-      });
+      const matchesCity = cityFilters.length === 0 || cityFilters.includes(branch.city);
 
-      return matchesQuery && matchesStatus && matchesState && matchesLink;
+      const matchesLink =
+        linkFilters.length === 0 ||
+        linkFilters.every((link) => {
+          if (link === 'centros-custo') return branch.costCenters > 0;
+          if (link === 'sem-centros-custo') return branch.costCenters === 0;
+          if (link === 'fornecedores') return branch.suppliers > 0;
+          if (link === 'sem-fornecedores') return branch.suppliers === 0;
+          if (link === 'solicitacoes') return branch.requests > 0;
+          return true;
+        });
+
+      return matchesQuery && matchesStatus && matchesState && matchesCity && matchesLink;
     });
   }, [branchesList, query, selectedFilters]);
 
@@ -172,7 +298,13 @@ export const BranchesList = () => {
             setQuery(value);
             setCurrentPage(1);
           }}
-          onExport={() => showToast({ type: 'success', title: 'Exportação iniciada', description: 'A lista de filiais será preparada em instantes.' })}
+          onExport={() =>
+            showToast({
+              type: 'success',
+              title: 'Exportação iniciada',
+              description: 'A lista de filiais será preparada em instantes.',
+            })
+          }
           rightActions={<Button onClick={() => navigate('/filiais/nova')}>Cadastrar filial</Button>}
           filterSections={filterSections}
           selectedFilters={selectedFilters}
@@ -180,7 +312,13 @@ export const BranchesList = () => {
             setSelectedFilters(values);
             setCurrentPage(1);
           }}
-          onFilterApply={() => showToast({ type: 'success', title: 'Filtro aplicado', description: 'A tabela foi atualizada.' })}
+          onFilterApply={() =>
+            showToast({
+              type: 'success',
+              title: 'Filtro aplicado',
+              description: 'A tabela foi atualizada.',
+            })
+          }
           onFilterClear={() => {
             setSelectedFilters([]);
             setCurrentPage(1);
