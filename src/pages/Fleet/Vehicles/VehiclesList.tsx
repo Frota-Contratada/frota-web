@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../../components/common';
-import ErroIcon from '../../../assets/icons/erro.svg?react';
+import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection } from '../../../components/common';
 import { vehicleApi, type VeiculoDto } from '../../../services';
 import { exportToCsv } from '../../../utils/exportHelper';
 import styles from '../Fleet.module.css';
@@ -28,9 +27,6 @@ export const VehiclesList = () => {
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [selectedVehicleForStatus, setSelectedVehicleForStatus] = useState<VeiculoDto | null>(null);
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-
   const fetchVehicles = async () => {
     try {
       setIsLoading(true);
@@ -41,7 +37,8 @@ export const VehiclesList = () => {
         setVehicles(res.response.data);
       }
     } catch {
-      showToast({ type: 'error', title: 'Erro', description: 'Não foi possível carregar os veículos.' });
+      // Backend não implementa módulo de veículos
+      setVehicles([]);
     } finally {
       setIsLoading(false);
     }
@@ -84,31 +81,7 @@ export const VehiclesList = () => {
   const totalPages = Math.max(1, Math.ceil(filteredVehicles.length / PAGE_SIZE));
   const pageData = filteredVehicles.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  const handleToggleStatus = async () => {
-    if (!selectedVehicleForStatus) return;
-    const isCurrentlyActive = selectedVehicleForStatus.ativo !== false;
-    try {
-      setIsUpdatingStatus(true);
-      await vehicleApi.toggleStatus(selectedVehicleForStatus.id, isCurrentlyActive);
 
-      setVehicles((prev) =>
-        prev.map((v) =>
-          v.id === selectedVehicleForStatus.id ? { ...v, ativo: !isCurrentlyActive } : v
-        )
-      );
-
-      showToast({
-        type: isCurrentlyActive ? 'warning' : 'success',
-        title: isCurrentlyActive ? 'Veículo desativado' : 'Veículo ativado',
-        description: `O veículo ${selectedVehicleForStatus.modelo} (${selectedVehicleForStatus.placa}) foi ${isCurrentlyActive ? 'desativado' : 'ativado'} com sucesso.`,
-      });
-      setSelectedVehicleForStatus(null);
-    } catch {
-      showToast({ type: 'error', title: 'Erro', description: 'Falha ao alterar status do veículo.' });
-    } finally {
-      setIsUpdatingStatus(false);
-    }
-  };
 
   const columns: ColumnDef<VeiculoDto>[] = [
     {
@@ -158,16 +131,12 @@ export const VehiclesList = () => {
     },
   ];
 
-  const actions: TableAction<VeiculoDto>[] = [
-    {
-      icon: <ErroIcon width={16} height={16} />,
-      label: 'Alterar status (ativar/desativar)',
-      onClick: (row) => setSelectedVehicleForStatus(row),
-    },
-  ];
-
   return (
     <div className={styles.page}>
+      <div style={{ padding: '0.875rem 1rem', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '8px', color: '#92400e', marginBottom: '1.25rem', fontSize: '0.875rem' }}>
+        <strong>Aviso do Sistema:</strong> O módulo de gestão e cadastro de veículos ainda não possui suporte implementado no backend. A estrutura visual da tela está preservada para consultas futuras, mas as operações de escrita foram desabilitadas.
+      </div>
+
       <section className={styles.statsGrid} aria-label="Resumo dos veículos da frota">
         <StatCard title="Total de veículos" value={String(vehicles.length)} isLoading={isLoading} />
         <StatCard title="Veículos ativos" value={String(totalActive)} isLoading={isLoading} />
@@ -217,38 +186,11 @@ export const VehiclesList = () => {
           columns={columns}
           data={pageData}
           keyExtractor={(row) => String(row.id)}
-          actions={actions}
           emptyMessage="Nenhum veículo cadastrado na frota."
           isLoading={isLoading}
           pagination={{ currentPage, totalPages, onPageChange: setCurrentPage }}
         />
       </section>
-
-      {selectedVehicleForStatus && (
-        <div className={styles.modalBackdrop} role="dialog" aria-modal="true">
-          <div className={styles.modalCard}>
-            <h3>
-              {selectedVehicleForStatus.ativo !== false ? 'Desativar Veículo' : 'Reativar Veículo'}
-            </h3>
-            <p>
-              Tem certeza que deseja {selectedVehicleForStatus.ativo !== false ? 'desativar' : 'reativar'} o veículo{' '}
-              <strong>{selectedVehicleForStatus.modelo}</strong> (Placa: {selectedVehicleForStatus.placa})?
-            </p>
-            <div className={styles.modalActions}>
-              <Button variant="ghost" onClick={() => setSelectedVehicleForStatus(null)} disabled={isUpdatingStatus}>
-                Cancelar
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleToggleStatus}
-                isLoading={isUpdatingStatus}
-              >
-                Confirmar
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../../components/common';
-import ErroIcon from '../../../assets/icons/erro.svg?react';
+import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection } from '../../../components/common';
 import { driverApi, type MotoristaDto } from '../../../services';
 import { exportToCsv } from '../../../utils/exportHelper';
 import styles from '../Fleet.module.css';
@@ -28,8 +27,7 @@ export const DriversList = () => {
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [selectedDriverForStatus, setSelectedDriverForStatus] = useState<MotoristaDto | null>(null);
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
 
   const fetchDrivers = async () => {
     try {
@@ -84,31 +82,7 @@ export const DriversList = () => {
   const totalPages = Math.max(1, Math.ceil(filteredDrivers.length / PAGE_SIZE));
   const pageData = filteredDrivers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  const handleToggleStatus = async () => {
-    if (!selectedDriverForStatus) return;
-    const isCurrentlyActive = selectedDriverForStatus.ativo !== false;
-    try {
-      setIsUpdatingStatus(true);
-      await driverApi.toggleStatus(selectedDriverForStatus.id, isCurrentlyActive);
 
-      setDrivers((prev) =>
-        prev.map((d) =>
-          d.id === selectedDriverForStatus.id ? { ...d, ativo: !isCurrentlyActive } : d
-        )
-      );
-
-      showToast({
-        type: isCurrentlyActive ? 'warning' : 'success',
-        title: isCurrentlyActive ? 'Motorista inativado' : 'Motorista ativado',
-        description: `O motorista ${selectedDriverForStatus.nome} foi ${isCurrentlyActive ? 'inativado' : 'ativado'} com sucesso.`,
-      });
-      setSelectedDriverForStatus(null);
-    } catch {
-      showToast({ type: 'error', title: 'Erro', description: 'Falha ao alterar status do motorista.' });
-    } finally {
-      setIsUpdatingStatus(false);
-    }
-  };
 
   const columns: ColumnDef<MotoristaDto>[] = [
     {
@@ -152,13 +126,7 @@ export const DriversList = () => {
     },
   ];
 
-  const actions: TableAction<MotoristaDto>[] = [
-    {
-      icon: <ErroIcon width={16} height={16} />,
-      label: 'Alterar status (ativar/inativar)',
-      onClick: (row) => setSelectedDriverForStatus(row),
-    },
-  ];
+
 
   return (
     <div className={styles.page}>
@@ -211,38 +179,11 @@ export const DriversList = () => {
           columns={columns}
           data={pageData}
           keyExtractor={(row) => String(row.id)}
-          actions={actions}
           emptyMessage="Nenhum motorista encontrado."
           isLoading={isLoading}
           pagination={{ currentPage, totalPages, onPageChange: setCurrentPage }}
         />
       </section>
-
-      {selectedDriverForStatus && (
-        <div className={styles.modalBackdrop} role="dialog" aria-modal="true">
-          <div className={styles.modalCard}>
-            <h3>
-              {selectedDriverForStatus.ativo !== false ? 'Inativar Motorista' : 'Reativar Motorista'}
-            </h3>
-            <p>
-              Tem certeza que deseja {selectedDriverForStatus.ativo !== false ? 'inativar' : 'reativar'} o motorista{' '}
-              <strong>{selectedDriverForStatus.nome}</strong> (CPF: {selectedDriverForStatus.cpf})?
-            </p>
-            <div className={styles.modalActions}>
-              <Button variant="ghost" onClick={() => setSelectedDriverForStatus(null)} disabled={isUpdatingStatus}>
-                Cancelar
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleToggleStatus}
-                isLoading={isUpdatingStatus}
-              >
-                Confirmar
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

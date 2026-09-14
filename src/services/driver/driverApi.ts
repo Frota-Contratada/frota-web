@@ -44,7 +44,13 @@ export interface MotoristasListResponse {
 
 export const driverApi = {
   create(data: CriarMotoristaParams) {
-    return apiClient.post<MotoristaResponse>('/usuario/motorista/motoristas', data);
+    const cleanCpf = data.cpf.replace(/\D/g, '');
+    return apiClient.post<MotoristaResponse>('/usuario/motorista/motoristas', {
+      nome: data.nome,
+      email: data.email,
+      cpf: cleanCpf,
+      fornecedorId: data.fornecedorId,
+    });
   },
 
   list(query?: BuscarMotoristasQueryParams) {
@@ -55,11 +61,5 @@ export const driverApi = {
 
   getById(id: number) {
     return apiClient.get<MotoristaResponse>(`/usuario/motorista/${id}`);
-  },
-
-  toggleStatus(id: number, ativoAtual: boolean) {
-    return apiClient.patch<{ response: MotoristaDto }>(`/usuario/motorista/${id}/status`, {
-      ativo: !ativoAtual,
-    });
   },
 };

@@ -60,44 +60,15 @@ describe('supplierApi', () => {
     expect(result.response.nome).toBe('Mobilidade Prime');
   });
 
-  it('calls inativar with supplier id', async () => {
-    const mockInactive = {
-      response: { id: 5, ativo: false, status: 'cancelado' },
-    };
+  it('calls getAdminBigNumbers with query params', async () => {
+    const mockBig = { response: { fornecedoresAtivos: 10, veiculosAtivos: 25 } };
+    const getSpy = vi.spyOn(apiClient, 'get').mockResolvedValue(mockBig);
 
-    const patchSpy = vi.spyOn(apiClient, 'patch').mockResolvedValue(mockInactive);
+    const result = await supplierApi.getAdminBigNumbers({ filialId: 2 });
 
-    const result = await supplierApi.inativar(5);
-
-    expect(patchSpy).toHaveBeenCalledWith('/fornecedor/5/inativar', {});
-    expect(result.response.ativo).toBe(false);
-  });
-
-  it('calls reativar with supplier id', async () => {
-    const mockActive = {
-      response: { id: 5, ativo: true, status: 'aprovado' },
-    };
-
-    const patchSpy = vi.spyOn(apiClient, 'patch').mockResolvedValue(mockActive);
-
-    const result = await supplierApi.reativar(5);
-
-    expect(patchSpy).toHaveBeenCalledWith('/fornecedor/5/reativar', {});
-    expect(result.response.ativo).toBe(true);
-  });
-
-  it('toggles status appropriately based on current active state', async () => {
-    const inativarSpy = vi.spyOn(supplierApi, 'inativar').mockResolvedValue({
-      response: { id: 5, ativo: false } as any,
+    expect(getSpy).toHaveBeenCalledWith('/fornecedor/admin/big-numbers', {
+      query: { filialId: 2 },
     });
-    const reativarSpy = vi.spyOn(supplierApi, 'reativar').mockResolvedValue({
-      response: { id: 5, ativo: true } as any,
-    });
-
-    await supplierApi.toggleStatus(5, true);
-    expect(inativarSpy).toHaveBeenCalledWith(5);
-
-    await supplierApi.toggleStatus(5, false);
-    expect(reativarSpy).toHaveBeenCalledWith(5);
+    expect(result.response.fornecedoresAtivos).toBe(10);
   });
 });

@@ -11,8 +11,6 @@ export const DriverCreate = () => {
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
   const [email, setEmail] = useState('');
-  const [telefone, setTelefone] = useState('');
-  const [cnh, setCnh] = useState('');
   const [fornecedorId, setFornecedorId] = useState<string>('');
   const [fornecedores, setFornecedores] = useState<FornecedorDto[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,8 +28,15 @@ export const DriverCreate = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!nome.trim() || !cpf.trim() || !email.trim() || !fornecedorId) {
+    const cleanCpf = cpf.replace(/\D/g, '');
+
+    if (!nome.trim() || !cleanCpf || !email.trim() || !fornecedorId) {
       showToast({ type: 'warning', title: 'Campos obrigatórios', description: 'Preencha nome, CPF, e-mail e fornecedor.' });
+      return;
+    }
+
+    if (cleanCpf.length !== 11) {
+      showToast({ type: 'warning', title: 'CPF inválido', description: 'O CPF deve conter exatamente 11 dígitos numéricos.' });
       return;
     }
 
@@ -39,10 +44,8 @@ export const DriverCreate = () => {
       setIsSubmitting(true);
       await driverApi.create({
         nome: nome.trim(),
-        cpf: cpf.trim(),
+        cpf: cleanCpf,
         email: email.trim(),
-        telefone: telefone.trim() || undefined,
-        cnh: cnh.trim() || undefined,
         fornecedorId: Number(fornecedorId),
       });
 
@@ -86,9 +89,10 @@ export const DriverCreate = () => {
             </div>
 
             <Input
-              label="CPF *"
+              label="CPF (11 dígitos) *"
               placeholder="000.000.000-00"
               value={cpf}
+              maxLength={14}
               onChange={(e) => setCpf(e.target.value)}
               required
             />
@@ -100,20 +104,6 @@ export const DriverCreate = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-            />
-
-            <Input
-              label="Telefone de contato"
-              placeholder="(11) 98765-4321"
-              value={telefone}
-              onChange={(e) => setTelefone(e.target.value)}
-            />
-
-            <Input
-              label="Número da CNH"
-              placeholder="00000000000"
-              value={cnh}
-              onChange={(e) => setCnh(e.target.value)}
             />
 
             <div className={styles.fullWidth}>

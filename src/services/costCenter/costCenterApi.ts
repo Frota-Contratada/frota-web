@@ -37,27 +37,15 @@ export interface CentrosCustoListResponse {
   response: PaginatedCentrosCusto | CentroCustoDto[];
 }
 
-export const DEFAULT_CENTROS_CUSTO: CentroCustoDto[] = [
-  { filialId: 1, numero: 101, nome: 'Operações', temAprovador: true, ativo: true },
-  { filialId: 1, numero: 102, nome: 'Administrativo', temAprovador: true, ativo: true },
-  { filialId: 1, numero: 103, nome: 'Logística', temAprovador: true, ativo: true },
-  { filialId: 1, numero: 104, nome: 'Comercial', temAprovador: true, ativo: true },
-  { filialId: 1, numero: 105, nome: 'Recursos Humanos', temAprovador: true, ativo: true },
-  { filialId: 2, numero: 201, nome: 'Operações Maringá', temAprovador: true, ativo: true },
-  { filialId: 2, numero: 202, nome: 'Administrativo Maringá', temAprovador: true, ativo: true },
-  { filialId: 3, numero: 301, nome: 'Diretoria Executiva', temAprovador: true, ativo: true },
-  { filialId: 3, numero: 302, nome: 'Tecnologia & Inovação', temAprovador: true, ativo: true },
-];
-
 export const costCenterApi = {
   list() {
-    return apiClient
-      .get<CentrosCustoListResponse>('/centro-de-custo')
-      .catch(() => ({ response: DEFAULT_CENTROS_CUSTO }));
+    return apiClient.get<CentrosCustoListResponse>('/centro-de-custo');
   },
 
   vincularAprovador(data: VincularAprovadorParams) {
-    return apiClient.post<VincularAprovadorResponse>('/centro-de-custo/aprovadores', data);
+    return apiClient.put<VincularAprovadorResponse>(`/usuario/colaborador/${data.usuarioId}/perfis/aprovador`, {
+      centroCustoId: data.centroCustoId,
+    });
   },
 };
 

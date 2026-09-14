@@ -4,7 +4,6 @@ import { Button, Input, Select, useToast } from '../../../components/common';
 import {
   branchApi,
   costCenterApi,
-  DEFAULT_CENTROS_CUSTO,
   extractListData,
   type FilialDto,
   type CentroCustoDto,
@@ -46,10 +45,7 @@ export const EmployeeCreate = () => {
       costCenterApi.list(),
     ]).then(([branchesRes, ccRes]) => {
       const branches = branchesRes.status === 'fulfilled' ? extractListData<FilialDto>(branchesRes.value) : [];
-      let costCenters = ccRes.status === 'fulfilled' ? extractListData<CentroCustoDto>(ccRes.value) : [];
-      if (costCenters.length === 0) {
-        costCenters = DEFAULT_CENTROS_CUSTO;
-      }
+      const costCenters = ccRes.status === 'fulfilled' ? extractListData<CentroCustoDto>(ccRes.value) : [];
 
       setBranchesList(branches);
       setCostCentersList(costCenters);

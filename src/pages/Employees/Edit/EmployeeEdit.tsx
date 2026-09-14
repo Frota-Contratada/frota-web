@@ -5,7 +5,6 @@ import {
   collaboratorApi,
   branchApi,
   costCenterApi,
-  DEFAULT_CENTROS_CUSTO,
   extractListData,
   type FilialDto,
   type CentroCustoDto,
@@ -61,10 +60,7 @@ export const EmployeeEdit = () => {
       if (!isMounted) return;
 
       const branches = branchesRes.status === 'fulfilled' ? extractListData<FilialDto>(branchesRes.value) : [];
-      let costCenters = ccRes.status === 'fulfilled' ? extractListData<CentroCustoDto>(ccRes.value) : [];
-      if (costCenters.length === 0) {
-        costCenters = DEFAULT_CENTROS_CUSTO;
-      }
+      const costCenters = ccRes.status === 'fulfilled' ? extractListData<CentroCustoDto>(ccRes.value) : [];
       const collabs = collabsRes.status === 'fulfilled' ? extractListData<ColaboradorDto>(collabsRes.value) : [];
 
       setBranchesList(branches);

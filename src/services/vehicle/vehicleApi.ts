@@ -38,6 +38,9 @@ export interface VeiculosListResponse {
   } | VeiculoDto[];
 }
 
+/**
+ * ATENÇÃO: O módulo de veículos ainda não possui suporte implementado no backend.
+ */
 export const vehicleApi = {
   create(data: CriarVeiculoParams) {
     return apiClient.post<VeiculoResponse>('/veiculos', data);
@@ -51,11 +54,5 @@ export const vehicleApi = {
 
   getById(id: number) {
     return apiClient.get<VeiculoResponse>(`/veiculos/${id}`);
-  },
-
-  toggleStatus(id: number, ativoAtual: boolean) {
-    return apiClient.patch<{ response: VeiculoDto }>(`/veiculos/${id}/status`, {
-      ativo: !ativoAtual,
-    });
   },
 };

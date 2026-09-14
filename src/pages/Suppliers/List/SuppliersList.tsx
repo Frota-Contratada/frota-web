@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction, type BadgeStatus } from '../../../components/common';
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
-import ErroIcon from '../../../assets/icons/erro.svg?react';
 import { supplierApi, extractListData, type FornecedorDto, type FornecedorBigNumbers } from '../../../services';
 import styles from './SuppliersList.module.css';
 
@@ -81,9 +80,7 @@ export const SuppliersList = () => {
   const [bigNumbers, setBigNumbers] = useState<FornecedorBigNumbers | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
-  const [selectedSupplierForStatus, setSelectedSupplierForStatus] = useState<Supplier | null>(null);
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
 
   useEffect(() => {
     let isMounted = true;
@@ -154,40 +151,7 @@ export const SuppliersList = () => {
     };
   }, [showToast]);
 
-  const handleToggleSupplierStatus = async () => {
-    if (!selectedSupplierForStatus) return;
-    const isCurrentlyActive = !selectedSupplierForStatus.deactivatedAt && selectedSupplierForStatus.status !== 'cancelado';
-    try {
-      setIsUpdatingStatus(true);
-      await supplierApi.toggleStatus(selectedSupplierForStatus.id, isCurrentlyActive);
-      
-      setSuppliersList((prev) =>
-        prev.map((s) => {
-          if (s.id !== selectedSupplierForStatus.id) return s;
-          const newStatus: BadgeStatus = isCurrentlyActive ? 'cancelado' : 'aprovado';
-          return {
-            ...s,
-            status: newStatus,
-            deactivatedAt: isCurrentlyActive ? 'Sim' : null,
-          };
-        })
-      );
 
-      showToast({
-        type: isCurrentlyActive ? 'warning' : 'success',
-        title: isCurrentlyActive ? 'Fornecedor inativado' : 'Fornecedor reativado',
-        description: `O fornecedor ${selectedSupplierForStatus.name} foi ${isCurrentlyActive ? 'inativado' : 'reativado'} com sucesso.`,
-      });
-
-      setIsStatusModalOpen(false);
-      setSelectedSupplierForStatus(null);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Erro ao alterar status do fornecedor';
-      showToast({ type: 'error', title: 'Falha na alteração', description: msg });
-    } finally {
-      setIsUpdatingStatus(false);
-    }
-  };
 
   const filterSections = useMemo<FilterSection[]>(() => {
     const statuses = Array.from(new Set(suppliersList.map((s) => s.status))).filter(Boolean);
@@ -279,17 +243,7 @@ export const SuppliersList = () => {
       label: 'Visualizar fornecedor',
       onClick: (row) => navigate(`/terceiros/fornecedores/${row.id}`),
     },
-    {
-      icon: <ErroIcon width={16} height={16} />,
-      label: 'Alterar status (inativar/reativar)',
-      onClick: (row) => {
-        setSelectedSupplierForStatus(row);
-        setIsStatusModalOpen(true);
-      },
-    },
   ];
-
-  const isSelectedActive = selectedSupplierForStatus && !selectedSupplierForStatus.deactivatedAt && selectedSupplierForStatus.status !== 'cancelado';
 
   return (
     <div className={styles.page}>
@@ -349,36 +303,6 @@ export const SuppliersList = () => {
         />
       </section>
 
-      {isStatusModalOpen && selectedSupplierForStatus && (
-        <div className={styles.modalBackdrop} role="dialog" aria-modal="true" aria-labelledby="status-modal-title">
-          <div className={styles.modalCard}>
-            <div className={styles.modalHeader}>
-              <h3 id="status-modal-title">
-                {isSelectedActive ? 'Inativar fornecedor' : 'Reativar fornecedor'}
-              </h3>
-              <p>
-                {isSelectedActive
-                  ? `Tem certeza que deseja inativar o fornecedor ${selectedSupplierForStatus.name}? Ele deixará de receber novas solicitações de transporte.`
-                  : `Deseja reativar o credenciamento do fornecedor ${selectedSupplierForStatus.name}?`}
-              </p>
-            </div>
-
-            <div className={styles.modalActions}>
-              <Button variant="ghost" onClick={() => setIsStatusModalOpen(false)} disabled={isUpdatingStatus}>
-                Cancelar
-              </Button>
-              <Button
-                variant={isSelectedActive ? 'outline' : 'primary'}
-                className={isSelectedActive ? styles.dangerActionBtn : undefined}
-                onClick={handleToggleSupplierStatus}
-                isLoading={isUpdatingStatus}
-              >
-                {isSelectedActive ? 'Confirmar inativação' : 'Confirmar reativação'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
