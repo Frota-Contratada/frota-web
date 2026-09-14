@@ -1,0 +1,142 @@
+name: Build Web Image
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build production web image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate production configuration
+        shell: bash
+        env:
+          VITE_API_URL: ${{ vars.PROD_VITE_API_URL }}
+          VITE_WS_URL: ${{ vars.PROD_VITE_WS_URL }}
+          VITE_ACOMPANHAMENTO_URL: ${{ vars.PROD_VITE_ACOMPANHAMENTO_URL }}
+          VITE_IA_API_URL: ${{ vars.PROD_VITE_IA_API_URL }}
+          VITE_TOMTOM_API_KEY: ${{ secrets.PROD_VITE_TOMTOM_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          test -n "$VITE_API_URL"
+          test -n "$VITE_WS_URL"
+          test -n "$VITE_ACOMPANHAMENTO_URL"
+          test -n "$VITE_IA_API_URL"
+          test -n "$VITE_TOMTOM_API_KEY"
+
+      - name: Define image metadata
+        id: meta
+        shell: bash
+        run: |
+          SHORT_SHA="${GITHUB_SHA::12}"
+
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          echo "image=frota-web:$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          echo "archive=frota-web-$SHORT_SHA.tar" >> "$GITHUB_OUTPUT"
+
+      - name: Build production image
+        shell: bash
+        env:
+          VITE_API_URL: ${{ vars.PROD_VITE_API_URL }}
+          VITE_WS_URL: ${{ vars.PROD_VITE_WS_URL }}
+          VITE_ACOMPANHAMENTO_URL: ${{ vars.PROD_VITE_ACOMPANHAMENTO_URL }}
+          VITE_IA_API_URL: ${{ vars.PROD_VITE_IA_API_URL }}
+          VITE_TOMTOM_API_KEY: ${{ secrets.PROD_VITE_TOMTOM_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          docker build \
+            --platform linux/amd64 \
+            --target runner \
+            --build-arg "VITE_API_URL=$VITE_API_URL" \
+            --build-arg "VITE_WS_URL=$VITE_WS_URL" \
+            --build-arg "VITE_ACOMPANHAMENTO_URL=$VITE_ACOMPANHAMENTO_URL" \
+            --build-arg "VITE_IA_API_URL=$VITE_IA_API_URL" \
+            --build-arg "VITE_TOMTOM_API_KEY=$VITE_TOMTOM_API_KEY" \
+            --tag "${{ steps.meta.outputs.image }}" \
+            .
+
+      - name: Smoke test image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker run \
+            --detach \
+            --name frota-web-ci \
+            --publish 127.0.0.1:18080:8080 \
+            "${{ steps.meta.outputs.image }}"
+
+          cleanup() {
+            docker rm -f frota-web-ci >/dev/null 2>&1 || true
+          }
+
+          trap cleanup EXIT
+
+          for i in $(seq 1 30); do
+            if curl \
+              --fail \
+              --silent \
+              --show-error \
+              http://127.0.0.1:18080/health >/dev/null
+            then
+              exit 0
+            fi
+
+            sleep 1
+          done
+
+          docker logs frota-web-ci
+          exit 1
+
+      - name: Export image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p artifact
+
+          docker save \
+            "${{ steps.meta.outputs.image }}" \
+            -o "artifact/${{ steps.meta.outputs.archive }}"
+
+          cd artifact
+
+          sha256sum \
+            "${{ steps.meta.outputs.archive }}" \
+            > "${{ steps.meta.outputs.archive }}.sha256"
+
+      - name: Create manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > artifact/manifest.json <<EOF
+          {
+            "repository": "Frota-Contratada/frota-web",
+            "commit": "${GITHUB_SHA}",
+            "shortCommit": "${{ steps.meta.outputs.short_sha }}",
+            "image": "${{ steps.meta.outputs.image }}",
+            "archive": "${{ steps.meta.outputs.archive }}"
+          }
+          EOF
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frota-web-${{ steps.meta.outputs.short_sha }}
+          path: artifact/
+          if-no-files-found: error
+          retention-days: 14
