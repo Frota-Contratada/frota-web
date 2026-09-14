@@ -1,9 +1,17 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, LoadingState, StatCard, useToast } from '../../../components/common';
 import { LiveTrackingMap, type CameraMode } from '../../../components/maps';
-import { routingService, type RoutePoint } from '../../../services/maps/routingService';
-import { trackingApi, type TrackingSnapshot } from '../../../services';
+import { AcompanhamentoEmbed } from '../../../components/tracking';
+import {
+  trackingApi,
+  TrackingSocketClient,
+  type TrackingSnapshot,
+  type TrackingEnvelope,
+  type TrackingPosition,
+  type CanonicalRoute,
+  type TrackingWaiting,
+} from '../../../services';
 import { formatDistance, formatDuration, formatETA } from '../../../utils/geoUtils';
 import styles from './RideTracking.module.css';
 
@@ -14,16 +22,22 @@ export const RideTracking = () => {
 
   const [snapshot, setSnapshot] = useState<TrackingSnapshot | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [cameraMode, setCameraMode] = useState<CameraMode>('passenger');
-  const [calculatedCoords, setCalculatedCoords] = useState<Array<[number, number]>>([]);
+  const [viewMode, setViewMode] = useState<'embed' | 'internal'>('embed');
+  const [lastSocketEvent, setLastSocketEvent] = useState<TrackingEnvelope | null>(null);
+  const [isConnectedWs, setIsConnectedWs] = useState(false);
+
+  const socketClientRef = useRef<TrackingSocketClient | null>(null);
 
   const fetchTracking = async (showLoading = false) => {
     if (!rideId) return;
     try {
       if (showLoading) setIsLoading(true);
       else setIsRefreshing(true);
+      setLoadError(null);
 
       const res = await trackingApi.getSnapshot(rideId);
       if (res && res.response) {
@@ -32,6 +46,7 @@ export const RideTracking = () => {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro ao obter dados de rastreamento';
+      setLoadError(msg);
       showToast({ type: 'error', title: 'Falha no rastreamento', description: msg });
     } finally {
       setIsLoading(false);
@@ -39,59 +54,90 @@ export const RideTracking = () => {
     }
   };
 
+  // Inicialização e conexão ao WebSocket do TrackingGateway
   useEffect(() => {
     fetchTracking(true);
-    const interval = setInterval(() => {
-      fetchTracking(false);
-    }, 8000);
 
-    return () => clearInterval(interval);
+    if (!rideId) return;
+
+    const client = new TrackingSocketClient({
+      onConnect: () => {
+        setIsConnectedWs(true);
+      },
+      onDisconnect: () => {
+        setIsConnectedWs(false);
+      },
+      onError: () => {
+        setIsConnectedWs(false);
+      },
+      onVehicleLocation: (position: TrackingPosition) => {
+        setSnapshot((prev) => (prev ? { ...prev, vehiclePosition: position, updatedAt: position.timestamp } : prev));
+        setLastUpdated(new Date());
+      },
+      onPassengerLocation: (position: TrackingPosition) => {
+        setSnapshot((prev) => (prev ? { ...prev, passengerPosition: position } : prev));
+      },
+      onRouteReplaced: (route: CanonicalRoute) => {
+        setSnapshot((prev) => (prev ? { ...prev, route } : prev));
+        setLastUpdated(new Date());
+      },
+      onWaitingChanged: (waiting: TrackingWaiting) => {
+        setSnapshot((prev) => (prev ? { ...prev, waiting } : prev));
+        setLastUpdated(new Date());
+      },
+      onTripStatusChanged: ({ tripStatus }) => {
+        setSnapshot((prev) => (prev ? { ...prev, tripStatus } : prev));
+        setLastUpdated(new Date());
+      },
+      onRawEvent: (envelope) => {
+        setLastSocketEvent(envelope);
+      },
+    });
+
+    socketClientRef.current = client;
+    client.connect(rideId, 'passenger');
+
+    return () => {
+      client.disconnect();
+      socketClientRef.current = null;
+    };
   }, [rideId]);
 
-  // Se o snapshot não trouxer as coordenadas detalhadas da geometria, calculamos via routingService
-  useEffect(() => {
-    if (!snapshot || !snapshot.route) return;
-
-    if (snapshot.route.coordinates && snapshot.route.coordinates.length >= 2) {
-      setCalculatedCoords(snapshot.route.coordinates);
-      return;
+  // Handler para comandos recebidos da ponte de acompanhamento
+  const handleIframeCommand = async (commandType: string, payload: unknown) => {
+    if (!rideId) return;
+    try {
+      if (commandType === 'waiting.confirmed') {
+        await trackingApi.startWaiting(rideId);
+        showToast({ type: 'info', title: 'Espera iniciada', description: 'O tempo de espera foi acionado.' });
+      } else if (commandType === 'waiting.resumeRequested') {
+        await trackingApi.resumeWaiting(rideId);
+        showToast({ type: 'info', title: 'Espera finalizada', description: 'A viagem foi retomada.' });
+      } else if (commandType === 'trip.finishRequested') {
+        await trackingApi.finishTrip(rideId);
+        showToast({ type: 'success', title: 'Corrida finalizada', description: 'A corrida foi encerrada com sucesso.' });
+      } else if (commandType === 'route.rerouteRequested') {
+        const position = (payload as { position?: TrackingPosition })?.position;
+        if (position) {
+          await trackingApi.reroute(rideId, position);
+          showToast({ type: 'info', title: 'Rota recalculada', description: 'Novo traçado aplicado pelo servidor.' });
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Falha ao processar comando';
+      showToast({ type: 'error', title: 'Erro de comunicação', description: msg });
     }
-
-    const { origin, destination, stops } = snapshot.route;
-    if (origin && destination) {
-      const points: RoutePoint[] = [
-        { lat: origin.lat, lng: origin.lng, label: origin.address || 'Origem', type: 'origin' },
-        ...(stops || []).map((st, i) => ({
-          lat: st.lat,
-          lng: st.lng,
-          label: st.address || `Parada ${i + 1}`,
-          type: 'stop' as const,
-        })),
-        { lat: destination.lat, lng: destination.lng, label: destination.address || 'Destino', type: 'destination' },
-      ];
-
-      routingService
-        .calcularRota(points)
-        .then((res) => {
-          if (res.coordinates && res.coordinates.length > 0) {
-            setCalculatedCoords(res.coordinates);
-          }
-        })
-        .catch(() => {
-          setCalculatedCoords(points.map((p) => [p.lat, p.lng]));
-        });
-    }
-  }, [snapshot?.route?.origin?.lat, snapshot?.route?.destination?.lat, snapshot?.route?.stops?.length]);
+  };
 
   const originPoint = useMemo(() => {
     if (snapshot?.route?.origin) {
       return {
         lat: snapshot.route.origin.lat,
         lng: snapshot.route.origin.lng,
-        address: snapshot.route.origin.address || 'Origem da Corrida',
+        address: snapshot.route.origin.label || 'Origem da Corrida',
       };
     }
-    return { lat: -23.507248, lng: -46.653695, address: 'Ponto de Partida' };
+    return null;
   }, [snapshot?.route?.origin]);
 
   const destPoint = useMemo(() => {
@@ -99,20 +145,27 @@ export const RideTracking = () => {
       return {
         lat: snapshot.route.destination.lat,
         lng: snapshot.route.destination.lng,
-        address: snapshot.route.destination.address || 'Destino Final',
+        address: snapshot.route.destination.label || 'Destino Final',
       };
     }
-    return { lat: -23.513207, lng: -46.731058, address: 'Ponto de Chegada' };
+    return null;
   }, [snapshot?.route?.destination]);
 
   const stopsList = useMemo(() => {
-    return (snapshot?.route?.stops || []).map((st, idx) => ({
-      sequence: st.sequence ?? idx + 1,
+    return (snapshot?.route?.stops || []).map((st) => ({
+      sequence: st.sequence,
       lat: st.lat,
       lng: st.lng,
-      address: st.address || `Parada ${idx + 1}`,
+      address: st.label || `Parada #${st.sequence}`,
     }));
   }, [snapshot?.route?.stops]);
+
+  const routeCoordinates = useMemo<Array<[number, number]>>(() => {
+    if (snapshot?.route?.coordinates && snapshot.route.coordinates.length > 0) {
+      return snapshot.route.coordinates.map((c) => [c.lat, c.lng]);
+    }
+    return [];
+  }, [snapshot?.route?.coordinates]);
 
   const vehiclePos = useMemo(() => {
     if (snapshot?.vehiclePosition) {
@@ -123,13 +176,8 @@ export const RideTracking = () => {
         speed: snapshot.vehiclePosition.speed ?? 0,
       };
     }
-    return {
-      lat: originPoint.lat,
-      lng: originPoint.lng,
-      heading: 0,
-      speed: 0,
-    };
-  }, [snapshot?.vehiclePosition, originPoint]);
+    return undefined;
+  }, [snapshot?.vehiclePosition]);
 
   if (isLoading) {
     return (
@@ -143,23 +191,48 @@ export const RideTracking = () => {
     );
   }
 
-  const distanceMeters = snapshot?.route?.distanceMeters ?? 14500;
-  const durationSeconds = snapshot?.route?.durationSeconds ?? 1560;
+  if (loadError && !snapshot) {
+    return (
+      <div className={styles.page}>
+        <div style={{ padding: '2rem', textAlign: 'center', background: '#fff', borderRadius: '12px' }}>
+          <h3>Não foi possível carregar o rastreamento da corrida #{rideId}</h3>
+          <p style={{ color: '#64748b', margin: '1rem 0' }}>{loadError}</p>
+          <Button variant="primary" onClick={() => fetchTracking(true)}>
+            Tentar novamente
+          </Button>
+          <Button variant="ghost" onClick={() => navigate(-1)} style={{ marginLeft: '0.75rem' }}>
+            Voltar
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const distanceMeters = snapshot?.route?.distanceMeters ?? null;
+  const durationSeconds = snapshot?.route?.durationSeconds ?? null;
   const trafficDelaySeconds = snapshot?.route?.trafficDelaySeconds ?? 0;
   const trafficMinutes = Math.round(trafficDelaySeconds / 60);
 
-  const speedKmH = snapshot?.vehiclePosition?.speed
-    ? Math.round(snapshot.vehiclePosition.speed)
-    : 42;
+  const speedKmH =
+    snapshot?.vehiclePosition?.speed != null ? Math.round(snapshot.vehiclePosition.speed * 3.6) : null;
 
-  const statusLabel =
-    snapshot?.tripStatus === 'COMPLETED'
-      ? 'Concluída'
-      : snapshot?.tripStatus === 'CANCELLED'
-      ? 'Cancelada'
-      : snapshot?.waiting?.active
-      ? 'Aguardando no local'
-      : 'Em deslocamento';
+  const formatTripStatus = (status?: string, isWaiting?: boolean) => {
+    if (isWaiting) return 'Aguardando no local';
+    switch (status) {
+      case 'in_progress':
+        return 'Em deslocamento';
+      case 'finished':
+        return 'Concluída';
+      case 'canceled':
+        return 'Cancelada';
+      case 'scheduled':
+        return 'Agendada';
+      default:
+        return status ? status.toUpperCase() : 'Não informada';
+    }
+  };
+
+  const statusLabel = formatTripStatus(snapshot?.tripStatus, snapshot?.waiting?.active);
 
   return (
     <div className={styles.page}>
@@ -167,41 +240,37 @@ export const RideTracking = () => {
         <div className={styles.headerLeft}>
           <div className={styles.titleRow}>
             <h2>Acompanhamento — Corrida #{rideId}</h2>
-            <span className={styles.liveBadge} role="status" aria-label="Acompanhamento ao vivo">
+            <span
+              className={styles.liveBadge}
+              role="status"
+              aria-label={isConnectedWs ? 'Conectado em tempo real' : 'Sincronização pontual'}
+              style={{ backgroundColor: isConnectedWs ? '#10b981' : '#f59e0b' }}
+            >
               <span className={styles.liveDot} aria-hidden="true" />
-              Ao Vivo
+              {isConnectedWs ? 'WebSocket Ao Vivo' : 'Sincronizado'}
             </span>
           </div>
           <p>
-            Telemetria vetorial via MapLibre GL & OpenFreeMap. Última atualização às{' '}
+            Telemetria da corrida com dados autoritativos do backend. Atualizado às{' '}
             {lastUpdated.toLocaleTimeString('pt-BR')}.
           </p>
         </div>
 
         <div className={styles.headerActions}>
-          <div className={styles.cameraToggleGroup} role="group" aria-label="Modo de Visualização do Mapa">
+          <div className={styles.cameraToggleGroup} role="group" aria-label="Modo de Visualização">
             <button
               type="button"
-              className={`${styles.cameraToggleBtn} ${cameraMode === 'passenger' ? styles.cameraToggleBtnActive : ''}`}
-              onClick={() => setCameraMode('passenger')}
+              className={`${styles.cameraToggleBtn} ${viewMode === 'embed' ? styles.cameraToggleBtnActive : ''}`}
+              onClick={() => setViewMode('embed')}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-              Monitoramento 2D
+              Frota Acompanhamento (Oficial)
             </button>
             <button
               type="button"
-              className={`${styles.cameraToggleBtn} ${cameraMode === 'driver' ? styles.cameraToggleBtnActive : ''}`}
-              onClick={() => setCameraMode('driver')}
+              className={`${styles.cameraToggleBtn} ${viewMode === 'internal' ? styles.cameraToggleBtnActive : ''}`}
+              onClick={() => setViewMode('internal')}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polygon points="12 2 2 7 12 12 22 7 12 2" />
-                <polyline points="2 17 12 22 22 17" />
-                <polyline points="2 12 12 17 22 12" />
-              </svg>
-              Navegação 3D
+              Mapa Integrado
             </button>
           </div>
 
@@ -214,20 +283,20 @@ export const RideTracking = () => {
         </div>
       </header>
 
-      {/* Card Flutuante de Telemetria / ETA (inspirado no frota-acompanhamento) */}
+      {/* Card Flutuante de Telemetria / ETA */}
       <section className={styles.passengerSummaryCard} aria-label="Previsão e métricas de rota">
         <div className={styles.etaBlock}>
-          <strong>{formatETA(durationSeconds)}</strong>
+          <strong>{durationSeconds != null ? formatETA(durationSeconds) : '—'}</strong>
           <span>Chegada Estimada (ETA)</span>
         </div>
 
         <div className={styles.metricBlock}>
-          <strong>{formatDuration(durationSeconds)}</strong>
+          <strong>{durationSeconds != null ? formatDuration(durationSeconds) : '—'}</strong>
           <span>Tempo Restante</span>
         </div>
 
         <div className={styles.metricBlock}>
-          <strong>{formatDistance(distanceMeters)}</strong>
+          <strong>{distanceMeters != null ? formatDistance(distanceMeters) : '—'}</strong>
           <span>Distância Restante</span>
         </div>
 
@@ -240,36 +309,53 @@ export const RideTracking = () => {
 
       <section className={styles.statsGrid} aria-label="Indicadores da corrida">
         <StatCard title="Status do trajeto" value={statusLabel} />
-        <StatCard title="Distância estimada" value={formatDistance(distanceMeters)} />
-        <StatCard title="Previsão de chegada" value={`${Math.round(durationSeconds / 60)} min`} />
-        <StatCard title="Velocidade aferida" value={`${speedKmH} km/h`} />
+        <StatCard title="Distância estimada" value={distanceMeters != null ? formatDistance(distanceMeters) : '—'} />
+        <StatCard
+          title="Previsão de chegada"
+          value={durationSeconds != null ? `${Math.round(durationSeconds / 60)} min` : '—'}
+        />
+        <StatCard title="Velocidade aferida" value={speedKmH != null ? `${speedKmH} km/h` : 'Sem telemetria'} />
       </section>
 
       <section className={styles.trackingLayout}>
         <article className={styles.mapCard}>
           <div className={styles.mapToolbar}>
             <span className={styles.mapToolbarTitle}>
-              {cameraMode === 'driver' ? 'Perspectiva do Motorista (3D Tilt)' : 'Mapa Geral da Rota e Telemetria'}
+              {viewMode === 'embed'
+                ? 'Visualização Oficial: frota-acompanhamento (WebParentTripBridge)'
+                : cameraMode === 'driver'
+                ? 'Perspectiva do Motorista (3D Tilt)'
+                : 'Mapa Geral 2D'}
             </span>
             <div className={styles.mapToolbarActions}>
               <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
                 {snapshot?.vehiclePosition
                   ? `GPS: ${snapshot.vehiclePosition.lat.toFixed(4)}, ${snapshot.vehiclePosition.lng.toFixed(4)}`
-                  : 'Sinal GPS ativo'}
+                  : 'Aguardando telemetria do veículo'}
               </span>
             </div>
           </div>
 
-          <LiveTrackingMap
-            origin={originPoint}
-            destination={destPoint}
-            stops={stopsList}
-            routeCoordinates={calculatedCoords}
-            vehiclePosition={vehiclePos}
-            cameraMode={cameraMode}
-            onCameraModeChange={setCameraMode}
-            height={500}
-          />
+          {viewMode === 'embed' && rideId ? (
+            <AcompanhamentoEmbed
+              rideId={rideId}
+              role="passenger"
+              snapshot={snapshot}
+              lastEvent={lastSocketEvent}
+              onCommand={handleIframeCommand}
+            />
+          ) : (
+            <LiveTrackingMap
+              origin={originPoint ?? undefined}
+              destination={destPoint ?? undefined}
+              stops={stopsList}
+              routeCoordinates={routeCoordinates}
+              vehiclePosition={vehiclePos}
+              cameraMode={cameraMode}
+              onCameraModeChange={setCameraMode}
+              height={520}
+            />
+          )}
         </article>
 
         <aside className={styles.sidePanel}>
@@ -277,22 +363,22 @@ export const RideTracking = () => {
             <h3 className={styles.cardTitle}>Motorista e Veículo</h3>
             <div className={styles.driverRow}>
               <div className={styles.driverAvatar}>
-                {snapshot?.driver?.name ? snapshot.driver.name.charAt(0).toUpperCase() : 'M'}
+                {snapshot?.driver?.displayName ? snapshot.driver.displayName.charAt(0).toUpperCase() : 'M'}
               </div>
               <div className={styles.driverInfo}>
-                <strong>{snapshot?.driver?.name || 'Motorista Homologado'}</strong>
-                <span>{snapshot?.driver?.phone || '(11) 98765-4321'}</span>
+                <strong>{snapshot?.driver?.displayName || 'Motorista não atribuído'}</strong>
+                <span>ID: {snapshot?.driver?.id || '—'}</span>
               </div>
             </div>
 
             <div className={styles.metaList}>
               <div className={styles.metaItem}>
                 <span>Veículo</span>
-                <strong>{snapshot?.vehicle?.model || 'Sedan Executivo'}</strong>
+                <strong>{snapshot?.vehicle?.description || 'Veículo cadastrado'}</strong>
               </div>
               <div className={styles.metaItem}>
                 <span>Placa</span>
-                <strong>{snapshot?.vehicle?.plate || 'BRA2E19'}</strong>
+                <strong>{snapshot?.vehicle?.plate || '—'}</strong>
               </div>
               <div className={styles.metaItem}>
                 <span>Aguardando passageiro?</span>
@@ -307,7 +393,7 @@ export const RideTracking = () => {
               <div className={styles.timelineItem}>
                 <span className={styles.timelineDotOrigin} aria-hidden="true" />
                 <small>Origem</small>
-                <strong>{originPoint.address}</strong>
+                <strong>{originPoint?.address || '—'}</strong>
               </div>
 
               {stopsList.map((stop, i) => (
@@ -321,7 +407,7 @@ export const RideTracking = () => {
               <div className={styles.timelineItem}>
                 <span className={styles.timelineDotDest} aria-hidden="true" />
                 <small>Destino</small>
-                <strong>{destPoint.address}</strong>
+                <strong>{destPoint?.address || '—'}</strong>
               </div>
             </div>
           </div>
