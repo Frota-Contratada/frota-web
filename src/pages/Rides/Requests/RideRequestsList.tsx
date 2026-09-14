@@ -4,11 +4,29 @@ import { Button, Select, StatCard, Table, TableToolbar, useToast, type ColumnDef
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
 import ErroIcon from '../../../assets/icons/erro.svg?react';
 import CheckIcon from '../../../assets/icons/check.svg?react';
-import { type RequestStatus, type RideRequest } from '../ridesData';
 import { ridesApi, extractListData, type SolicitacaoDto, type MotivoSolicitacaoDto } from '../../../services';
 import { exportToCsv } from '../../../utils/exportHelper';
 import { RideAllocationModal } from '../../Fleet';
 import styles from './RideRequests.module.css';
+
+export type RequestStatus = 'P' | 'A' | 'R' | 'C';
+
+export type RideRequest = {
+  id: number;
+  requester: string;
+  supplier: string;
+  createdAt: string;
+  rideAt: string;
+  estimatedDistanceKm: number;
+  rideType: string;
+  origin: string;
+  destination: string;
+  estimatedValue: string;
+  reason: string;
+  costCenters: number;
+  passengers: number;
+  status: RequestStatus;
+};
 
 const PAGE_SIZE = 5;
 
@@ -25,28 +43,6 @@ const requestStatusClass: Record<RequestStatus, string> = {
   R: styles.danger,
   C: styles.danger,
 };
-
-const filterSections: FilterSection[] = [
-  {
-    title: 'Status',
-    options: [
-      { label: 'Pendente', value: 'status:P' },
-      { label: 'Aprovada', value: 'status:A' },
-      { label: 'Recusada', value: 'status:R' },
-      { label: 'Cancelada', value: 'status:C' },
-    ],
-  },
-  {
-    title: 'Tipo de corrida',
-    options: [
-      { label: 'Executiva', value: 'tipo:Executiva' },
-      { label: 'Operacional', value: 'tipo:Operacional' },
-      { label: 'Intermunicipal', value: 'tipo:Intermunicipal' },
-      { label: 'Rota fixa', value: 'tipo:Rota fixa' },
-      { label: 'Frota dedicada', value: 'tipo:Frota dedicada' },
-    ],
-  },
-];
 
 const columns: ColumnDef<RideRequest>[] = [
   {
@@ -188,10 +184,54 @@ export const RideRequestsList = () => {
     }
   };
 
+  const filterSections = useMemo<FilterSection[]>(() => {
+    const statuses = Array.from(new Set(requestsList.map((r) => r.status))).filter(Boolean) as RequestStatus[];
+    const types = Array.from(new Set(requestsList.map((r) => r.rideType).filter((t) => t && t !== '—'))).sort();
+    const suppliers = Array.from(new Set(requestsList.map((r) => r.supplier).filter((s) => s && s !== '—'))).sort();
+
+    const sections: FilterSection[] = [];
+
+    if (statuses.length > 0) {
+      sections.push({
+        id: 'status',
+        title: 'Status',
+        options: statuses.map((st) => ({
+          label: requestStatusLabel[st] || st,
+          value: `status:${st}`,
+        })),
+      });
+    }
+
+    if (types.length > 0) {
+      sections.push({
+        id: 'tipo',
+        title: 'Tipo de corrida',
+        options: types.map((t) => ({
+          label: t,
+          value: `tipo:${t}`,
+        })),
+      });
+    }
+
+    if (suppliers.length > 0) {
+      sections.push({
+        id: 'fornecedor',
+        title: 'Fornecedor',
+        options: suppliers.map((sup) => ({
+          label: sup,
+          value: `fornecedor:${sup}`,
+        })),
+      });
+    }
+
+    return sections;
+  }, [requestsList]);
+
   const filteredRequests = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
     const statusFilters = selectedFilters.filter((filter) => filter.startsWith('status:')).map((filter) => filter.replace('status:', ''));
     const typeFilters = selectedFilters.filter((filter) => filter.startsWith('tipo:')).map((filter) => filter.replace('tipo:', ''));
+    const supplierFilters = selectedFilters.filter((filter) => filter.startsWith('fornecedor:')).map((filter) => filter.replace('fornecedor:', ''));
 
     return requestsList.filter((request) => {
       const matchesQuery =
@@ -203,8 +243,9 @@ export const RideRequestsList = () => {
         request.destination.toLocaleLowerCase('pt-BR').includes(normalizedQuery);
       const matchesStatus = statusFilters.length === 0 || statusFilters.includes(request.status);
       const matchesType = typeFilters.length === 0 || typeFilters.includes(request.rideType);
+      const matchesSupplier = supplierFilters.length === 0 || supplierFilters.includes(request.supplier);
 
-      return matchesQuery && matchesStatus && matchesType;
+      return matchesQuery && matchesStatus && matchesType && matchesSupplier;
     });
   }, [requestsList, query, selectedFilters]);
 

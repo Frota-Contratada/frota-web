@@ -197,7 +197,7 @@ export const RideDetails = () => {
           </div>
 
           <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
-            <RouteMap points={routePoints} height={300} />
+            <RouteMap points={routePoints} height={340} allowPlayback={true} />
           </div>
 
           <div className={styles.cardHeader} style={{ marginTop: '2rem' }}>

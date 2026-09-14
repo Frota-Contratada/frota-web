@@ -2,10 +2,28 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../../components/common';
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
-import { type RideHistory, type RideStatus } from '../ridesData';
 import { ridesApi, extractListData, type SolicitacaoDto } from '../../../services';
 import { exportToCsv } from '../../../utils/exportHelper';
 import styles from './RideHistory.module.css';
+
+export type RideStatus = 'I' | 'F' | 'C';
+
+export type RideHistory = {
+  id: number;
+  requestId: number;
+  driver: string;
+  supplier: string;
+  collaborator?: string;
+  vehiclePlate: string;
+  vehicleType: string;
+  startedAt: string;
+  finishedAt: string | null;
+  rideDate?: string;
+  distanceKm: number;
+  finalValue: string;
+  extraExpenses: string;
+  status: RideStatus;
+};
 
 const PAGE_SIZE = 5;
 
@@ -20,35 +38,6 @@ const rideStatusClass: Record<RideStatus, string> = {
   F: styles.success,
   C: styles.danger,
 };
-
-const filterSections: FilterSection[] = [
-  {
-    title: 'Período',
-    options: [
-      { label: 'Últimos 7 dias', value: 'periodo:7d' },
-      { label: 'Últimos 30 dias', value: 'periodo:30d' },
-      { label: 'Este mês', value: 'periodo:mes' },
-    ],
-  },
-  {
-    title: 'Status',
-    options: [
-      { label: 'Iniciada', value: 'status:I' },
-      { label: 'Finalizada', value: 'status:F' },
-      { label: 'Cancelada', value: 'status:C' },
-    ],
-  },
-  {
-    title: 'Tipo de veículo',
-    options: [
-      { label: 'Sedan executivo', value: 'veiculo:Sedan executivo' },
-      { label: 'Van', value: 'veiculo:Van' },
-      { label: 'SUV', value: 'veiculo:SUV' },
-      { label: 'Utilitário', value: 'veiculo:Utilitário' },
-      { label: 'Hatch', value: 'veiculo:Hatch' },
-    ],
-  },
-];
 
 const columns: ColumnDef<RideHistory>[] = [
   {
@@ -144,29 +133,89 @@ export const RideHistoryList = () => {
     };
   }, [showToast]);
 
-  const dynamicFilterSections = useMemo(() => {
-    const uniqueCollabs = Array.from(new Set(historyList.map((r) => r.collaborator).filter(Boolean))) as string[];
-    const collabOptions = uniqueCollabs.map((name) => ({
-      label: name,
-      value: `colaborador:${name}`,
-    }));
+  const dynamicFilterSections = useMemo<FilterSection[]>(() => {
+    const statuses = Array.from(new Set(historyList.map((r) => r.status))).filter(Boolean) as RideStatus[];
+    const vehicles = Array.from(new Set(historyList.map((r) => r.vehicleType).filter((v) => v && v !== '—'))).sort();
+    const suppliers = Array.from(new Set(historyList.map((r) => r.supplier).filter((s) => s && s !== '—'))).sort();
+    const drivers = Array.from(new Set(historyList.map((r) => r.driver).filter((d) => d && d !== '—'))).sort();
+    const collabs = Array.from(new Set(historyList.map((r) => r.collaborator).filter(Boolean))) as string[];
 
-    if (collabOptions.length > 0) {
-      return [
-        ...filterSections,
-        {
-          title: 'Colaborador',
-          options: collabOptions,
-        },
-      ];
+    const sections: FilterSection[] = [
+      {
+        id: 'periodo',
+        title: 'Período',
+        options: [
+          { label: 'Últimos 7 dias', value: 'periodo:7d' },
+          { label: 'Últimos 30 dias', value: 'periodo:30d' },
+          { label: 'Este mês', value: 'periodo:mes' },
+        ],
+      },
+    ];
+
+    if (statuses.length > 0) {
+      sections.push({
+        id: 'status',
+        title: 'Status',
+        options: statuses.map((st) => ({
+          label: rideStatusLabel[st] || st,
+          value: `status:${st}`,
+        })),
+      });
     }
-    return filterSections;
+
+    if (vehicles.length > 0) {
+      sections.push({
+        id: 'veiculo',
+        title: 'Tipo de veículo',
+        options: vehicles.map((v) => ({
+          label: v,
+          value: `veiculo:${v}`,
+        })),
+      });
+    }
+
+    if (suppliers.length > 0) {
+      sections.push({
+        id: 'fornecedor',
+        title: 'Fornecedor',
+        options: suppliers.map((s) => ({
+          label: s,
+          value: `fornecedor:${s}`,
+        })),
+      });
+    }
+
+    if (drivers.length > 0) {
+      sections.push({
+        id: 'motorista',
+        title: 'Motorista',
+        options: drivers.map((d) => ({
+          label: d,
+          value: `motorista:${d}`,
+        })),
+      });
+    }
+
+    if (collabs.length > 0) {
+      sections.push({
+        id: 'colaborador',
+        title: 'Colaborador',
+        options: collabs.map((c) => ({
+          label: c,
+          value: `colaborador:${c}`,
+        })),
+      });
+    }
+
+    return sections;
   }, [historyList]);
 
   const filteredRides = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
     const statusFilters = selectedFilters.filter((filter) => filter.startsWith('status:')).map((filter) => filter.replace('status:', ''));
     const vehicleFilters = selectedFilters.filter((filter) => filter.startsWith('veiculo:')).map((filter) => filter.replace('veiculo:', ''));
+    const supplierFilters = selectedFilters.filter((filter) => filter.startsWith('fornecedor:')).map((filter) => filter.replace('fornecedor:', ''));
+    const driverFilters = selectedFilters.filter((filter) => filter.startsWith('motorista:')).map((filter) => filter.replace('motorista:', ''));
     const collabFilters = selectedFilters.filter((filter) => filter.startsWith('colaborador:')).map((filter) => filter.replace('colaborador:', ''));
     const periodFilters = selectedFilters.filter((filter) => filter.startsWith('periodo:')).map((filter) => filter.replace('periodo:', ''));
 
@@ -184,6 +233,8 @@ export const RideHistoryList = () => {
 
       const matchesStatus = statusFilters.length === 0 || statusFilters.includes(ride.status);
       const matchesVehicle = vehicleFilters.length === 0 || vehicleFilters.includes(ride.vehicleType);
+      const matchesSupplier = supplierFilters.length === 0 || supplierFilters.includes(ride.supplier);
+      const matchesDriver = driverFilters.length === 0 || driverFilters.includes(ride.driver);
       const matchesCollab = collabFilters.length === 0 || (ride.collaborator && collabFilters.includes(ride.collaborator));
 
       let matchesPeriod = true;
@@ -202,7 +253,7 @@ export const RideHistoryList = () => {
         });
       }
 
-      return matchesQuery && matchesStatus && matchesVehicle && matchesCollab && matchesPeriod;
+      return matchesQuery && matchesStatus && matchesVehicle && matchesSupplier && matchesDriver && matchesCollab && matchesPeriod;
     });
   }, [historyList, query, selectedFilters]);
 
