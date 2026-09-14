@@ -4,22 +4,21 @@ import { Button, Input, StatCard, StatusBadge, Table, TableToolbar, useToast, ty
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
 import CheckIcon from '../../../assets/icons/check.svg?react';
 import ErroIcon from '../../../assets/icons/erro.svg?react';
-import { type Contract } from '../contractsData';
 import { contractApi, extractListData, type ContratoDto, type ContratoBigNumbers } from '../../../services';
 import styles from './ContractsList.module.css';
 
-const PAGE_SIZE = 5;
+export type Contract = {
+  id: number;
+  codigo: string;
+  fornecedor: string;
+  filial: string;
+  inicio: string;
+  vencimento: string;
+  status: BadgeStatus;
+  arquivo: string;
+};
 
-const contractFilters: FilterSection[] = [
-  {
-    title: 'Status',
-    options: [
-      { label: 'Ativo', value: 'status:aprovado' },
-      { label: 'A vencer em breve', value: 'status:pendente' },
-      { label: 'Vencido', value: 'status:cancelado' },
-    ],
-  },
-];
+const PAGE_SIZE = 5;
 
 const columns: ColumnDef<Contract>[] = [
   {
@@ -119,12 +118,67 @@ export const ContractsList = () => {
     fetchContracts();
   }, []);
 
-  const statusFilters = selectedFilters
-    .filter((filter) => filter.startsWith('status:'))
-    .map((filter) => filter.replace('status:', ''));
+  const filterSections = useMemo<FilterSection[]>(() => {
+    const statuses = Array.from(new Set(contractsList.map((c) => c.status))).filter(Boolean);
+    const fornecedores = Array.from(new Set(contractsList.map((c) => c.fornecedor).filter((f) => f && f !== '—'))).sort();
+    const filiais = Array.from(new Set(contractsList.map((c) => c.filial).filter((f) => f && f !== '—'))).sort();
+
+    const sections: FilterSection[] = [];
+
+    if (statuses.length > 0) {
+      const statusLabels: Record<BadgeStatus, string> = {
+        aprovado: 'Ativo',
+        pendente: 'A vencer em breve',
+        cancelado: 'Vencido / Cancelado',
+        em_andamento: 'Em andamento',
+        rejeitado: 'Rejeitado',
+      };
+      sections.push({
+        id: 'status',
+        title: 'Status',
+        options: statuses.map((status) => ({
+          label: statusLabels[status] || status,
+          value: `status:${status}`,
+        })),
+      });
+    }
+
+    if (fornecedores.length > 0) {
+      sections.push({
+        id: 'fornecedor',
+        title: 'Fornecedor',
+        options: fornecedores.map((forn) => ({
+          label: forn,
+          value: `fornecedor:${forn}`,
+        })),
+      });
+    }
+
+    if (filiais.length > 0) {
+      sections.push({
+        id: 'filial',
+        title: 'Filial',
+        options: filiais.map((fil) => ({
+          label: fil,
+          value: `filial:${fil}`,
+        })),
+      });
+    }
+
+    return sections;
+  }, [contractsList]);
 
   const filteredContracts = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
+    const statusFilters = selectedFilters
+      .filter((filter) => filter.startsWith('status:'))
+      .map((filter) => filter.replace('status:', ''));
+    const fornecedorFilters = selectedFilters
+      .filter((filter) => filter.startsWith('fornecedor:'))
+      .map((filter) => filter.replace('fornecedor:', ''));
+    const filialFilters = selectedFilters
+      .filter((filter) => filter.startsWith('filial:'))
+      .map((filter) => filter.replace('filial:', ''));
 
     return contractsList.filter((contract) => {
       const matchesQuery =
@@ -132,11 +186,14 @@ export const ContractsList = () => {
         contract.codigo.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
         contract.fornecedor.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
         contract.filial.toLocaleLowerCase('pt-BR').includes(normalizedQuery);
-      const matchesStatus = statusFilters.length === 0 || statusFilters.includes(contract.status);
 
-      return matchesQuery && matchesStatus;
+      const matchesStatus = statusFilters.length === 0 || statusFilters.includes(contract.status);
+      const matchesFornecedor = fornecedorFilters.length === 0 || fornecedorFilters.includes(contract.fornecedor);
+      const matchesFilial = filialFilters.length === 0 || filialFilters.includes(contract.filial);
+
+      return matchesQuery && matchesStatus && matchesFornecedor && matchesFilial;
     });
-  }, [query, statusFilters, contractsList]);
+  }, [query, selectedFilters, contractsList]);
 
   const totalPages = Math.max(1, Math.ceil(filteredContracts.length / PAGE_SIZE));
   const pageData = filteredContracts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -300,7 +357,7 @@ export const ContractsList = () => {
               <Button onClick={() => navigate('/terceiros/contratos/novo')}>Novo contrato</Button>
             </div>
           }
-          filterSections={contractFilters}
+          filterSections={filterSections}
           selectedFilters={selectedFilters}
           onFilterChange={(values) => {
             setSelectedFilters(values);
