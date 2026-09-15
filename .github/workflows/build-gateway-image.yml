@@ -1,0 +1,137 @@
+name: Build Gateway Image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "gateway/**"
+      - ".github/workflows/build-gateway-image.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build gateway image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Define image metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SHORT_SHA="${GITHUB_SHA::12}"
+
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          echo "image=frota-gateway:$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          echo "archive=frota-gateway-$SHORT_SHA.tar" >> "$GITHUB_OUTPUT"
+
+      - name: Build image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker build \
+            --platform linux/amd64 \
+            --tag "${{ steps.meta.outputs.image }}" \
+            gateway
+
+      - name: Validate Nginx configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker run \
+            --rm \
+            --env WEB_HOST=frota.local \
+            --env API_HOST=api.frota.local \
+            --env ACOMPANHAMENTO_HOST=acompanhamento.frota.local \
+            --env IA_HOST=ia.frota.local \
+            "${{ steps.meta.outputs.image }}" \
+            nginx -t
+
+      - name: Smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker run \
+            --detach \
+            --name frota-gateway-ci \
+            --env WEB_HOST=frota.local \
+            --env API_HOST=api.frota.local \
+            --env ACOMPANHAMENTO_HOST=acompanhamento.frota.local \
+            --env IA_HOST=ia.frota.local \
+            --publish 127.0.0.1:18081:80 \
+            "${{ steps.meta.outputs.image }}"
+
+          cleanup() {
+            docker rm -f frota-gateway-ci >/dev/null 2>&1 || true
+          }
+
+          trap cleanup EXIT
+
+          for i in $(seq 1 30); do
+            if curl \
+              --fail \
+              --silent \
+              --show-error \
+              http://127.0.0.1:18081/health >/dev/null
+            then
+              exit 0
+            fi
+
+            sleep 1
+          done
+
+          docker logs frota-gateway-ci
+          exit 1
+
+      - name: Export image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p artifact
+
+          docker save \
+            "${{ steps.meta.outputs.image }}" \
+            -o "artifact/${{ steps.meta.outputs.archive }}"
+
+          cd artifact
+
+          sha256sum \
+            "${{ steps.meta.outputs.archive }}" \
+            > "${{ steps.meta.outputs.archive }}.sha256"
+
+      - name: Create manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > artifact/manifest.json <<EOF
+          {
+            "repository": "Frota-Contratada/frota-web",
+            "component": "gateway",
+            "commit": "${GITHUB_SHA}",
+            "shortCommit": "${{ steps.meta.outputs.short_sha }}",
+            "image": "${{ steps.meta.outputs.image }}",
+            "archive": "${{ steps.meta.outputs.archive }}"
+          }
+          EOF
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frota-gateway-${{ steps.meta.outputs.short_sha }}
+          path: artifact/
+          if-no-files-found: error
+          retention-days: 14

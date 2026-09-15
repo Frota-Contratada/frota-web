@@ -1,0 +1,112 @@
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+
+# ============================================================
+# WEB
+# ============================================================
+
+server {
+    listen 80;
+    server_name ${WEB_HOST};
+
+    location / {
+        proxy_pass http://host.containers.internal:8080;
+
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+
+# ============================================================
+# API / BACKEND
+# ============================================================
+
+server {
+    listen 80;
+    server_name ${API_HOST};
+
+    location / {
+        proxy_pass http://host.containers.internal:3000;
+
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+    }
+}
+
+
+# ============================================================
+# ACOMPANHAMENTO
+# ============================================================
+
+server {
+    listen 80;
+    server_name ${ACOMPANHAMENTO_HOST};
+
+    location / {
+        proxy_pass http://host.containers.internal:8081;
+
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+
+# ============================================================
+# IA
+# ============================================================
+
+server {
+    listen 80;
+    server_name ${IA_HOST};
+
+    location / {
+        proxy_pass http://host.containers.internal:8000;
+
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+
+# ============================================================
+# DEFAULT / HEALTH
+# ============================================================
+
+server {
+    listen 80 default_server;
+    server_name _;
+
+    location = /health {
+        access_log off;
+        default_type text/plain;
+
+        return 200 "gateway-ok\n";
+    }
+
+    location / {
+        return 404;
+    }
+}
