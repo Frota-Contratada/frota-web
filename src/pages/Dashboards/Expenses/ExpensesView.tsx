@@ -1,4 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+} from 'recharts';
 import { StatCard, Table, TableToolbar, type ColumnDef, StatusBadge } from '../../../components/common';
 import {
   costCenterApi,
@@ -16,6 +27,8 @@ export interface ExpensesRow {
   aprovador: string;
   ativo: boolean;
 }
+
+const MONTH_NAMES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
 const columns: ColumnDef<ExpensesRow>[] = [
   {
@@ -75,6 +88,60 @@ export const ExpensesView = () => {
     }));
   }, [costCenters]);
 
+  const costCenterChartData = useMemo(() => {
+    if (rides.length === 0 && costCenters.length === 0) return [];
+    const map: Record<string, number> = {};
+
+    costCenters.forEach((cc) => {
+      const label = cc.nome ? (cc.nome.length > 15 ? `${cc.nome.slice(0, 13)}...` : cc.nome) : `CC-${cc.numero}`;
+      map[label] = 0;
+    });
+
+    rides.forEach((r) => {
+      const ccs = r.centrosCusto || r.CentrosCusto;
+      const val = Number(r.corrida?.valorFinal ?? r.valorEstimado ?? 0);
+      if (!ccs || ccs.length === 0) {
+        map['Geral'] = (map['Geral'] || 0) + (isNaN(val) ? 0 : val);
+        return;
+      }
+      const share = (isNaN(val) ? 0 : val) / ccs.length;
+      ccs.forEach((c) => {
+        const found = costCenters.find((x) => x.numero === c.filialId || (x as any).id === c.filialId);
+        const name = found?.nome
+          ? (found.nome.length > 15 ? `${found.nome.slice(0, 13)}...` : found.nome)
+          : `CC-${c.filialId}`;
+        map[name] = (map[name] || 0) + share;
+      });
+    });
+
+    const entries = Object.entries(map)
+      .map(([name, valor]) => ({ name, valor: Math.round(valor) }))
+      .filter((item) => item.valor > 0)
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 6);
+
+    return entries;
+  }, [rides, costCenters]);
+
+  const monthlyExpensesData = useMemo(() => {
+    if (rides.length === 0) return [];
+    const map: Record<string, number> = {};
+    rides.forEach((r) => {
+      const dateStr = r.dataCorrida || r.dataCriacao || r.createdAt;
+      if (!dateStr) return;
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return;
+      const key = MONTH_NAMES[d.getMonth()];
+      const val = Number(r.corrida?.valorFinal ?? r.valorEstimado ?? 0);
+      map[key] = (map[key] || 0) + (isNaN(val) ? 0 : val);
+    });
+
+    return Object.entries(map).map(([name, valor]) => ({
+      name,
+      valor: Math.round(valor),
+    }));
+  }, [rides]);
+
   const expensesFilterSections = [
     {
       title: 'Status',
@@ -94,8 +161,8 @@ export const ExpensesView = () => {
 
   const filteredData = tableData.filter((item) => {
     if (selectedFilters.length === 0) return true;
-    const statusFilters = selectedFilters.filter(f => f.startsWith('status:')).map(f => f.replace('status:', ''));
-    const aprovadorFilters = selectedFilters.filter(f => f.startsWith('aprovador:')).map(f => f.replace('aprovador:', ''));
+    const statusFilters = selectedFilters.filter((f) => f.startsWith('status:')).map((f) => f.replace('status:', ''));
+    const aprovadorFilters = selectedFilters.filter((f) => f.startsWith('aprovador:')).map((f) => f.replace('aprovador:', ''));
 
     const matchesStatus = statusFilters.length === 0 || statusFilters.includes(item.ativo ? 'ativo' : 'inativo');
     const matchesAprovador = aprovadorFilters.length === 0 || aprovadorFilters.includes(item.aprovador);
@@ -125,13 +192,13 @@ export const ExpensesView = () => {
           isLoading={isLoading}
         />
         <StatCard
-          title="Com aprovador atribuído"
+          title="Com aprovador vinculado"
           value={String(ccsWithApprover)}
           isLoading={isLoading}
         />
         <StatCard
-          title="Total estimado de viagens"
-          value={totalSpent > 0 ? `R$ ${totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
+          title="Gasto consolidado de viagens"
+          value={totalSpent > 0 ? `R$ ${totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00'}
           isLoading={isLoading}
         />
         <StatCard
@@ -146,15 +213,39 @@ export const ExpensesView = () => {
           <div className={styles.chartHeader}>
             <div>
               <span className={styles.chartEyebrow}>Estatísticas</span>
-              <h3 className={styles.chartTitle}>Gastos agregados por centro de custo</h3>
+              <h3 className={styles.chartTitle}>Maiores gastos por centro de custo</h3>
             </div>
           </div>
 
           <div className={styles.chartContainer}>
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#6b7280', textAlign: 'center', padding: '1rem', background: 'var(--color-surface, #f9fafb)', borderRadius: '8px', border: '1px dashed #d1d5db' }}>
-              <span style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#374151' }}>Métrica Analítica em Preparação</span>
-              <small>O backend ainda não possui endpoint de agregação contábil por centro de custo. Gráfico preparado para integração futura.</small>
-            </div>
+            {costCenterChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  layout="vertical"
+                  data={costCenterChartData}
+                  margin={{ top: 10, right: 20, left: 10, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
+                  <XAxis
+                    type="number"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: '#6b7280' }}
+                    tickFormatter={(val) => `R$${val}`}
+                  />
+                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#374151' }} />
+                  <Tooltip
+                    formatter={(val: any) => [`R$ ${Number(val).toLocaleString('pt-BR')}`, 'Gasto Total']}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                  />
+                  <Bar dataKey="valor" fill="#0052cc" radius={[0, 4, 4, 0]} barSize={16} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className={styles.emptyChart}>
+                <span>Nenhum centro de custo possui corridas registradas no momento</span>
+              </div>
+            )}
           </div>
         </article>
 
@@ -162,15 +253,40 @@ export const ExpensesView = () => {
           <div className={styles.chartHeader}>
             <div>
               <span className={styles.chartEyebrow}>Estatísticas</span>
-              <h3 className={styles.chartTitle}>Evolução mensal de despesas</h3>
+              <h3 className={styles.chartTitle}>Evolução mensal de gastos</h3>
             </div>
           </div>
 
           <div className={styles.chartContainer}>
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#6b7280', textAlign: 'center', padding: '1rem', background: 'var(--color-surface, #f9fafb)', borderRadius: '8px', border: '1px dashed #d1d5db' }}>
-              <span style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#374151' }}>Métrica Analítica em Preparação</span>
-              <small>Aguardando disponibilização de série temporal de liquidação financeira no backend.</small>
-            </div>
+            {monthlyExpensesData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={monthlyExpensesData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="expensesGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#00a3ff" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#00a3ff" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: '#6b7280' }}
+                    tickFormatter={(val) => `R$${val}`}
+                  />
+                  <Tooltip
+                    formatter={(val: any) => [`R$ ${Number(val).toLocaleString('pt-BR')}`, 'Gasto']}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                  />
+                  <Area type="monotone" dataKey="valor" stroke="#00a3ff" strokeWidth={3} fillOpacity={1} fill="url(#expensesGrad)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className={styles.emptyChart}>
+                <span>Nenhum dado de viagem registrado para compor a série histórica</span>
+              </div>
+            )}
           </div>
         </article>
       </section>

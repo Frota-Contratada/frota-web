@@ -36,16 +36,16 @@ describe('usePermissions', () => {
     expect(result.current.can('settings:manage')).toBe(true);
   });
 
-  it('restricts permissions appropriately for fornecedor profile', () => {
+  it('restricts permissions appropriately for admin-fornecedor profile', () => {
     useAuthStore.getState().login(
-      { id: '2', name: 'Fornecedor User', email: 'fornecedor@prime.com', profile: 'fornecedor' },
+      { id: '2', name: 'Fornecedor User', email: 'fornecedor@prime.com', profile: 'admin-fornecedor' },
       'tok',
       'ref'
     );
 
     const { result } = renderHook(() => usePermissions());
 
-    expect(result.current.profile).toBe('fornecedor');
+    expect(result.current.profile).toBe('admin-fornecedor');
     expect(result.current.isSupplier).toBe(true);
     expect(result.current.isAdminMaster).toBe(false);
     expect(result.current.can('rides:read')).toBe(true);

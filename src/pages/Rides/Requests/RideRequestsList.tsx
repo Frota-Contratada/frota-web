@@ -6,6 +6,7 @@ import ErroIcon from '../../../assets/icons/erro.svg?react';
 import CheckIcon from '../../../assets/icons/check.svg?react';
 import { ridesApi, extractListData, type SolicitacaoDto, type MotivoSolicitacaoDto } from '../../../services';
 import { exportToCsv } from '../../../utils/exportHelper';
+import { usePermissions } from '../../../hooks/usePermissions';
 import { RideAllocationModal } from '../../Fleet';
 import styles from './RideRequests.module.css';
 
@@ -73,6 +74,7 @@ const columns: ColumnDef<RideRequest>[] = [
 export const RideRequestsList = () => {
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const { isApprover, isAdminMaster } = usePermissions();
   const [currentPage, setCurrentPage] = useState(1);
   const [query, setQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
@@ -90,8 +92,12 @@ export const RideRequestsList = () => {
     let isMounted = true;
     setIsLoading(true);
 
+    const listPromise = isApprover && !isAdminMaster
+      ? ridesApi.listAprovadorPendentes()
+      : ridesApi.list();
+
     Promise.allSettled([
-      ridesApi.list(),
+      listPromise,
       ridesApi.getMotivosCancelamento(),
     ])
       .then(([res, cancelMotivosRes]) => {

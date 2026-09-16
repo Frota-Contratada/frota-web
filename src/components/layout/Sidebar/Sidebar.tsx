@@ -52,11 +52,11 @@ const allMenuItems: MenuItem[] = [
     id: 'dashboards',
     label: 'Dashboards',
     icon: <DashboardsIcon />,
-    allowedProfiles: ['admin-master', 'admin-filial', 'admin', 'aprovador'],
+    allowedProfiles: ['admin-master', 'admin-filial', 'aprovador'],
     submenu: [
-      { id: 'visao-executiva', label: 'Visão executiva', icon: <AlvoIcon />, path: '/visao-executiva', allowedProfiles: ['admin-master', 'admin-filial', 'admin'] },
-      { id: 'gastos', label: 'Gastos', icon: <GastosIcon />, path: '/gastos', allowedProfiles: ['admin-master', 'admin-filial', 'admin', 'aprovador'] },
-      { id: 'preco-auditoria', label: 'Preço & Auditoria', icon: <PrecoAuditoriaIcon />, path: '/preco-auditoria', allowedProfiles: ['admin-master', 'admin-filial', 'admin'] },
+      { id: 'visao-executiva', label: 'Visão executiva', icon: <AlvoIcon />, path: '/visao-executiva', allowedProfiles: ['admin-master', 'admin-filial'] },
+      { id: 'gastos', label: 'Gastos', icon: <GastosIcon />, path: '/gastos', allowedProfiles: ['admin-master', 'admin-filial', 'aprovador'] },
+      { id: 'preco-auditoria', label: 'Preço & Auditoria', icon: <PrecoAuditoriaIcon />, path: '/preco-auditoria', allowedProfiles: ['admin-master', 'admin-filial'] },
     ],
   },
   {
@@ -72,25 +72,25 @@ const allMenuItems: MenuItem[] = [
     id: 'terceiros',
     label: 'Terceiros',
     icon: <TerceirosIcon />,
-    allowedProfiles: ['admin-master', 'admin-filial', 'admin-fornecedor', 'admin', 'fornecedor'],
+    allowedProfiles: ['admin-master', 'admin-filial', 'admin-fornecedor'],
     submenu: [
-      { id: 'fornecedores', label: 'Fornecedores', icon: <FornecedoresIcon />, path: '/terceiros/fornecedores' },
-      { id: 'contratos-terceiros', label: 'Contratos', icon: <ContratosIcon />, path: '/terceiros/contratos' },
-      { id: 'motoristas', label: 'Motoristas', icon: <ColaboradoresIcon />, path: '/terceiros/motoristas' },
+      { id: 'fornecedores', label: 'Fornecedores', icon: <FornecedoresIcon />, path: '/terceiros/fornecedores', allowedProfiles: ['admin-master', 'admin-filial'] },
+      { id: 'contratos-terceiros', label: 'Contratos', icon: <ContratosIcon />, path: '/terceiros/contratos', allowedProfiles: ['admin-master', 'admin-filial'] },
+      { id: 'motoristas', label: 'Motoristas', icon: <ColaboradoresIcon />, path: '/terceiros/motoristas', allowedProfiles: ['admin-master', 'admin-filial', 'admin-fornecedor'] },
     ],
   },
   {
     id: 'colaboradores',
     label: 'Colaboradores',
     icon: <ColaboradoresIcon />,
-    allowedProfiles: ['admin-master', 'admin-filial', 'admin'],
+    allowedProfiles: ['admin-master', 'admin-filial'],
     path: '/colaboradores',
   },
   {
     id: 'filiais',
     label: 'Filiais',
     icon: <FiliaisIcon />,
-    allowedProfiles: ['admin-master', 'admin'],
+    allowedProfiles: ['admin-master'],
     path: '/filiais',
   },
 ];
@@ -100,9 +100,20 @@ interface SidebarProps {
   onToggle?: () => void;
 }
 
+const getSubmenuConnectorClass = (count: number) => {
+  if (count === 1) return styles.submenu1;
+  if (count === 2) return styles.submenu2;
+  if (count === 4) return styles.submenu4;
+  return styles.submenu3;
+};
+
 export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
-  const { hasProfile, isRequester } = usePermissions();
-  const [openMenus, setOpenMenus] = useState<string[]>(() => isRequester ? ['corridas'] : ['dashboards']);
+  const { hasProfile, isRequester, isSupplier, isApprover } = usePermissions();
+  const [openMenus, setOpenMenus] = useState<string[]>(() => {
+    if (isSupplier) return ['terceiros'];
+    if (isRequester || isApprover) return ['corridas'];
+    return ['dashboards'];
+  });
   const location = useLocation();
 
   const visibleMenuItems = useMemo(() => {
@@ -192,7 +203,7 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
                   </button>
 
                   {openMenus.includes(item.id) && (
-                    <ul className={`${styles.submenu} ${item.id === 'terceiros' ? styles.submenuTerceiros : ''}`}>
+                    <ul className={`${styles.submenu} ${getSubmenuConnectorClass(item.submenu.length)}`}>
                       {item.submenu.map((subItem) => (
                         <li key={subItem.id} className={styles.submenuItem}>
                           <Link

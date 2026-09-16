@@ -236,11 +236,27 @@
   top: 8px;
   width: 15px;
   height: 100%;
-  background-image: url('../../../assets/images/conector-submenu.svg');
+  background-image: url('../../../assets/images/conector-submenu-3.svg');
   background-repeat: no-repeat;
   background-position: left top;
   background-size: 15px auto;
   pointer-events: none;
+}
+
+.submenu1::before {
+  background-image: url('../../../assets/images/conector-submenu-1.svg');
+}
+
+.submenu2::before {
+  background-image: url('../../../assets/images/conector-submenu-2.svg');
+}
+
+.submenu3::before {
+  background-image: url('../../../assets/images/conector-submenu-3.svg');
+}
+
+.submenu4::before {
+  background-image: url('../../../assets/images/conector-submenu-4.svg');
 }
 
 @keyframes slideDown {
@@ -600,8 +616,4 @@
     opacity: 1;
     width: auto;
   }
-}
-
-.submenuTerceiros::before {
-  background-image: url('../../../assets/images/conector-submenu-2.svg');
 }

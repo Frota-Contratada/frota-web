@@ -17,7 +17,7 @@ export const ProtectedRoute = ({
 }: ProtectedRouteProps) => {
   const location = useLocation();
   const { isAuthenticated, user } = useAuthStore();
-  const { hasProfile, can, isRequester, isDriver } = usePermissions();
+  const { hasProfile, can, defaultRoute } = usePermissions();
 
   const token = localStorage.getItem('auth_token');
 
@@ -28,21 +28,14 @@ export const ProtectedRoute = ({
   if (allowedProfiles && allowedProfiles.length > 0) {
     const hasAllowedProfile = hasProfile(allowedProfiles);
     if (!hasAllowedProfile) {
-      if (isRequester) {
-        return <Navigate to="/corridas/solicitacoes" replace />;
-      }
-      if (isDriver) {
-        return <Navigate to="/corridas/solicitacoes" replace />;
-      }
-      return <Navigate to="/visao-executiva" replace />;
+      const targetRoute = location.pathname === defaultRoute ? '/corridas/solicitacoes' : defaultRoute;
+      return <Navigate to={targetRoute} replace />;
     }
   }
 
   if (requiredPermission && !can(requiredPermission)) {
-    if (isRequester) {
-      return <Navigate to="/corridas/solicitacoes" replace />;
-    }
-    return <Navigate to="/visao-executiva" replace />;
+    const targetRoute = location.pathname === defaultRoute ? '/corridas/solicitacoes' : defaultRoute;
+    return <Navigate to={targetRoute} replace />;
   }
 
   return <>{children}</>;

@@ -6,7 +6,7 @@ import { useAuthStore } from '../../../stores/authStore';
 import { useAuth } from '../../../hooks/useAuth';
 import emailIcon from '../../../assets/icons/email.svg';
 import type { User } from '../../../types/auth.types';
-import type { UserProfile } from '../../../types/profile.types';
+import { getDefaultRouteForProfiles, type UserProfile } from '../../../types/profile.types';
 import styles from './TwoFactor.module.css';
 
 const CODE_LENGTH = 6;
@@ -129,6 +129,7 @@ export const TwoFactor = () => {
         throw new Error('Sessão não encontrada. Faça login novamente.');
       }
 
+      let destination = '/corridas/solicitacoes';
       try {
         const meResponse = await authApi.me();
         const meData = meResponse.response;
@@ -147,6 +148,8 @@ export const TwoFactor = () => {
           perfis: meData.perfis,
         };
         storeLogin(user, accessToken, refreshToken);
+        const userProfiles = (meData.perfis || []).map((p) => p.tipoPerfil as UserProfile);
+        destination = getDefaultRouteForProfiles(userProfiles.length > 0 ? userProfiles : [mainProfile]);
       } catch {
         const payload = decodeJwtPayload<{ sub: number; email: string }>(accessToken);
         const user: User = {
@@ -156,10 +159,11 @@ export const TwoFactor = () => {
           profile: 'admin-master' as UserProfile,
         };
         storeLogin(user, accessToken, refreshToken);
+        destination = '/visao-executiva';
       }
 
       localStorage.removeItem('auth_email');
-      navigate('/visao-executiva', { replace: true });
+      navigate(destination, { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Código inválido. Tente novamente.';
       showToast({ type: 'error', title: message });

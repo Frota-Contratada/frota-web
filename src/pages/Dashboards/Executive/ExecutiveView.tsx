@@ -1,5 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
+import {
   StatCard,
   Table,
   TableToolbar,
@@ -29,6 +42,9 @@ export interface ExecRideRow {
   distanciaPercorrida: string;
   preco: string;
 }
+
+const MONTH_NAMES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+const PIE_COLORS = ['#2C2C9E', '#0052cc', '#00a3ff', '#70d6ff', '#f59e0b', '#10b981', '#6366f1'];
 
 const columns: ColumnDef<ExecRideRow>[] = [
   { key: 'data', header: 'Data', sortable: true },
@@ -105,22 +121,57 @@ export const ExecutiveView = () => {
       else if (rawStatus === 'PENDENTE' || rawStatus === 'AGUARDANDO_APROVACAO') badgeStatus = 'pendente';
 
       const valorCalculado = r.corrida?.valorFinal ?? r.valorEstimado;
-      const precoFmt = valorCalculado
+      const precoFmt = valorCalculado != null && !isNaN(Number(valorCalculado))
         ? `R$ ${Number(valorCalculado).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
         : '—';
 
       return {
         id: r.id,
         data: r.dataCorrida ? new Date(r.dataCorrida).toLocaleDateString('pt-BR') : '—',
-        solicitante: r.solicitanteNome || 'Colaborador',
-        email: '—',
-        destino: r.destino?.logradouro || r.destino?.cidade || '—',
+        solicitante: r.solicitanteNome || (r.passageiros?.[0]?.nome ?? 'Colaborador'),
+        email: r.passageiros?.[0]?.cpf ? `CPF: ${r.passageiros[0].cpf}` : '—',
+        destino: r.destino?.cidade ? `${r.destino.cidade} (${r.destino.logradouro || ''})` : (r.destino?.logradouro || '—'),
         status: badgeStatus,
         distanciaEstimada: (r.distanciaEstimadaKm ?? r.distanciaKm) ? `${r.distanciaEstimadaKm ?? r.distanciaKm} km` : '—',
         distanciaPercorrida: r.corrida?.kmPercorrido ? `${r.corrida.kmPercorrido} km` : '—',
         preco: precoFmt,
       };
     });
+  }, [rides]);
+
+  const monthlyChartData = useMemo(() => {
+    if (rides.length === 0) return [];
+    const map: Record<string, number> = {};
+    rides.forEach((r) => {
+      const dateStr = r.dataCorrida || r.dataCriacao || r.createdAt;
+      if (!dateStr) return;
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return;
+      const monthKey = MONTH_NAMES[date.getMonth()];
+      const val = Number(r.corrida?.valorFinal ?? r.valorEstimado ?? 0);
+      map[monthKey] = (map[monthKey] || 0) + (isNaN(val) ? 0 : val);
+    });
+
+    return Object.entries(map).map(([name, valor]) => ({
+      name,
+      valor: Math.round(valor),
+    }));
+  }, [rides]);
+
+  const supplierPieData = useMemo(() => {
+    if (rides.length === 0) return [];
+    const map: Record<string, number> = {};
+    rides.forEach((r) => {
+      const supplierName = r.fornecedorNome || (r.fornecedorId ? `Fornecedor #${r.fornecedorId}` : 'Geral');
+      const val = Number(r.corrida?.valorFinal ?? r.valorEstimado ?? 0);
+      map[supplierName] = (map[supplierName] || 0) + (isNaN(val) ? 0 : val);
+    });
+
+    return Object.entries(map).map(([name, value], idx) => ({
+      name,
+      value: Math.round(value),
+      color: PIE_COLORS[idx % PIE_COLORS.length],
+    }));
   }, [rides]);
 
   const executiveFilterSections = [
@@ -170,12 +221,12 @@ export const ExecutiveView = () => {
         />
         <StatCard
           title="Fornecedores ativos"
-          value={String(supplierBigNumbers?.fornecedoresAtivos ?? '—')}
+          value={String(supplierBigNumbers?.fornecedoresAtivos ?? 0)}
           isLoading={isLoading}
         />
         <StatCard
           title="Contratos vigentes"
-          value={String(contractBigNumbers?.validos ?? '—')}
+          value={String(contractBigNumbers?.validos ?? 0)}
           isLoading={isLoading}
         />
       </section>
@@ -185,15 +236,40 @@ export const ExecutiveView = () => {
           <div className={styles.chartHeader}>
             <div>
               <span className={styles.chartEyebrow}>Estatísticas</span>
-              <h3 className={styles.chartTitle}>Gasto temporal consolidado</h3>
+              <h3 className={styles.chartTitle}>Gasto total mensal</h3>
             </div>
           </div>
 
           <div className={styles.chartContainer}>
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#6b7280', textAlign: 'center', padding: '1rem', background: 'var(--color-surface, #f9fafb)', borderRadius: '8px', border: '1px dashed #d1d5db' }}>
-              <span style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#374151' }}>Métrica Analítica em Preparação</span>
-              <small>O backend atual não disponibiliza endpoint de série temporal agregada de gastos. Interface pronta para integração futura.</small>
-            </div>
+            {monthlyChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={monthlyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="execColorGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#2C2C9E" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#2C2C9E" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: '#6b7280' }}
+                    tickFormatter={(val) => `R$${val}`}
+                  />
+                  <Tooltip
+                    formatter={(val: any) => [`R$ ${Number(val).toLocaleString('pt-BR')}`, 'Gasto']}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
+                  />
+                  <Area type="monotone" dataKey="valor" stroke="#2C2C9E" strokeWidth={3} fillOpacity={1} fill="url(#execColorGrad)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className={styles.emptyChart}>
+                <span>Nenhum dado de corrida registrado para consolidar gastos mensais</span>
+              </div>
+            )}
           </div>
         </article>
 
@@ -201,15 +277,39 @@ export const ExecutiveView = () => {
           <div className={styles.chartHeader}>
             <div>
               <span className={styles.chartEyebrow}>Estatísticas</span>
-              <h3 className={styles.chartTitle}>Rateio de gastos por fornecedor</h3>
+              <h3 className={styles.chartTitle}>Gasto por fornecedor</h3>
             </div>
           </div>
 
           <div className={styles.chartContainer}>
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#6b7280', textAlign: 'center', padding: '1rem', background: 'var(--color-surface, #f9fafb)', borderRadius: '8px', border: '1px dashed #d1d5db' }}>
-              <span style={{ fontWeight: 600, marginBottom: '0.25rem', color: '#374151' }}>Métrica Analítica em Preparação</span>
-              <small>Aguardando disponibilização de endpoint de conciliação financeira por fornecedor no backend.</small>
-            </div>
+            {supplierPieData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={supplierPieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={65}
+                    outerRadius={90}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {supplierPieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(val: any) => [`R$ ${Number(val).toLocaleString('pt-BR')}`, 'Valor']}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                  />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className={styles.emptyChart}>
+                <span>Nenhum dado de corrida registrado para rateio por fornecedor</span>
+              </div>
+            )}
           </div>
         </article>
       </section>

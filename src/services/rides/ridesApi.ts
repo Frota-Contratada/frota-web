@@ -161,6 +161,10 @@ export const ridesApi = {
     return apiClient.get<{ response: SolicitacaoDto[] | { data: SolicitacaoDto[] } }>('/solicitacoes', { query });
   },
 
+  listAprovadorPendentes(query?: ApiQueryParams) {
+    return apiClient.get<{ response: SolicitacaoDto[] | { data: SolicitacaoDto[] } }>('/solicitacoes/aprovador/pendentes', { query });
+  },
+
   getById(id: number) {
     return apiClient.get<{ response: SolicitacaoDto }>(`/solicitacoes/${id}`);
   },

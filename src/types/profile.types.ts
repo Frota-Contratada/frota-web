@@ -5,9 +5,7 @@ export type UserProfile =
   | 'solicitante'
   | 'solicitante-emergencia'
   | 'aprovador'
-  | 'motorista'
-  | 'admin'
-  | 'fornecedor';
+  | 'motorista';
 
 export type Permission =
   | 'dashboard:read'
@@ -36,8 +34,6 @@ export const PROFILE_LABELS: Record<UserProfile, string> = {
   'solicitante-emergencia': 'Solicitante Emergência',
   aprovador: 'Aprovador',
   motorista: 'Motorista',
-  admin: 'Admin',
-  fornecedor: 'Fornecedor',
 };
 
 export const PROFILE_PERMISSIONS: Record<UserProfile, Permission[]> = {
@@ -63,7 +59,6 @@ export const PROFILE_PERMISSIONS: Record<UserProfile, Permission[]> = {
   'admin-filial': [
     'dashboard:read',
     'rides:read',
-    'rides:create',
     'rides:review',
     'rides:approve',
     'rides:reject',
@@ -78,8 +73,6 @@ export const PROFILE_PERMISSIONS: Record<UserProfile, Permission[]> = {
   'admin-fornecedor': [
     'rides:read',
     'rides:execute',
-    'contracts:read',
-    'suppliers:read',
     'employees:read',
   ],
   solicitante: [
@@ -101,27 +94,6 @@ export const PROFILE_PERMISSIONS: Record<UserProfile, Permission[]> = {
     'rides:read',
     'rides:execute',
   ],
-  admin: [
-    'dashboard:read',
-    'rides:read',
-    'rides:create',
-    'rides:review',
-    'rides:approve',
-    'rides:reject',
-    'suppliers:read',
-    'suppliers:manage',
-    'contracts:read',
-    'contracts:manage',
-    'employees:read',
-    'employees:manage',
-    'branches:read',
-    'branches:manage',
-  ],
-  fornecedor: [
-    'rides:read',
-    'rides:execute',
-    'contracts:read',
-  ],
 };
 
 export const hasPermission = (profile: UserProfile | undefined, permission: Permission): boolean => {
@@ -134,5 +106,19 @@ export const hasAnyPermission = (profiles: (UserProfile | string)[] | undefined,
   return profiles.some((p) => hasPermission(p as UserProfile, permission));
 };
 
-export const isAdminProfile = (profile: UserProfile | undefined) =>
-  profile === 'admin' || profile === 'admin-master' || profile === 'admin-filial';
+export const isAdminProfile = (profile: UserProfile | undefined): boolean =>
+  profile === 'admin-master' || profile === 'admin-filial';
+
+export const getDefaultRouteForProfiles = (profiles: (UserProfile | string)[] | undefined): string => {
+  if (!profiles || profiles.length === 0) return '/corridas/solicitacoes';
+  if (profiles.includes('admin-master') || profiles.includes('admin-filial')) {
+    return '/visao-executiva';
+  }
+  if (profiles.includes('aprovador')) {
+    return '/corridas/solicitacoes';
+  }
+  if (profiles.includes('admin-fornecedor')) {
+    return '/terceiros/motoristas';
+  }
+  return '/corridas/solicitacoes';
+};
