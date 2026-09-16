@@ -3,7 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection } from '../../../components/common';
 import { driverApi, type MotoristaDto } from '../../../services';
 import { exportToCsv } from '../../../utils/exportHelper';
+import { formatCpf } from '../../../utils';
 import styles from '../Fleet.module.css';
+
+const formatPhone = (phone?: string | null) => {
+  if (!phone) return '—';
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 11) {
+    return digits.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+  }
+  if (digits.length === 10) {
+    return digits.replace(/^(\d{2})(\d{4})(\d{4})$/, '($1) $2-$3');
+  }
+  return phone;
+};
 
 const PAGE_SIZE = 5;
 
@@ -98,11 +111,16 @@ export const DriversList = () => {
         </div>
       ),
     },
-    { key: 'cpf', header: 'CPF', sortable: true },
+    {
+      key: 'cpf',
+      header: 'CPF',
+      sortable: true,
+      render: (_, row) => formatCpf(row.cpf),
+    },
     {
       key: 'telefone',
       header: 'Telefone',
-      render: (_, row) => row.telefone || '—',
+      render: (_, row) => formatPhone(row.telefone),
     },
     {
       key: 'fornecedorNome',
@@ -147,8 +165,16 @@ export const DriversList = () => {
             const ok = exportToCsv('motoristas-frota', filteredDrivers, [
               { key: 'id', label: 'ID' },
               { key: 'nome', label: 'Nome' },
-              { key: 'cpf', label: 'CPF' },
-              { key: 'telefone', label: 'Telefone' },
+              {
+                key: 'cpf',
+                label: 'CPF',
+                format: (val) => formatCpf(val),
+              },
+              {
+                key: 'telefone',
+                label: 'Telefone',
+                format: (val) => formatPhone(val),
+              },
               { key: 'email', label: 'E-mail' },
               { key: 'fornecedorNome', label: 'Fornecedor' },
               {

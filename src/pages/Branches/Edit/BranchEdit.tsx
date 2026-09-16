@@ -18,6 +18,7 @@ export const BranchEdit = () => {
   const [isSearchingCep, setIsSearchingCep] = useState(false);
   const [form, setForm] = useState({
     name: '',
+    cnpj: '',
     address: '',
     number: '100',
     neighborhood: '',
@@ -38,6 +39,7 @@ export const BranchEdit = () => {
           const b = res.response;
           setForm({
             name: b.nome || '',
+            cnpj: b.cnpj || '',
             address: b.endereco?.logradouro || '',
             number: b.endereco?.numero || '100',
             neighborhood: b.endereco?.bairro || '',
@@ -196,7 +198,15 @@ export const BranchEdit = () => {
             />
 
             <Input
+              label="CNPJ"
+              mask="cnpj"
+              value={form.cnpj}
+              disabled
+            />
+
+            <Input
               label="CEP"
+              mask="cep"
               placeholder="00000-000"
               value={form.zipCode}
               onChange={(e) => handleCepChange(e.target.value)}

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select, useToast } from '../../../components/common';
-import { driverApi, supplierApi, extractListData, type FornecedorDto } from '../../../services';
+import { driverApi, supplierApi, type FornecedorDto } from '../../../services';
+import { cleanCpf, cleanPhone } from '../../../utils';
 import styles from '../Fleet.module.css';
 
 export const DriverCreate = () => {
@@ -11,16 +12,19 @@ export const DriverCreate = () => {
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
   const [email, setEmail] = useState('');
-  const [fornecedorId, setFornecedorId] = useState<string>('');
+  const [telefone, setTelefone] = useState('');
+  const [fornecedorId, setFornecedorId] = useState('');
   const [fornecedores, setFornecedores] = useState<FornecedorDto[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     supplierApi.list().then((res) => {
-      const list = extractListData<FornecedorDto>(res);
-      setFornecedores(list);
-      if (list.length > 0) {
-        setFornecedorId(String(list[0].id));
+      if (Array.isArray(res.response)) {
+        setFornecedores(res.response);
+        if (res.response.length > 0) setFornecedorId(String(res.response[0].id));
+      } else if (res.response && Array.isArray(res.response.data)) {
+        setFornecedores(res.response.data);
+        if (res.response.data.length > 0) setFornecedorId(String(res.response.data[0].id));
       }
     }).catch(() => {});
   }, []);
@@ -28,15 +32,15 @@ export const DriverCreate = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const cleanCpf = cpf.replace(/\D/g, '');
+    const rawCpf = cleanCpf(cpf);
 
-    if (!nome.trim() || !cleanCpf || !email.trim() || !fornecedorId) {
+    if (!nome.trim() || !rawCpf || !email.trim() || !fornecedorId) {
       showToast({ type: 'warning', title: 'Campos obrigatórios', description: 'Preencha nome, CPF, e-mail e fornecedor.' });
       return;
     }
 
-    if (cleanCpf.length !== 11) {
-      showToast({ type: 'warning', title: 'CPF inválido', description: 'O CPF deve conter exatamente 11 dígitos numéricos.' });
+    if (rawCpf.length !== 11) {
+      showToast({ type: 'warning', title: 'CPF inválido', description: 'O CPF deve conter exatamente 11 caracteres alfanuméricos.' });
       return;
     }
 
@@ -44,8 +48,9 @@ export const DriverCreate = () => {
       setIsSubmitting(true);
       await driverApi.create({
         nome: nome.trim(),
-        cpf: cleanCpf,
+        cpf: rawCpf,
         email: email.trim(),
+        telefone: cleanPhone(telefone) || undefined,
         fornecedorId: Number(fornecedorId),
       });
 
@@ -89,22 +94,30 @@ export const DriverCreate = () => {
             </div>
 
             <Input
-              label="CPF (11 dígitos) *"
-              placeholder="000.000.000-00"
+              label="CPF (11 caracteres) *"
+              mask="cpf"
               value={cpf}
-              maxLength={14}
               onChange={(e) => setCpf(e.target.value)}
               required
             />
 
             <Input
-              label="E-mail *"
-              type="email"
-              placeholder="motorista@empresa.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
+              label="Telefone"
+              mask="phone"
+              value={telefone}
+              onChange={(e) => setTelefone(e.target.value)}
             />
+
+            <div className={styles.fullWidth}>
+              <Input
+                label="E-mail *"
+                type="email"
+                placeholder="motorista@empresa.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
 
             <div className={styles.fullWidth}>
               <Select

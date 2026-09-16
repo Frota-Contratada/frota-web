@@ -49,7 +49,7 @@ export const SupplierCreate = () => {
     if (!cnpjLimpo) {
       errors.document = 'CNPJ é obrigatório';
     } else if (cnpjLimpo.length !== 14) {
-      errors.document = 'CNPJ deve conter 14 caracteres numéricos';
+      errors.document = 'CNPJ deve conter 14 caracteres alfanuméricos';
     }
 
     if (!form.filialId) errors.filialId = 'Filial de vínculo é obrigatória';
@@ -118,7 +118,7 @@ export const SupplierCreate = () => {
 
             <Input
               label="CNPJ *"
-              placeholder="00.000.000/0000-00"
+              mask="cnpj"
               value={form.document}
               onChange={(e) => handleDocumentChange(e.target.value)}
               error={validationErrors.document}

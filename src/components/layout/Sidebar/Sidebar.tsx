@@ -1,7 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button } from '../../common';
-import { useAuthStore } from '../../../stores/authStore';
+import { Link, useLocation } from 'react-router-dom';
 import { usePermissions } from '../../../hooks/usePermissions';
 import type { UserProfile } from '../../../types/profile.types';
 import styles from './Sidebar.module.css';
@@ -17,7 +15,6 @@ import SolicitacoesIcon from '../../../assets/icons/solicitacoes.svg?react';
 import CalendarioIcon from '../../../assets/icons/calendario.svg?react';
 import TerceirosIcon from '../../../assets/icons/terceiros.svg?react';
 import FornecedoresIcon from '../../../assets/icons/fornecedores.svg?react';
-import SairIcon from '../../../assets/icons/sair.svg?react';
 import setaDireitaIcon from '../../../assets/icons/seta-direita.svg';
 import searaJbsLogo from '../../../assets/images/seara-jbs.svg';
 
@@ -80,7 +77,6 @@ const allMenuItems: MenuItem[] = [
       { id: 'fornecedores', label: 'Fornecedores', icon: <FornecedoresIcon />, path: '/terceiros/fornecedores' },
       { id: 'contratos-terceiros', label: 'Contratos', icon: <ContratosIcon />, path: '/terceiros/contratos' },
       { id: 'motoristas', label: 'Motoristas', icon: <ColaboradoresIcon />, path: '/terceiros/motoristas' },
-      { id: 'veiculos', label: 'Veículos', icon: <CorridasIcon />, path: '/terceiros/veiculos' },
     ],
   },
   {
@@ -107,11 +103,7 @@ interface SidebarProps {
 export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
   const { hasProfile, isRequester } = usePermissions();
   const [openMenus, setOpenMenus] = useState<string[]>(() => isRequester ? ['corridas'] : ['dashboards']);
-  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
-  const logout = useAuthStore((state) => state.logout);
-  const user = useAuthStore((state) => state.user);
 
   const visibleMenuItems = useMemo(() => {
     return allMenuItems.filter((item) => {
@@ -129,9 +121,6 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
       return item;
     });
   }, [hasProfile]);
-  const userName = user?.name || 'Usuário';
-  const userEmail = user?.email || 'usuario@email.com';
-  const userInitials = userName.split(' ').filter(Boolean).map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
 
   const toggleMenu = (menuId: string) => {
     setOpenMenus((prev) =>
@@ -149,16 +138,24 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
     toggleMenu(menuId);
   };
 
+  const isItemActive = (item: MenuItem) => {
+    if (item.path && (location.pathname === item.path || location.pathname.startsWith(`${item.path}/`))) {
+      return true;
+    }
+    if (item.submenu) {
+      return item.submenu.some(
+        (sub) => location.pathname === sub.path || location.pathname.startsWith(`${sub.path}/`)
+      );
+    }
+    return false;
+  };
+
   const isActive = (path?: string) => {
     if (!path) return false;
     return location.pathname === path;
   };
 
-  const handleLogout = () => {
-    logout();
-    setIsLogoutModalOpen(false);
-    navigate('/login', { replace: true });
-  };
+
 
   return (
     <aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
@@ -184,7 +181,7 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
               {item.submenu ? (
                 <>
                   <button
-                    className={`${styles.menuButton} ${openMenus.includes(item.id) ? styles.open : ''}`}
+                    className={`${styles.menuButton} ${openMenus.includes(item.id) ? styles.open : ''} ${isItemActive(item) ? styles.active : ''}`}
                     onClick={() => handleMenuWithSubmenuClick(item.id)}
                   >
                     <span className={styles.menuIcon}>{item.icon}</span>
@@ -226,63 +223,7 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
         </ul>
       </nav>
 
-      <div className={styles.footer}>
-        <div className={styles.userCard}>
-          <div className={styles.avatarWrapper}>
-            <div className={styles.avatar} aria-label={userName}>
-              {userInitials}
-            </div>
-            <span className={styles.onlineIndicator}></span>
-          </div>
-          <div className={styles.userDetails}>
-            <p className={styles.userName}>{userName}</p>
-            <p className={styles.userEmail}>{userEmail}</p>
-          </div>
-        </div>
 
-        <button
-          className={styles.logoutButton}
-          type="button"
-          aria-label="Sair da plataforma"
-          onClick={() => setIsLogoutModalOpen(true)}
-        >
-          <span className={styles.logoutIcon} aria-hidden="true">
-            <SairIcon width={18} height={18} />
-          </span>
-          <span className={styles.logoutLabel}>Sair</span>
-        </button>
-      </div>
-
-      {isLogoutModalOpen && (
-        <div className={styles.modalOverlay} role="presentation" onMouseDown={() => setIsLogoutModalOpen(false)}>
-          <div
-            className={styles.logoutModal}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="logout-title"
-            aria-describedby="logout-description"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div className={styles.modalIcon} aria-hidden="true">
-              <SairIcon width={22} height={22} />
-            </div>
-
-            <div className={styles.modalContent}>
-              <h2 id="logout-title">Sair da plataforma?</h2>
-              <p id="logout-description">Você será redirecionada para a tela de login.</p>
-            </div>
-
-            <div className={styles.modalActions}>
-              <Button type="button" variant="outline" onClick={() => setIsLogoutModalOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="button" onClick={handleLogout}>
-                Sair
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </aside>
   );
 };

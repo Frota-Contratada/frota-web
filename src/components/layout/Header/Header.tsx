@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Button } from '../../common';
+import { useAuthStore } from '../../../stores/authStore';
 import dashboardsIcon from '../../../assets/icons/dashboards.svg';
 import alvoIcon from '../../../assets/icons/alvo.svg';
 import gastosIcon from '../../../assets/icons/gastos.svg';
@@ -15,6 +17,7 @@ import colaboradoresIcon from '../../../assets/icons/colaboradores.svg';
 import filiaisIcon from '../../../assets/icons/filiais.svg';
 import setaDireitaIcon from '../../../assets/icons/seta-direita.svg';
 import notificacoesIcon from '../../../assets/icons/notificacoes.svg';
+import sairIcon from '../../../assets/icons/sair.svg';
 import styles from './Header.module.css';
 
 const pageTitles: Record<string, string> = {
@@ -25,9 +28,15 @@ const pageTitles: Record<string, string> = {
   '/corridas/calendario': 'Calendário de Corridas',
   '/corridas/historico': 'Histórico de Corridas',
   '/terceiros/fornecedores': 'Fornecedores',
+  '/terceiros/fornecedores/novo': 'Cadastrar Fornecedor',
   '/terceiros/contratos': 'Contratos',
+  '/terceiros/contratos/novo': 'Novo Contrato',
+  '/terceiros/motoristas': 'Motoristas',
+  '/terceiros/motoristas/novo': 'Cadastrar Motorista',
   '/colaboradores': 'Colaboradores',
+  '/colaboradores/novo': 'Cadastrar Colaborador',
   '/filiais': 'Filiais',
+  '/filiais/nova': 'Cadastrar Filial',
 };
 
 interface BreadcrumbItem {
@@ -65,15 +74,42 @@ const breadcrumbMap: Record<string, BreadcrumbItem[]> = {
     { label: 'Terceiros', icon: terceirosIcon, path: '/terceiros/fornecedores' },
     { label: 'Fornecedores', icon: fornecedoresIcon },
   ],
+  '/terceiros/fornecedores/novo': [
+    { label: 'Terceiros', path: '/terceiros/fornecedores', icon: terceirosIcon },
+    { label: 'Fornecedores', path: '/terceiros/fornecedores', icon: fornecedoresIcon },
+    { label: 'Cadastrar Fornecedor' },
+  ],
   '/terceiros/contratos': [
     { label: 'Terceiros', path: '/terceiros/fornecedores', icon: terceirosIcon },
     { label: 'Contratos', icon: contratosIcon },
   ],
+  '/terceiros/contratos/novo': [
+    { label: 'Terceiros', path: '/terceiros/fornecedores', icon: terceirosIcon },
+    { label: 'Contratos', path: '/terceiros/contratos', icon: contratosIcon },
+    { label: 'Novo Contrato' },
+  ],
+  '/terceiros/motoristas': [
+    { label: 'Terceiros', icon: terceirosIcon, path: '/terceiros/fornecedores' },
+    { label: 'Motoristas', icon: colaboradoresIcon },
+  ],
+  '/terceiros/motoristas/novo': [
+    { label: 'Terceiros', path: '/terceiros/fornecedores', icon: terceirosIcon },
+    { label: 'Motoristas', path: '/terceiros/motoristas', icon: colaboradoresIcon },
+    { label: 'Cadastrar Motorista' },
+  ],
   '/colaboradores': [
     { label: 'Colaboradores', icon: colaboradoresIcon, path: '/colaboradores' },
   ],
+  '/colaboradores/novo': [
+    { label: 'Colaboradores', path: '/colaboradores', icon: colaboradoresIcon },
+    { label: 'Cadastrar Colaborador' },
+  ],
   '/filiais': [
     { label: 'Filiais', icon: filiaisIcon, path: '/filiais' },
+  ],
+  '/filiais/nova': [
+    { label: 'Filiais', path: '/filiais', icon: filiaisIcon },
+    { label: 'Cadastrar Filial' },
   ],
 };
 
@@ -81,11 +117,28 @@ import { notificationApi, type NotificacaoDto } from '../../../services';
 
 export const Header = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [notificationsList, setNotificationsList] = useState<NotificacaoDto[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  const userName = user?.name || 'Usuário';
+  const userEmail = user?.email || 'usuario@email.com';
+  const userInitials = userName.split(' ').filter(Boolean).map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
+
+  const handleLogout = () => {
+    logout();
+    setIsLogoutModalOpen(false);
+    navigate('/login', { replace: true });
+  };
 
   const fetchNotificationCount = async () => {
     try {
@@ -144,54 +197,125 @@ export const Header = () => {
     );
     setUnreadCount(0);
   };
-  const isContractDetails = location.pathname.startsWith('/terceiros/contratos/');
-  const isSupplierDetails = location.pathname.startsWith('/terceiros/fornecedores/');
-  const isEmployeeDetails = location.pathname.startsWith('/colaboradores/');
+  const isContractDetails = location.pathname.startsWith('/terceiros/contratos/') && location.pathname !== '/terceiros/contratos/novo';
+  const isSupplierEdit = location.pathname.startsWith('/terceiros/fornecedores/') && location.pathname.endsWith('/editar');
+  const isSupplierDetails = location.pathname.startsWith('/terceiros/fornecedores/') && !isSupplierEdit && location.pathname !== '/terceiros/fornecedores/novo';
+  const isEmployeeEdit = location.pathname.startsWith('/colaboradores/') && location.pathname.endsWith('/editar');
+  const isEmployeeDetails = location.pathname.startsWith('/colaboradores/') && !isEmployeeEdit && location.pathname !== '/colaboradores/novo';
+  const isBranchEdit = location.pathname.startsWith('/filiais/') && location.pathname.endsWith('/editar');
+  const isBranchDetails = location.pathname.startsWith('/filiais/') && !isBranchEdit && location.pathname !== '/filiais/nova';
   const isRideReview = location.pathname.startsWith('/corridas/solicitacoes/') && location.pathname.endsWith('/revisar');
   const isRideCreate = location.pathname === '/corridas/solicitacoes/nova';
-  const pageTitle = isContractDetails
-    ? 'Visualizar Contrato'
-    : isSupplierDetails
-      ? 'Visualizar Fornecedor'
-      : isEmployeeDetails
-        ? 'Editar Permissões'
-        : isRideReview
-          ? 'Revisar Solicitação'
-          : isRideCreate
-            ? 'Cadastrar Solicitação'
-            : pageTitles[location.pathname] || 'Dashboard';
-  const breadcrumbs = isContractDetails
-    ? [
-        { label: 'Terceiros', path: '/terceiros/fornecedores', icon: terceirosIcon },
-        { label: 'Contratos', path: '/terceiros/contratos', icon: contratosIcon },
-        { label: 'Visualizar Contrato', icon: contratosIcon },
-      ]
-    : isSupplierDetails
+  const isRideTracking = location.pathname.includes('/acompanhamento');
+  const isRideDetails = location.pathname.startsWith('/corridas/historico/') && !isRideTracking;
+
+  const pageTitle = pageTitles[location.pathname] || (
+    isContractDetails
+      ? 'Visualizar Contrato'
+      : isSupplierEdit
+        ? 'Editar Fornecedor'
+        : isSupplierDetails
+          ? 'Visualizar Fornecedor'
+          : isEmployeeEdit
+            ? 'Editar Colaborador'
+            : isEmployeeDetails
+              ? 'Editar Permissões'
+              : isBranchEdit
+                ? 'Editar Filial'
+                : isBranchDetails
+                  ? 'Visualizar Filial'
+                  : isRideReview
+                    ? 'Revisar Solicitação'
+                    : isRideCreate
+                      ? 'Cadastrar Solicitação'
+                      : isRideTracking
+                        ? 'Acompanhamento da Corrida'
+                        : isRideDetails
+                          ? 'Detalhes da Corrida'
+                          : location.pathname.startsWith('/terceiros/motoristas')
+                            ? 'Motoristas'
+                            : location.pathname.startsWith('/terceiros')
+                              ? 'Terceiros'
+                              : location.pathname.startsWith('/filiais')
+                                ? 'Filiais'
+                                : location.pathname.startsWith('/colaboradores')
+                                  ? 'Colaboradores'
+                                  : location.pathname.startsWith('/corridas')
+                                    ? 'Corridas'
+                                    : 'Dashboard'
+  );
+
+  const breadcrumbs = breadcrumbMap[location.pathname] ?? (
+    isContractDetails
       ? [
           { label: 'Terceiros', path: '/terceiros/fornecedores', icon: terceirosIcon },
-          { label: 'Fornecedores', path: '/terceiros/fornecedores', icon: fornecedoresIcon },
-          { label: 'Visualizar Fornecedor', icon: fornecedoresIcon },
+          { label: 'Contratos', path: '/terceiros/contratos', icon: contratosIcon },
+          { label: 'Visualizar Contrato', icon: contratosIcon },
         ]
-      : isEmployeeDetails
+      : isSupplierEdit
         ? [
-            { label: 'Colaboradores', path: '/colaboradores', icon: colaboradoresIcon },
-            { label: 'Editar Permissões', icon: colaboradoresIcon },
+            { label: 'Terceiros', path: '/terceiros/fornecedores', icon: terceirosIcon },
+            { label: 'Fornecedores', path: '/terceiros/fornecedores', icon: fornecedoresIcon },
+            { label: 'Editar Fornecedor', icon: fornecedoresIcon },
           ]
-        : isRideReview
-        ? [
-            { label: 'Corridas', path: '/corridas/solicitacoes', icon: corridasIcon },
-            { label: 'Solicitações', path: '/corridas/solicitacoes', icon: solicitacoesIcon },
-            { label: 'Revisar Solicitação', icon: solicitacoesIcon },
-          ]
-        : isRideCreate
+        : isSupplierDetails
           ? [
-              { label: 'Corridas', path: '/corridas/solicitacoes', icon: corridasIcon },
-              { label: 'Solicitações', path: '/corridas/solicitacoes', icon: solicitacoesIcon },
-              { label: 'Cadastrar Solicitação', icon: solicitacoesIcon },
+              { label: 'Terceiros', path: '/terceiros/fornecedores', icon: terceirosIcon },
+              { label: 'Fornecedores', path: '/terceiros/fornecedores', icon: fornecedoresIcon },
+              { label: 'Visualizar Fornecedor', icon: fornecedoresIcon },
             ]
-          : breadcrumbMap[location.pathname] ?? [
-            { label: pageTitle },
-          ];
+          : isEmployeeEdit
+            ? [
+                { label: 'Colaboradores', path: '/colaboradores', icon: colaboradoresIcon },
+                { label: 'Editar Colaborador', icon: colaboradoresIcon },
+              ]
+            : isEmployeeDetails
+              ? [
+                  { label: 'Colaboradores', path: '/colaboradores', icon: colaboradoresIcon },
+                  { label: 'Editar Permissões', icon: colaboradoresIcon },
+                ]
+              : isBranchEdit
+                ? [
+                    { label: 'Filiais', path: '/filiais', icon: filiaisIcon },
+                    { label: 'Editar Filial', icon: filiaisIcon },
+                  ]
+                : isBranchDetails
+                  ? [
+                      { label: 'Filiais', path: '/filiais', icon: filiaisIcon },
+                      { label: 'Visualizar Filial', icon: filiaisIcon },
+                    ]
+                  : isRideReview
+                    ? [
+                        { label: 'Corridas', path: '/corridas/solicitacoes', icon: corridasIcon },
+                        { label: 'Solicitações', path: '/corridas/solicitacoes', icon: solicitacoesIcon },
+                        { label: 'Revisar Solicitação', icon: solicitacoesIcon },
+                      ]
+                    : isRideCreate
+                      ? [
+                          { label: 'Corridas', path: '/corridas/solicitacoes', icon: corridasIcon },
+                          { label: 'Solicitações', path: '/corridas/solicitacoes', icon: solicitacoesIcon },
+                          { label: 'Cadastrar Solicitação', icon: solicitacoesIcon },
+                        ]
+                      : isRideTracking
+                        ? [
+                            { label: 'Corridas', path: '/corridas/solicitacoes', icon: corridasIcon },
+                            { label: 'Acompanhamento', icon: corridasIcon },
+                          ]
+                        : isRideDetails
+                          ? [
+                              { label: 'Corridas', path: '/corridas/solicitacoes', icon: corridasIcon },
+                              { label: 'Histórico', path: '/corridas/historico', icon: historicoIcon },
+                              { label: 'Detalhes da Corrida', icon: historicoIcon },
+                            ]
+                          : location.pathname.startsWith('/terceiros/motoristas')
+                            ? [
+                                { label: 'Terceiros', path: '/terceiros/fornecedores', icon: terceirosIcon },
+                                { label: 'Motoristas', icon: colaboradoresIcon },
+                              ]
+                            : [
+                                { label: pageTitle },
+                              ]
+  );
 
   const renderBreadcrumbContent = (item: BreadcrumbItem) => (
     <>
@@ -206,6 +330,9 @@ export const Header = () => {
     const handlePointerDown = (event: MouseEvent) => {
       if (!notificationsRef.current?.contains(event.target as Node)) {
         setIsNotificationsOpen(false);
+      }
+      if (!userMenuRef.current?.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
       }
     };
 
@@ -314,8 +441,87 @@ export const Header = () => {
               </div>
             )}
           </div>
+
+          <div className={styles.divider} aria-hidden="true" />
+
+          <div className={styles.userMenuWrapper} ref={userMenuRef}>
+            <button
+              type="button"
+              className={`${styles.userButton} ${isUserMenuOpen ? styles.userButtonActive : ''}`}
+              onClick={() => setIsUserMenuOpen((prev) => !prev)}
+              aria-label="Perfil do usuário"
+              aria-expanded={isUserMenuOpen}
+            >
+              <div className={styles.avatarWrapper}>
+                <div className={styles.avatar} aria-label={userName}>
+                  {userInitials}
+                </div>
+                <span className={styles.onlineIndicator} />
+              </div>
+              <div className={styles.userDetails}>
+                <p className={styles.userName}>{userName}</p>
+                <p className={styles.userEmail}>{userEmail}</p>
+              </div>
+            </button>
+
+            {isUserMenuOpen && (
+              <div className={styles.userDropdown} role="menu">
+                <div className={styles.dropdownHeader}>
+                  <strong className={styles.dropdownUserName}>{userName}</strong>
+                  <span className={styles.dropdownUserEmail}>{userEmail}</span>
+                  {user?.profile && (
+                    <span className={styles.profileBadge}>{user.profile}</span>
+                  )}
+                </div>
+                <div className={styles.dropdownDivider} />
+                <button
+                  type="button"
+                  className={styles.dropdownItem}
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    setIsLogoutModalOpen(true);
+                  }}
+                  role="menuitem"
+                >
+                  <img src={sairIcon} alt="" className={styles.dropdownItemIcon} />
+                  <span>Sair da conta</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {isLogoutModalOpen && (
+        <div className={styles.modalOverlay} role="presentation" onMouseDown={() => setIsLogoutModalOpen(false)}>
+          <div
+            className={styles.logoutModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="header-logout-title"
+            aria-describedby="header-logout-description"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className={styles.modalIcon} aria-hidden="true">
+              <img src={sairIcon} alt="" style={{ width: 22, height: 22 }} />
+            </div>
+
+            <div className={styles.modalContent}>
+              <h2 id="header-logout-title">Sair da plataforma?</h2>
+              <p id="header-logout-description">Você será redirecionada para a tela de login.</p>
+            </div>
+
+            <div className={styles.modalActions}>
+              <Button type="button" variant="outline" onClick={() => setIsLogoutModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="button" onClick={handleLogout}>
+                Sair
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

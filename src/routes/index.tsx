@@ -3,7 +3,7 @@ import { Login, TwoFactor, ForgotPassword, ResetPassword, SignUp } from '../page
 import { Calendar } from '../pages/Calendar';
 import { ContractsList, ContractDetails, ContractCreate } from '../pages/Contracts';
 import { SuppliersList, SupplierDetails, SupplierCreate, SupplierEdit } from '../pages/Suppliers';
-import { DriversList, DriverCreate, VehiclesList, VehicleCreate } from '../pages/Fleet';
+import { DriversList, DriverCreate } from '../pages/Fleet';
 import { RideReview, RideRequestCreate, RideDetails, RideTracking, RideRequestsList, RideHistoryList } from '../pages/Rides';
 import { EmployeesList, EmployeeDetails, EmployeeCreate, EmployeeEdit } from '../pages/Employees';
 import { BranchesList, BranchCreate, BranchDetails, BranchEdit } from '../pages/Branches';
@@ -50,8 +50,6 @@ export const AppRoutes = () => {
           <Route path="/terceiros/contratos/:contractId" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin', 'fornecedor', 'admin-fornecedor']}><ContractDetails /></ProtectedRoute>} />
           <Route path="/terceiros/motoristas" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin', 'fornecedor', 'admin-fornecedor']}><DriversList /></ProtectedRoute>} />
           <Route path="/terceiros/motoristas/novo" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin', 'fornecedor', 'admin-fornecedor']}><DriverCreate /></ProtectedRoute>} />
-          <Route path="/terceiros/veiculos" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin', 'fornecedor', 'admin-fornecedor']}><VehiclesList /></ProtectedRoute>} />
-          <Route path="/terceiros/veiculos/novo" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin', 'fornecedor', 'admin-fornecedor']}><VehicleCreate /></ProtectedRoute>} />
 
           <Route path="/colaboradores" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><EmployeesList /></ProtectedRoute>} />
           <Route path="/colaboradores/novo" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'admin']}><EmployeeCreate /></ProtectedRoute>} />

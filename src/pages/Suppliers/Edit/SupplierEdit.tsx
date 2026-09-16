@@ -144,9 +144,9 @@ export const SupplierEdit = () => {
 
             <Input
               label="CNPJ"
-              placeholder="00.000.000/0000-00"
+              mask="cnpj"
               value={form.document}
-              onChange={(e) => updateField('document', formatCnpj(e.target.value))}
+              onChange={(e) => updateField('document', e.target.value)}
               error={validationErrors.document}
               required
               disabled={isLoading}

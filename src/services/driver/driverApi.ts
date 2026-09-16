@@ -44,11 +44,12 @@ export interface MotoristasListResponse {
 
 export const driverApi = {
   create(data: CriarMotoristaParams) {
-    const cleanCpf = data.cpf.replace(/\D/g, '');
+    const cleanCpf = data.cpf.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     return apiClient.post<MotoristaResponse>('/usuario/motorista/motoristas', {
       nome: data.nome,
       email: data.email,
       cpf: cleanCpf,
+      telefone: data.telefone,
       fornecedorId: data.fornecedorId,
     });
   },

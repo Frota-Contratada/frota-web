@@ -153,7 +153,7 @@ export const BranchCreate = () => {
       setIsLoading(true);
       await branchApi.create({
         nome: form.name,
-        cnpj: form.cnpj.replace(/\D/g, ''),
+        cnpj: cleanCnpj(form.cnpj),
         administradorId: adminId,
         endereco: {
           cep: form.zipCode.replace(/\D/g, ''),
@@ -212,7 +212,7 @@ export const BranchCreate = () => {
 
             <Input
               label="CNPJ"
-              placeholder="00.000.000/0000-00"
+              mask="cnpj"
               value={form.cnpj}
               onChange={(e) => handleCnpjChange(e.target.value)}
               error={validationErrors.cnpj}
@@ -241,7 +241,7 @@ export const BranchCreate = () => {
           <div className={styles.formGrid}>
             <Input
               label="CEP"
-              placeholder="00000-000"
+              mask="cep"
               value={form.zipCode}
               onChange={(e) => handleCepChange(e.target.value)}
               error={validationErrors.zipCode}

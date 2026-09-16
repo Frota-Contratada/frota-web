@@ -20,6 +20,7 @@ import {
   type ColaboradorDto,
 } from '../../../services';
 import { useAuthStore } from '../../../stores/authStore';
+import { cleanCpf } from '../../../utils';
 import styles from '../Review/RideReview.module.css';
 
 type RequestStep = 1 | 2 | 3;
@@ -376,7 +377,7 @@ export const RideRequestCreate = () => {
       const hasEmptyField = requiredFields.some((field) => field.trim().length === 0);
       const hasMissingCpf = passengerCount > 1 && Array.from({ length: passengerCount }, (_, index) => {
         const cpf = index === 0 ? selectedBeneficiaryCpf : form.passengerCpfs[index] ?? '';
-        return cpf.trim().length === 0;
+        return cleanCpf(cpf).length !== 11;
       }).some(Boolean);
 
       if (hasEmptyField || hasMissingCpf) {
@@ -538,8 +539,8 @@ export const RideRequestCreate = () => {
                       <Input
                         key={`passenger-cpf-${index}`}
                         label={index === 0 ? 'CPF do colaborador 1' : `CPF do passageiro ${index + 1}`}
+                        mask="cpf"
                         value={index === 0 ? selectedBeneficiaryCpf : form.passengerCpfs[index] ?? ''}
-                        maxLength={11}
                         disabled={index === 0}
                         required
                         onChange={(event) => updatePassengerCpf(index, event.target.value)}
