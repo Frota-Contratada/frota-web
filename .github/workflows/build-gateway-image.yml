@@ -44,6 +44,23 @@ jobs:
             --tag "${{ steps.meta.outputs.image }}" \
             gateway
 
+      - name: Generate ephemeral TLS certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p .ci-tls
+
+          openssl req \
+            -x509 \
+            -newkey rsa:2048 \
+            -nodes \
+            -sha256 \
+            -days 1 \
+            -subj "/CN=10.255.2.93" \
+            -addext "subjectAltName=IP:10.255.2.93,IP:127.0.0.1" \
+            -keyout .ci-tls/server.key \
+            -out .ci-tls/server.crt
       - name: Validate Nginx configuration
         shell: bash
         run: |
@@ -51,6 +68,7 @@ jobs:
 
           docker run \
             --rm \
+            --volume "$PWD/.ci-tls:/etc/nginx/tls:ro" \
             --env WEB_HOST=frota.local \
             --env API_HOST=api.frota.local \
             --env ACOMPANHAMENTO_HOST=acompanhamento.frota.local \
@@ -66,6 +84,7 @@ jobs:
           docker run \
             --detach \
             --name frota-gateway-ci \
+            --volume "$PWD/.ci-tls:/etc/nginx/tls:ro" \
             --env WEB_HOST=frota.local \
             --env API_HOST=api.frota.local \
             --env ACOMPANHAMENTO_HOST=acompanhamento.frota.local \
