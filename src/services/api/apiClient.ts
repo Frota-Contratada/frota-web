@@ -20,11 +20,12 @@ export class ApiError<T = unknown> extends Error {
   }
 }
 
-const DEFAULT_API_URL = 'https://exteroceptive-anabel-improvisational.ngrok-free.dev';
-
 const getApiBaseUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL as string | undefined;
-  return (envUrl?.replace(/\/$/, '') || DEFAULT_API_URL);
+  if (!envUrl && import.meta.env.PROD) {
+    throw new Error('VITE_API_URL is required for a production build.');
+  }
+  return (envUrl || 'http://localhost:3000').replace(/\/+$/, '');
 };
 
 const buildUrl = (path: string, query?: ApiQueryParams) => {
@@ -75,7 +76,6 @@ async function refreshAccessToken(): Promise<string | null> {
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
       },
       body: JSON.stringify({ refreshToken }),
     });
@@ -113,7 +113,6 @@ async function request<T>(path: string, options: ApiRequestOptions = {}): Promis
       ...fetchOptions,
       headers: {
         Accept: 'application/json',
-        'ngrok-skip-browser-warning': 'true',
         ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
         ...getAuthHeaders(skipAuth),
         ...headers,
@@ -170,7 +169,6 @@ export const apiClient = {
       ...fetchOptions,
       method: 'GET',
       headers: {
-        'ngrok-skip-browser-warning': 'true',
         ...getAuthHeaders(skipAuth),
         ...headers,
       },
@@ -193,4 +191,3 @@ export const apiClient = {
     return request<T>(path, { ...options, method: 'DELETE' });
   },
 };
-

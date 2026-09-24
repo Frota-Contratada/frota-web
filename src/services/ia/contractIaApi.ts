@@ -53,8 +53,11 @@ export function normalizarDataIa(dataStr?: string | null): string | null {
 }
 
 const getIaApiUrl = (): string => {
-  const url = import.meta.env.VITE_IA_API_URL || 'http://localhost:8000';
-  return url.replace(/\/+$/, '');
+  const url = import.meta.env.VITE_IA_API_URL;
+  if (!url && import.meta.env.PROD) {
+    throw new Error('VITE_IA_API_URL is required for a production build.');
+  }
+  return (url || 'http://localhost:8000').replace(/\/+$/, '');
 };
 
 export const contractIaApi = {

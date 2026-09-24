@@ -13,8 +13,11 @@ export interface AcompanhamentoEmbedProps {
 }
 
 const getAcompanhamentoUrl = (): string => {
-  const url = import.meta.env.VITE_ACOMPANHAMENTO_URL || 'http://localhost:3001';
-  return url.replace(/\/+$/, '');
+  const url = import.meta.env.VITE_ACOMPANHAMENTO_URL;
+  if (!url && import.meta.env.PROD) {
+    throw new Error('VITE_ACOMPANHAMENTO_URL is required for a production build.');
+  }
+  return (url || 'http://localhost:3001').replace(/\/+$/, '');
 };
 
 export const AcompanhamentoEmbed = ({
@@ -29,17 +32,18 @@ export const AcompanhamentoEmbed = ({
   const [isReady, setIsReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const baseOrigin = getAcompanhamentoUrl();
-  const iframeSrc = `${baseOrigin}/?role=${role}`;
+  const baseUrl = getAcompanhamentoUrl();
+  const targetOrigin = new URL(baseUrl).origin;
+  const iframeSrc = `${baseUrl}/?role=${role}`;
 
   const sendToIframe = useCallback((envelope: unknown) => {
     if (!iframeRef.current?.contentWindow) return;
     try {
-      iframeRef.current.contentWindow.postMessage(envelope, baseOrigin);
+      iframeRef.current.contentWindow.postMessage(envelope, targetOrigin);
     } catch (err) {
       console.warn('Falha ao enviar mensagem para o iframe de acompanhamento:', err);
     }
-  }, [baseOrigin]);
+  }, [targetOrigin]);
 
   // Handshake inicial
   const handleIframeLoad = () => {
@@ -55,7 +59,7 @@ export const AcompanhamentoEmbed = ({
   useEffect(() => {
     const handleWindowMessage = (event: MessageEvent) => {
       // Validação estrita da origem
-      if (event.origin !== baseOrigin && !baseOrigin.includes(event.origin)) {
+      if (event.origin !== targetOrigin) {
         return;
       }
       if (event.source !== iframeRef.current?.contentWindow) {
@@ -94,7 +98,7 @@ export const AcompanhamentoEmbed = ({
     return () => {
       window.removeEventListener('message', handleWindowMessage);
     };
-  }, [baseOrigin, rideId, role, snapshot, sendToIframe, onCommand]);
+  }, [targetOrigin, rideId, role, snapshot, sendToIframe, onCommand]);
 
   // Repasse do bootstrap quando o snapshot carregar depois do web.ready
   useEffect(() => {
@@ -128,7 +132,7 @@ export const AcompanhamentoEmbed = ({
     <div className={`${styles.embedContainer} ${className || ''}`}>
       {loadError ? (
         <div className={styles.errorFallback}>
-          <p>Não foi possível carregar o micro-frontend de acompanhamento em <code>{baseOrigin}</code>.</p>
+          <p>Não foi possível carregar o micro-frontend de acompanhamento em <code>{baseUrl}</code>.</p>
           <small>Verifique se o serviço <strong>frota-acompanhamento</strong> está em execução na porta 3001.</small>
         </div>
       ) : (

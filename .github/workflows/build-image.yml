@@ -1,6 +1,15 @@
 name: Build Web Image
 
 on:
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "deploy/**"
+      - "scripts/check-dual-bundle.py"
+      - "src/**"
+      - ".github/workflows/build-image.yml"
+
   push:
     branches:
       - main
@@ -22,18 +31,26 @@ jobs:
       - name: Validate production configuration
         shell: bash
         env:
-          VITE_API_URL: ${{ vars.PROD_VITE_API_URL }}
-          VITE_WS_URL: ${{ vars.PROD_VITE_WS_URL }}
-          VITE_ACOMPANHAMENTO_URL: ${{ vars.PROD_VITE_ACOMPANHAMENTO_URL }}
-          VITE_IA_API_URL: ${{ vars.PROD_VITE_IA_API_URL }}
+          LOCAL_VITE_API_URL: ${{ vars.PROD_VITE_API_URL }}
+          LOCAL_VITE_WS_URL: ${{ vars.PROD_VITE_WS_URL }}
+          LOCAL_VITE_ACOMPANHAMENTO_URL: ${{ vars.PROD_VITE_ACOMPANHAMENTO_URL }}
+          LOCAL_VITE_IA_API_URL: ${{ vars.PROD_VITE_IA_API_URL }}
+          HML_VITE_API_URL: ${{ vars.HML_VITE_API_URL }}
+          HML_VITE_WS_URL: ${{ vars.HML_VITE_WS_URL }}
+          HML_VITE_ACOMPANHAMENTO_URL: ${{ vars.HML_VITE_ACOMPANHAMENTO_URL }}
+          HML_VITE_IA_API_URL: ${{ vars.HML_VITE_IA_API_URL }}
           VITE_TOMTOM_API_KEY: ${{ secrets.PROD_VITE_TOMTOM_API_KEY }}
         run: |
           set -euo pipefail
 
-          test -n "$VITE_API_URL"
-          test -n "$VITE_WS_URL"
-          test -n "$VITE_ACOMPANHAMENTO_URL"
-          test -n "$VITE_IA_API_URL"
+          test -n "$LOCAL_VITE_API_URL"
+          test -n "$LOCAL_VITE_WS_URL"
+          test -n "$LOCAL_VITE_ACOMPANHAMENTO_URL"
+          test -n "$LOCAL_VITE_IA_API_URL"
+          test -n "$HML_VITE_API_URL"
+          test -n "$HML_VITE_WS_URL"
+          test -n "$HML_VITE_ACOMPANHAMENTO_URL"
+          test -n "$HML_VITE_IA_API_URL"
           test -n "$VITE_TOMTOM_API_KEY"
 
       - name: Define image metadata
@@ -49,10 +66,14 @@ jobs:
       - name: Build production image
         shell: bash
         env:
-          VITE_API_URL: ${{ vars.PROD_VITE_API_URL }}
-          VITE_WS_URL: ${{ vars.PROD_VITE_WS_URL }}
-          VITE_ACOMPANHAMENTO_URL: ${{ vars.PROD_VITE_ACOMPANHAMENTO_URL }}
-          VITE_IA_API_URL: ${{ vars.PROD_VITE_IA_API_URL }}
+          LOCAL_VITE_API_URL: ${{ vars.PROD_VITE_API_URL }}
+          LOCAL_VITE_WS_URL: ${{ vars.PROD_VITE_WS_URL }}
+          LOCAL_VITE_ACOMPANHAMENTO_URL: ${{ vars.PROD_VITE_ACOMPANHAMENTO_URL }}
+          LOCAL_VITE_IA_API_URL: ${{ vars.PROD_VITE_IA_API_URL }}
+          HML_VITE_API_URL: ${{ vars.HML_VITE_API_URL }}
+          HML_VITE_WS_URL: ${{ vars.HML_VITE_WS_URL }}
+          HML_VITE_ACOMPANHAMENTO_URL: ${{ vars.HML_VITE_ACOMPANHAMENTO_URL }}
+          HML_VITE_IA_API_URL: ${{ vars.HML_VITE_IA_API_URL }}
           VITE_TOMTOM_API_KEY: ${{ secrets.PROD_VITE_TOMTOM_API_KEY }}
         run: |
           set -euo pipefail
@@ -60,10 +81,14 @@ jobs:
           docker build \
             --platform linux/amd64 \
             --target runner \
-            --build-arg "VITE_API_URL=$VITE_API_URL" \
-            --build-arg "VITE_WS_URL=$VITE_WS_URL" \
-            --build-arg "VITE_ACOMPANHAMENTO_URL=$VITE_ACOMPANHAMENTO_URL" \
-            --build-arg "VITE_IA_API_URL=$VITE_IA_API_URL" \
+            --build-arg "LOCAL_VITE_API_URL=$LOCAL_VITE_API_URL" \
+            --build-arg "LOCAL_VITE_WS_URL=$LOCAL_VITE_WS_URL" \
+            --build-arg "LOCAL_VITE_ACOMPANHAMENTO_URL=$LOCAL_VITE_ACOMPANHAMENTO_URL" \
+            --build-arg "LOCAL_VITE_IA_API_URL=$LOCAL_VITE_IA_API_URL" \
+            --build-arg "HML_VITE_API_URL=$HML_VITE_API_URL" \
+            --build-arg "HML_VITE_WS_URL=$HML_VITE_WS_URL" \
+            --build-arg "HML_VITE_ACOMPANHAMENTO_URL=$HML_VITE_ACOMPANHAMENTO_URL" \
+            --build-arg "HML_VITE_IA_API_URL=$HML_VITE_IA_API_URL" \
             --build-arg "VITE_TOMTOM_API_KEY=$VITE_TOMTOM_API_KEY" \
             --tag "${{ steps.meta.outputs.image }}" \
             .
@@ -72,34 +97,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
-          docker run \
-            --detach \
-            --name frota-web-ci \
-            --publish 127.0.0.1:18080:8080 \
-            "${{ steps.meta.outputs.image }}"
-
-          cleanup() {
-            docker rm -f frota-web-ci >/dev/null 2>&1 || true
-          }
-
-          trap cleanup EXIT
-
-          for i in $(seq 1 30); do
-            if curl \
-              --fail \
-              --silent \
-              --show-error \
-              http://127.0.0.1:18080/health >/dev/null
-            then
-              exit 0
-            fi
-
-            sleep 1
-          done
-
-          docker logs frota-web-ci
-          exit 1
+          python3 scripts/check-dual-bundle.py "${{ steps.meta.outputs.image }}"
 
       - name: Export image
         shell: bash

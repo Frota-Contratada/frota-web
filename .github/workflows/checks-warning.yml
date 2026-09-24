@@ -69,6 +69,15 @@ jobs:
           fi
 
           docker build \
+            --build-arg LOCAL_VITE_API_URL=http://api.frota.local \
+            --build-arg LOCAL_VITE_WS_URL=http://api.frota.local \
+            --build-arg LOCAL_VITE_ACOMPANHAMENTO_URL=http://acompanhamento.frota.local \
+            --build-arg LOCAL_VITE_IA_API_URL=http://ia.frota.local \
+            --build-arg HML_VITE_API_URL=https://api.frota-contratada.hml.seara.com.br \
+            --build-arg HML_VITE_WS_URL=https://api.frota-contratada.hml.seara.com.br \
+            --build-arg HML_VITE_ACOMPANHAMENTO_URL=https://frota-contratada.hml.seara.com.br/acompanhamento \
+            --build-arg HML_VITE_IA_API_URL=https://api.frota-contratada.hml.seara.com.br/ia \
+            --build-arg VITE_TOMTOM_API_KEY=ci-placeholder \
             -t frota-web:ci \
             .
 

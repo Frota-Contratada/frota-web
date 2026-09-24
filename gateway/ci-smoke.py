@@ -26,6 +26,7 @@ def mock_server(port, marker):
                 "port": self.headers.get("X-Forwarded-Port"),
                 "upgrade": self.headers.get("Upgrade"),
                 "connection": self.headers.get("Connection"),
+                "path": self.path,
             }).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -49,11 +50,11 @@ def curl(*args):
     )
 
 
-def https_request(host, cert, *headers):
+def https_request(host, cert, *headers, path="/ci-probe"):
     args = ["--fail", "--cacert", str(cert), "--resolve", f"{host}:443:127.0.0.1"]
     for header in headers:
         args += ["--header", header]
-    result = curl(*args, f"https://{host}/ci-probe")
+    result = curl(*args, f"https://{host}{path}")
     if result.returncode:
         raise AssertionError(f"TLS request for {host} failed: {result.stderr}")
     return json.loads(result.stdout)
@@ -75,6 +76,8 @@ def main():
     name = f"frota-gateway-ci-{os.getpid()}"
     web = mock_server(8080, "web-mock")
     api = mock_server(3000, "api-mock")
+    ia = mock_server(8000, "ia-mock")
+    acompanhamento = mock_server(8081, "acompanhamento-mock")
     started = False
     try:
         subprocess.run([
@@ -99,6 +102,12 @@ def main():
 
         assert_route(https_request(WEB_HOST, cert), "web-mock", WEB_HOST)
         assert_route(https_request(API_HOST, cert), "api-mock", API_HOST)
+        ia_response = https_request(API_HOST, cert, path="/ia/ci-probe")
+        assert_route(ia_response, "ia-mock", API_HOST)
+        assert ia_response["path"] == "/ci-probe", ia_response
+        acompanhamento_response = https_request(WEB_HOST, cert, path="/acompanhamento/ci-probe")
+        assert_route(acompanhamento_response, "acompanhamento-mock", WEB_HOST)
+        assert acompanhamento_response["path"] == "/ci-probe", acompanhamento_response
 
         upgraded = https_request(API_HOST, cert, "Connection: Upgrade", "Upgrade: websocket")
         assert_route(upgraded, "api-mock", API_HOST)
@@ -115,12 +124,14 @@ def main():
             "--write-out", "%{http_code}", f"https://{WEB_HOST}/ci-probe",
         )
         assert unknown.returncode == 0 and unknown.stdout == "421", unknown
-        print("CI smoke OK: TLS, WEB/API virtual hosts, forwarded headers, API upgrade, :80, :8090")
+        print("CI smoke OK: TLS, WEB/API/IA/acompanhamento routes, forwarded headers, API upgrade, :80, :8090")
     finally:
         if started:
             subprocess.run(["docker", "rm", "--force", name], check=False, stdout=subprocess.DEVNULL)
         web.shutdown()
         api.shutdown()
+        ia.shutdown()
+        acompanhamento.shutdown()
 
 
 if __name__ == "__main__":
