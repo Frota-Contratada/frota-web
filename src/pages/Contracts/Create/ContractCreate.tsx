@@ -82,11 +82,20 @@ export const ContractCreate = () => {
     try {
       setIsLoading(true);
 
-      await contractApi.create({
+      const createRes = await contractApi.create({
         arquivo: selectedFile,
         dataVigenciaInicio: form.inicio,
         dataVigenciaFim: form.vencimento ? form.vencimento : undefined,
       });
+
+      const createdId = createRes?.response?.id;
+      if (createdId && iaResult?.regras && iaResult.regras.length > 0) {
+        try {
+          await contractApi.substituirRegras(createdId, iaResult.regras);
+        } catch (ruleErr) {
+          console.warn('Aviso: regras extraídas pela IA não puderam ser sincronizadas automaticamente:', ruleErr);
+        }
+      }
 
       showToast({
         type: 'success',

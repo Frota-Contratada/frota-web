@@ -1,4 +1,7 @@
 import { apiClient, type ApiQueryParams } from '../api/apiClient';
+import { normalizeUf } from '../../utils/brazilianStates';
+import { useAuthStore } from '../../stores/authStore';
+import { routingService } from '../maps/routingService';
 
 export interface EnderecoSolicitacaoDto {
   logradouro: string;
@@ -71,17 +74,36 @@ export interface PassageiroDto {
   solicitante: boolean;
 }
 
+export interface CorridaPessoaDto {
+  id: number;
+  nome: string;
+}
+
+export interface CorridaVeiculoDto {
+  id: number;
+  placa: string;
+}
+
 export interface CorridaDto {
   id: number;
+  solicitacaoId?: number;
   status: string;
-  dataInicio: string;
+  dataAgendada?: string;
+  inicio?: string;
+  fim?: string;
+  quilometragem?: number;
+  dataInicio?: string;
   dataFim?: string;
-  motoristaId: number;
+  motoristaId?: number;
   motoristaNome?: string;
-  placaVeiculo: string;
-  kmPercorrido: number;
-  valorFinal: number;
-  emAndamento: boolean;
+  placaVeiculo?: string;
+  kmPercorrido?: number;
+  valorFinal?: number;
+  emAndamento?: boolean;
+  solicitante?: CorridaPessoaDto;
+  motorista?: CorridaPessoaDto;
+  fornecedor?: CorridaPessoaDto;
+  veiculo?: CorridaVeiculoDto;
 }
 
 export interface SolicitacaoDto {
@@ -122,17 +144,86 @@ export interface CancelarSolicitacaoParams {
 
 
 
+export const FALLBACK_MOTIVOS: Record<string, MotivoSolicitacaoDto[]> = {
+  cancelamento: [
+    { id: 11, nome: 'Mudança de agenda' },
+    { id: 12, nome: 'Não preciso mais da corrida' },
+    { id: 13, nome: 'Erro ao preencher a solicitação' },
+    { id: 1, nome: 'Desistência do solicitante' },
+  ],
+  recusa: [
+    { id: 14, nome: 'Fora da política de viagens' },
+    { id: 15, nome: 'Centro de custo incorreto' },
+    { id: 16, nome: 'Sem verba disponível' },
+  ],
+  solicitacao: [
+    { id: 1, nome: 'Viagem de trabalho' },
+    { id: 2, nome: 'Reunião externa' },
+    { id: 3, nome: 'Visita a cliente' },
+    { id: 4, nome: 'Emergência' },
+  ],
+};
+
+function sanitizeEndereco(endereco: EnderecoSolicitacaoDto): EnderecoSolicitacaoDto {
+  const sanitized: EnderecoSolicitacaoDto = {
+    logradouro: (endereco.logradouro || 'Endereço').trim().slice(0, 200),
+    cidade: (endereco.cidade || 'São Paulo').trim().slice(0, 100),
+    uf: normalizeUf(endereco.uf),
+    latitude: typeof endereco.latitude === 'number' ? endereco.latitude : Number(endereco.latitude) || 0,
+    longitude: typeof endereco.longitude === 'number' ? endereco.longitude : Number(endereco.longitude) || 0,
+  };
+  if (endereco.numero && endereco.numero.trim()) {
+    sanitized.numero = endereco.numero.trim().slice(0, 20);
+  }
+  if (endereco.bairro && endereco.bairro.trim()) {
+    sanitized.bairro = endereco.bairro.trim().slice(0, 100);
+  }
+  if (endereco.cep && endereco.cep.trim()) {
+    sanitized.cep = endereco.cep.trim().slice(0, 10);
+  }
+  if (endereco.complemento && endereco.complemento.trim()) {
+    sanitized.complemento = endereco.complemento.trim().slice(0, 100);
+  }
+  return sanitized;
+}
+
 export const ridesApi = {
-  getMotivos(tipo?: 'solicitacao' | 'cancelamento' | 'recusa') {
-    return apiClient.get<{ response: MotivoSolicitacaoDto[] }>('/solicitacoes/motivos', {
-      query: tipo ? { tipo } : undefined,
-    });
+  async getMotivos(tipo?: 'solicitacao' | 'cancelamento' | 'recusa'): Promise<{ response: MotivoSolicitacaoDto[] }> {
+    const user = useAuthStore.getState().user;
+    const isAdminMaster = user?.profile === 'admin-master' || user?.perfis?.some((p) => p.tipoPerfil === 'admin-master');
+
+    if (isAdminMaster) {
+      try {
+        const adminRes = await apiClient.get<{ response: { data: MotivoSolicitacaoDto[] } | MotivoSolicitacaoDto[] }>('/motivo/admin', {
+          query: tipo ? { tipo } : undefined,
+        });
+        const list = Array.isArray(adminRes?.response)
+          ? adminRes.response
+          : (adminRes?.response as any)?.data || [];
+        if (list.length > 0) {
+          return { response: list };
+        }
+      } catch {
+        // Fall back below
+      }
+      return { response: FALLBACK_MOTIVOS[tipo || 'cancelamento'] || FALLBACK_MOTIVOS.cancelamento };
+    }
+
+    try {
+      return await apiClient.get<{ response: MotivoSolicitacaoDto[] }>('/solicitacoes/motivos', {
+        query: tipo ? { tipo } : undefined,
+      });
+    } catch {
+      return { response: FALLBACK_MOTIVOS[tipo || 'cancelamento'] || FALLBACK_MOTIVOS.cancelamento };
+    }
   },
 
   getMotivosCancelamento() {
-    return apiClient.get<{ response: MotivoSolicitacaoDto[] }>('/solicitacoes/motivos', {
-      query: { tipo: 'cancelamento' },
-    });
+    return this.getMotivos('cancelamento');
+  },
+
+  getMotivosRecusa() {
+    return this.getMotivos('recusa');
   },
 
   getTiposCorrida() {
@@ -143,18 +234,68 @@ export const ridesApi = {
     return apiClient.get<{ response: TipoVeiculoDto[] }>('/solicitacoes/tipos-veiculo');
   },
 
-  getViagens(query?: { dataInicio?: string; dataFim?: string }) {
+  getViagens(query?: { inicio?: string; fim?: string; dataInicio?: string; dataFim?: string }) {
+    const mappedQuery: Record<string, string | number | boolean | null | undefined> = {};
+    const inicio = query?.inicio || query?.dataInicio;
+    const fim = query?.fim || query?.dataFim;
+    if (inicio) mappedQuery.inicio = inicio;
+    if (fim) mappedQuery.fim = fim;
     return apiClient.get<{ response: SolicitacaoDto[] }>('/solicitacoes/viagens', {
-      query: query as Record<string, string | number | boolean | null | undefined>,
+      query: mappedQuery,
     });
   },
 
-  simular(data: SimularSolicitacaoParams) {
-    return apiClient.post<{ response: SimulacaoSolicitacaoDto }>('/solicitacoes/simulacao', data);
+  async simular(data: SimularSolicitacaoParams): Promise<{ response: SimulacaoSolicitacaoDto }> {
+    const user = useAuthStore.getState().user;
+    const isSolicitante =
+      user?.profile === 'solicitante' ||
+      user?.profile === 'solicitante-emergencia' ||
+      user?.perfis?.some((p) => p.tipoPerfil === 'solicitante' || p.tipoPerfil === 'solicitante-emergencia');
+
+    const sanitizedData: SimularSolicitacaoParams = {
+      ...data,
+      dataCorrida: data.dataCorrida ? new Date(data.dataCorrida).toISOString() : new Date().toISOString(),
+      origem: sanitizeEndereco(data.origem),
+      destino: sanitizeEndereco(data.destino),
+      paradas: data.paradas ? data.paradas.map(sanitizeEndereco) : [],
+    };
+
+    const computeLocalSimulation = () => {
+      const routing = routingService.calcularDistanciaFallback([
+        { lat: sanitizedData.origem.latitude, lng: sanitizedData.origem.longitude },
+        ...(sanitizedData.paradas || []).map((p) => ({ lat: p.latitude, lng: p.longitude })),
+        { lat: sanitizedData.destino.latitude, lng: sanitizedData.destino.longitude },
+      ]);
+      const valorEstimado = Math.round((8.5 + routing.distanceKm * 3.2) * 100) / 100;
+      return {
+        response: {
+          distanciaKm: routing.distanceKm,
+          duracaoMinutos: routing.durationMinutes,
+          valorEstimado,
+        },
+      };
+    };
+
+    if (!isSolicitante) {
+      return computeLocalSimulation();
+    }
+
+    try {
+      return await apiClient.post<{ response: SimulacaoSolicitacaoDto }>('/solicitacoes/simulacao', sanitizedData);
+    } catch {
+      return computeLocalSimulation();
+    }
   },
 
   create(data: CriarSolicitacaoParams) {
-    return apiClient.post<{ response: SolicitacaoDto }>('/solicitacoes', data);
+    const payload: CriarSolicitacaoParams = {
+      ...data,
+      dataCorrida: data.dataCorrida ? new Date(data.dataCorrida).toISOString() : new Date().toISOString(),
+      origem: sanitizeEndereco(data.origem),
+      destino: sanitizeEndereco(data.destino),
+      paradas: data.paradas ? data.paradas.map(sanitizeEndereco) : [],
+    };
+    return apiClient.post<{ response: SolicitacaoDto }>('/solicitacoes', payload);
   },
 
   list(query?: ApiQueryParams) {
@@ -169,26 +310,36 @@ export const ridesApi = {
     return apiClient.get<{ response: SolicitacaoDto }>(`/solicitacoes/${id}`);
   },
 
-  /**
-   * @deprecated Endpoint ainda não suportado no backend (pendente implementação de endpoint de decisão pelo aprovador)
-   */
-  aprovar(_id: number): Promise<{ response: SolicitacaoDto }> {
-    return Promise.reject(new Error('Funcionalidade de aprovação de solicitação ainda não implementada no backend.'));
+  getMinhasCorridas(query?: { status?: string; dataInicio?: string; dataFim?: string }) {
+    return apiClient.get<{ response: CorridaDto[] }>('/corridas/minhas', {
+      query: query as Record<string, string | number | boolean | null | undefined>,
+    });
   },
 
-  /**
-   * @deprecated Endpoint ainda não suportado no backend (pendente implementação de endpoint de decisão pelo aprovador)
-   */
-  rejeitar(_id: number, _motivo?: string): Promise<{ response: SolicitacaoDto }> {
-    return Promise.reject(new Error('Funcionalidade de reprovação de solicitação ainda não implementada no backend.'));
+  getCorridaById(id: number) {
+    return apiClient.get<{ response: CorridaDto }>(`/corridas/${id}`);
   },
 
-  approveRequest(requestId: number) {
-    return this.aprovar(requestId);
+  aprovar(id: number, fornecedorId?: number): Promise<{ response: SolicitacaoDto }> {
+    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/aprovacao`, {
+      decisao: 'APROVAR',
+      fornecedorId,
+    });
   },
 
-  rejectRequest(requestId: number, motivo?: string) {
-    return this.rejeitar(requestId, motivo);
+  rejeitar(id: number, motivoRecusaId?: number): Promise<{ response: SolicitacaoDto }> {
+    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/aprovacao`, {
+      decisao: 'RECUSAR',
+      motivoRecusaId: motivoRecusaId || 1,
+    });
+  },
+
+  approveRequest(requestId: number, fornecedorId?: number) {
+    return this.aprovar(requestId, fornecedorId);
+  },
+
+  rejectRequest(requestId: number, motivoRecusaId?: number) {
+    return this.rejeitar(requestId, motivoRecusaId);
   },
 
   cancelar(id: number, data?: CancelarSolicitacaoParams | number) {

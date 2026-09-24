@@ -34,7 +34,15 @@ interface TomTomRouteResponse {
   }>;
 }
 
+const routeCache = new Map<string, RouteResult>();
+const inFlightRequests = new Map<string, Promise<RouteResult>>();
+
 export const routingService = {
+  clearCache() {
+    routeCache.clear();
+    inFlightRequests.clear();
+  },
+
   async calcularRota(pontos: RoutePoint[]): Promise<RouteResult> {
     if (pontos.length < 2) {
       return {
@@ -44,80 +52,106 @@ export const routingService = {
       };
     }
 
-    if (TOMTOM_CONFIG.hasKey) {
-      try {
-        const locations = pontos.map((p) => `${p.lat},${p.lng}`).join(':');
-        const url = TOMTOM_CONFIG.getCalculateRouteUrl(locations);
+    const cacheKey = pontos.map((p) => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join(':');
+    const cached = routeCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
 
-        const res = await fetch(url);
+    const inFlight = inFlightRequests.get(cacheKey);
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const fetchPromise = (async (): Promise<RouteResult> => {
+      if (TOMTOM_CONFIG.hasKey && !TOMTOM_CONFIG.isThrottled) {
+        try {
+          const locations = pontos.map((p) => `${p.lat},${p.lng}`).join(':');
+          const url = TOMTOM_CONFIG.getCalculateRouteUrl(locations);
+
+          const res = await fetch(url);
+          if (res.status === 429) {
+            TOMTOM_CONFIG.markThrottled();
+          } else if (res.ok) {
+            const data: TomTomRouteResponse = await res.json();
+            if (data.routes && data.routes.length > 0) {
+              const primaryRoute = data.routes[0];
+              const distanceKm = Math.round((primaryRoute.summary.lengthInMeters / 1000) * 10) / 10;
+              const durationMinutes = Math.round(primaryRoute.summary.travelTimeInSeconds / 60);
+
+              const coordinates: Array<[number, number]> = [];
+              if (primaryRoute.legs && Array.isArray(primaryRoute.legs)) {
+                primaryRoute.legs.forEach((leg) => {
+                  if (leg.points && Array.isArray(leg.points)) {
+                    leg.points.forEach((pt) => {
+                      coordinates.push([pt.latitude, pt.longitude]);
+                    });
+                  }
+                });
+              }
+
+              const result: RouteResult = {
+                distanceKm,
+                durationMinutes,
+                coordinates: coordinates.length > 0 ? coordinates : pontos.map((p) => [p.lat, p.lng]),
+              };
+              routeCache.set(cacheKey, result);
+              return result;
+            }
+          }
+        } catch {
+          // TomTom failed, proceed to OSRM
+        }
+      }
+
+      try {
+        const coordsString = pontos.map((p) => `${p.lng},${p.lat}`).join(';');
+        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson`;
+
+        const res = await fetch(osrmUrl);
         if (res.ok) {
-          const data: TomTomRouteResponse = await res.json();
+          interface OsrmResponse {
+            routes?: Array<{
+              distance: number;
+              duration: number;
+              geometry?: {
+                coordinates: Array<[number, number]>;
+              };
+            }>;
+          }
+
+          const data: OsrmResponse = await res.json();
           if (data.routes && data.routes.length > 0) {
             const primaryRoute = data.routes[0];
-            const distanceKm = Math.round((primaryRoute.summary.lengthInMeters / 1000) * 10) / 10;
-            const durationMinutes = Math.round(primaryRoute.summary.travelTimeInSeconds / 60);
+            const distanceKm = Math.round((primaryRoute.distance / 1000) * 10) / 10;
+            const durationMinutes = Math.round(primaryRoute.duration / 60);
 
-            const coordinates: Array<[number, number]> = [];
-            if (primaryRoute.legs && Array.isArray(primaryRoute.legs)) {
-              primaryRoute.legs.forEach((leg) => {
-                if (leg.points && Array.isArray(leg.points)) {
-                  leg.points.forEach((pt) => {
-                    coordinates.push([pt.latitude, pt.longitude]);
-                  });
-                }
-              });
-            }
+            const coordinates: Array<[number, number]> = (primaryRoute.geometry?.coordinates || []).map(
+              ([lng, lat]) => [lat, lng]
+            );
 
-            return {
+            const result: RouteResult = {
               distanceKm,
               durationMinutes,
               coordinates: coordinates.length > 0 ? coordinates : pontos.map((p) => [p.lat, p.lng]),
             };
+            routeCache.set(cacheKey, result);
+            return result;
           }
         }
       } catch {
-        
+        // OSRM failed, proceed to fallback
       }
-    }
 
-    try {
-      const coordsString = pontos.map((p) => `${p.lng},${p.lat}`).join(';');
-      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson`;
+      const fallback = this.calcularDistanciaFallback(pontos);
+      routeCache.set(cacheKey, fallback);
+      return fallback;
+    })().finally(() => {
+      inFlightRequests.delete(cacheKey);
+    });
 
-      const res = await fetch(osrmUrl);
-      if (res.ok) {
-        interface OsrmResponse {
-          routes?: Array<{
-            distance: number;
-            duration: number;
-            geometry?: {
-              coordinates: Array<[number, number]>;
-            };
-          }>;
-        }
-
-        const data: OsrmResponse = await res.json();
-        if (data.routes && data.routes.length > 0) {
-          const primaryRoute = data.routes[0];
-          const distanceKm = Math.round((primaryRoute.distance / 1000) * 10) / 10;
-          const durationMinutes = Math.round(primaryRoute.duration / 60);
-
-          const coordinates: Array<[number, number]> = (primaryRoute.geometry?.coordinates || []).map(
-            ([lng, lat]) => [lat, lng]
-          );
-
-          return {
-            distanceKm,
-            durationMinutes,
-            coordinates: coordinates.length > 0 ? coordinates : pontos.map((p) => [p.lat, p.lng]),
-          };
-        }
-      }
-    } catch {
-      
-    }
-
-    return this.calcularDistanciaFallback(pontos);
+    inFlightRequests.set(cacheKey, fetchPromise);
+    return fetchPromise;
   },
 
   calcularDistanciaFallback(pontos: RoutePoint[]): RouteResult {
@@ -150,3 +184,4 @@ export const routingService = {
     };
   },
 };
+

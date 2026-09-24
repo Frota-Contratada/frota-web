@@ -39,3 +39,24 @@ export const stateSelectOptions = BRAZILIAN_STATES.map((s) => ({
   label: `${s.nome} - ${s.sigla}`,
   value: s.sigla,
 }));
+
+export function normalizeUf(ufOrState?: string | null): string {
+  if (!ufOrState) return 'SP';
+  const clean = ufOrState.trim();
+  if (clean.length === 2) return clean.toUpperCase();
+
+  const normalized = clean
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  const match = BRAZILIAN_STATES.find((s) => {
+    const sNameNorm = s.nome
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    return sNameNorm === normalized || s.sigla.toLowerCase() === normalized;
+  });
+
+  return match ? match.sigla : 'SP';
+}

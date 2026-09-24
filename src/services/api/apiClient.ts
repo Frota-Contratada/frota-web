@@ -20,7 +20,7 @@ export class ApiError<T = unknown> extends Error {
   }
 }
 
-const DEFAULT_API_URL = 'https://moisture-aloft-unmovable.ngrok-free.dev';
+const DEFAULT_API_URL = 'https://exteroceptive-anabel-improvisational.ngrok-free.dev';
 
 const getApiBaseUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL as string | undefined;
@@ -148,6 +148,11 @@ async function request<T>(path: string, options: ApiRequestOptions = {}): Promis
       data && typeof data === 'object' && 'message' in data
         ? String((data as { message: unknown }).message)
         : 'Erro ao comunicar com a API.';
+    console.error(`[API ${response.status}] ${fetchOptions.method || 'GET'} ${buildUrl(path, query)}:`, {
+      message,
+      data,
+      status: response.status,
+    });
     throw new ApiError(message, response.status, data);
   }
 

@@ -15,9 +15,11 @@ import { StatCard, Table, TableToolbar, type ColumnDef, StatusBadge, type BadgeS
 import {
   supplierApi,
   ridesApi,
+  dashboardApi,
   extractListData,
   type FornecedorDto,
   type SolicitacaoDto,
+  type DashboardAuditoriaDto,
 } from '../../../services';
 import styles from '../Dashboards.module.css';
 
@@ -76,6 +78,7 @@ const columns: ColumnDef<AuditRideRow>[] = [
 
 export const PriceAuditView = () => {
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [auditoriaData, setAuditoriaData] = useState<DashboardAuditoriaDto | null>(null);
   const [suppliers, setSuppliers] = useState<FornecedorDto[]>([]);
   const [rides, setRides] = useState<SolicitacaoDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -85,11 +88,15 @@ export const PriceAuditView = () => {
     setIsLoading(true);
 
     Promise.allSettled([
+      dashboardApi.getAuditoria(),
       supplierApi.list(),
       ridesApi.list(),
-    ]).then(([suppRes, ridesRes]) => {
+    ]).then(([auditRes, suppRes, ridesRes]) => {
       if (!isMounted) return;
 
+      if (auditRes.status === 'fulfilled' && auditRes.value?.response) {
+        setAuditoriaData(auditRes.value.response);
+      }
       if (suppRes.status === 'fulfilled') {
         setSuppliers(extractListData<FornecedorDto>(suppRes.value));
       }
@@ -145,6 +152,13 @@ export const PriceAuditView = () => {
   }, [rides]);
 
   const kmComparisonData = useMemo(() => {
+    if (auditoriaData?.conformidadeQuilometragem && auditoriaData.conformidadeQuilometragem.length > 0) {
+      return auditoriaData.conformidadeQuilometragem.map((c) => ({
+        name: c.fornecedor.length > 15 ? `${c.fornecedor.slice(0, 13)}...` : c.fornecedor,
+        estimado: Math.round(c.kmEstimado),
+        cobrado: Math.round(c.kmCobrado),
+      }));
+    }
     if (rides.length === 0) return [];
     const map: Record<string, { estimado: number; cobrado: number }> = {};
 
@@ -166,9 +180,15 @@ export const PriceAuditView = () => {
         cobrado: Math.round(vals.cobrado),
       }))
       .slice(0, 5);
-  }, [rides]);
+  }, [auditoriaData, rides]);
 
   const deviationTrendData = useMemo(() => {
+    if (auditoriaData?.maioresDesviosFornecedores && auditoriaData.maioresDesviosFornecedores.length > 0) {
+      return auditoriaData.maioresDesviosFornecedores.map((d) => ({
+        name: d.fornecedor,
+        desvio: Number(d.desvioPercentual.toFixed(1)),
+      }));
+    }
     if (rides.length === 0) return [];
     const map: Record<string, { totalDev: number; count: number }> = {};
 
@@ -193,17 +213,23 @@ export const PriceAuditView = () => {
       name,
       desvio: Number((stat.totalDev / stat.count).toFixed(1)),
     }));
-  }, [rides]);
+  }, [auditoriaData, rides]);
 
   const ridesWithKmDeviationCount = useMemo(() => {
+    if (auditoriaData?.bigNumbers?.corridasDesvioAlto?.quantidade != null) {
+      return auditoriaData.bigNumbers.corridasDesvioAlto.quantidade;
+    }
     return rides.filter((r) => {
       const est = Number(r.distanciaEstimadaKm ?? r.distanciaKm ?? 0);
       const real = Number(r.corrida?.kmPercorrido ?? 0);
       return est > 0 && real > 0 && Math.abs(real - est) > 0.5;
     }).length;
-  }, [rides]);
+  }, [auditoriaData, rides]);
 
   const maxDeviationObserved = useMemo(() => {
+    if (auditoriaData?.bigNumbers?.maiorDesvio?.percentual != null) {
+      return `${auditoriaData.bigNumbers.maiorDesvio.percentual.toFixed(1)}%`;
+    }
     let max = 0;
     rides.forEach((r) => {
       const est = Number(r.distanciaEstimadaKm ?? r.distanciaKm ?? 0);
@@ -214,7 +240,7 @@ export const PriceAuditView = () => {
       }
     });
     return `${max.toFixed(1)}%`;
-  }, [rides]);
+  }, [auditoriaData, rides]);
 
   const priceAuditFilterSections = [
     {

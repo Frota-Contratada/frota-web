@@ -106,5 +106,11 @@ export const supplierApi = {
     formData.append('foto', file);
     return apiClient.patch<FornecedorResponse>(`/fornecedor/${id}/foto`, formData);
   },
+
+  update(id: number, data: { nome?: string; cnpjCpf?: string }) {
+    return apiClient.patch<FornecedorResponse>(`/fornecedor/admin/${id}`, data).catch(() => {
+      return apiClient.patch<FornecedorResponse>(`/fornecedor/filial/${id}`, data);
+    });
+  },
 };
 

@@ -1,4 +1,5 @@
 import { TOMTOM_CONFIG } from './tomtomConfig';
+import { normalizeUf } from '../../utils/brazilianStates';
 
 export interface EnderecoDetalhado {
   cep: string;
@@ -142,12 +143,14 @@ export const geoService = {
       }
     }
 
-    if (TOMTOM_CONFIG.hasKey) {
+    if (TOMTOM_CONFIG.hasKey && !TOMTOM_CONFIG.isThrottled) {
       try {
         const tomtomUrl = TOMTOM_CONFIG.getSearchUrl(cleanQuery, 6);
         const res = await fetch(tomtomUrl);
 
-        if (res.ok) {
+        if (res.status === 429) {
+          TOMTOM_CONFIG.markThrottled();
+        } else if (res.ok) {
           const data: TomTomSearchResponse = await res.json();
           if (data.results && Array.isArray(data.results) && data.results.length > 0) {
             return data.results
@@ -173,7 +176,7 @@ export const geoService = {
                   logradouro: addr.streetName || road,
                   bairro: addr.municipalitySubdivision,
                   cidade: city,
-                  uf: addr.countrySubdivision,
+                  uf: normalizeUf(addr.countrySubdivision),
                   cep: addr.postalCode?.replace(/\D/g, ''),
                 };
               });
@@ -218,7 +221,7 @@ export const geoService = {
               logradouro: road,
               bairro: addr.suburb || addr.neighbourhood || addr.city_district,
               cidade: city,
-              uf: addr.state,
+              uf: normalizeUf(addr.state),
               cep: addr.postcode?.replace(/\D/g, ''),
             };
           });
@@ -256,7 +259,7 @@ export const geoService = {
                 logradouro: p.street || p.name,
                 bairro: p.district,
                 cidade: p.city,
-                uf: p.state,
+                uf: normalizeUf(p.state),
                 cep: p.postcode?.replace(/\D/g, ''),
               };
             });
@@ -351,12 +354,14 @@ export const geoService = {
     lat: number,
     lng: number
   ): Promise<EnderecoDetalhado | null> {
-    if (TOMTOM_CONFIG.hasKey) {
+    if (TOMTOM_CONFIG.hasKey && !TOMTOM_CONFIG.isThrottled) {
       try {
         const tomtomUrl = TOMTOM_CONFIG.getReverseGeocodeUrl(lat, lng);
         const res = await fetch(tomtomUrl);
 
-        if (res.ok) {
+        if (res.status === 429) {
+          TOMTOM_CONFIG.markThrottled();
+        } else if (res.ok) {
           const data: TomTomReverseGeocodeResponse = await res.json();
           if (data.addresses && data.addresses.length > 0) {
             const item = data.addresses[0];
@@ -366,7 +371,7 @@ export const geoService = {
               logradouro: addr.streetName || '',
               bairro: addr.municipalitySubdivision || '',
               cidade: addr.municipality || '',
-              uf: addr.countrySubdivision || '',
+              uf: normalizeUf(addr.countrySubdivision || ''),
               latitude: lat,
               longitude: lng,
               displayName: addr.freeformAddress || `${addr.streetName}, ${addr.municipality}`,
@@ -392,7 +397,7 @@ export const geoService = {
         logradouro: addr.road || addr.street || '',
         bairro: addr.suburb || addr.neighbourhood || '',
         cidade: addr.city || addr.town || addr.municipality || '',
-        uf: addr.state_code || addr.state || '',
+        uf: normalizeUf(addr.state_code || addr.state || ''),
         latitude: lat,
         longitude: lng,
         displayName: data.display_name,
@@ -402,3 +407,4 @@ export const geoService = {
     }
   },
 };
+

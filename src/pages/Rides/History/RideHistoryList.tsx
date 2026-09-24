@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../../components/common';
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
-import { ridesApi, extractListData, type SolicitacaoDto } from '../../../services';
+import { ridesApi, extractListData, type CorridaDto } from '../../../services';
 import { exportToCsv } from '../../../utils/exportHelper';
 import styles from './RideHistory.module.css';
 
@@ -75,43 +75,37 @@ export const RideHistoryList = () => {
     let isMounted = true;
     setIsLoading(true);
 
-    ridesApi.getViagens()
+    ridesApi.getMinhasCorridas()
       .then((res) => {
         if (!isMounted) return;
-        const apiData = extractListData<SolicitacaoDto>(res);
-        const mapped: RideHistory[] = apiData.map((s, idx) => {
-          const rawStatus = (s.corrida?.status || s.status || 'FINALIZADA').toUpperCase();
-          let status: RideStatus = 'F';
-          if (rawStatus.includes('INIC') || rawStatus.includes('ANDAMENTO') || s.emAndamento) status = 'I';
-          else if (rawStatus.includes('CANCEL')) status = 'C';
-
-          const driverName = s.corrida?.motoristaNome || '—';
-          const supplierName = s.fornecedorNome || (s.fornecedorId ? `Fornecedor #${s.fornecedorId}` : '—');
-          const plate = s.corrida?.placaVeiculo || '—';
-          const vehicleName = s.tipoVeiculo?.nome || s.tipoCorrida?.nome || 'Veículo Padrão';
-          const startTime = s.corrida?.dataInicio
-            ? new Date(s.corrida.dataInicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-            : s.dataCorrida
-            ? new Date(s.dataCorrida).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        const apiData = extractListData<CorridaDto>(res);
+        const mapped: RideHistory[] = apiData.map((c, idx) => {
+          const driverName = c.motorista?.nome || '—';
+          const supplierName = c.fornecedor?.nome || '—';
+          const plate = c.veiculo?.placa || '—';
+          const collaboratorName = c.solicitante?.nome || 'Colaborador';
+          const startTime = c.inicio
+            ? new Date(c.inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
             : '—';
-          const finishTime = s.corrida?.dataFim
-            ? new Date(s.corrida.dataFim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+          const finishTime = c.fim
+            ? new Date(c.fim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
             : null;
-          const distance = s.corrida?.kmPercorrido ?? s.distanciaEstimadaKm ?? s.distanciaKm ?? 0;
-          const totalVal = s.corrida?.valorFinal ?? s.valorEstimado ?? 0;
+          const distance = c.quilometragem || 0;
+          const totalVal = c.valorFinal || 0;
           const formattedVal = totalVal ? `R$ ${Number(totalVal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00';
+          const status: RideStatus = (['A', 'I', 'F', 'C'].includes(c.status) ? c.status : 'F') as RideStatus;
 
           return {
-            id: s.corrida?.id || s.id || idx + 1,
-            requestId: s.id || idx + 1,
+            id: c.id || idx + 1,
+            requestId: c.solicitacaoId || c.id || idx + 1,
             driver: driverName,
             supplier: supplierName,
-            collaborator: s.solicitanteNome || 'Colaborador Solicitante',
+            collaborator: collaboratorName,
             vehiclePlate: plate,
-            vehicleType: vehicleName,
+            vehicleType: 'Veículo Comercial',
             startedAt: startTime,
             finishedAt: finishTime,
-            rideDate: s.dataCorrida || s.dataCriacao || new Date().toISOString(),
+            rideDate: c.dataAgendada || c.inicio || new Date().toISOString(),
             distanceKm: distance,
             finalValue: formattedVal,
             extraExpenses: '—',

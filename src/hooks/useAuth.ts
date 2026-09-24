@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { authApi } from '../services/auth/authApi';
 import type { LoginCredentials, User, UserProfile } from '../types/auth.types';
+import { getDefaultRouteForProfiles } from '../types/profile.types';
 
 export const useAuth = () => {
   const navigate = useNavigate();
@@ -37,7 +38,12 @@ export const useAuth = () => {
         };
 
         storeLogin(user, accessToken, refreshToken);
-        navigate('/visao-executiva', { replace: true });
+
+        const userProfiles = (meData.perfis && meData.perfis.length > 0)
+          ? meData.perfis.map((p) => p.tipoPerfil)
+          : [mainProfile];
+        const targetRoute = getDefaultRouteForProfiles(userProfiles);
+        navigate(targetRoute, { replace: true });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Erro ao fazer login';
         setError(message);

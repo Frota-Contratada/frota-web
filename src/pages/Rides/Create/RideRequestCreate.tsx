@@ -20,7 +20,7 @@ import {
   type ColaboradorDto,
 } from '../../../services';
 import { useAuthStore } from '../../../stores/authStore';
-import { cleanCpf } from '../../../utils';
+import { cleanCpf, normalizeUf } from '../../../utils';
 import styles from '../Review/RideReview.module.css';
 
 type RequestStep = 1 | 2 | 3;
@@ -192,14 +192,14 @@ export const RideRequestCreate = () => {
         origem: {
           logradouro: form.origin,
           cidade: originLocation.cidade || 'São Paulo',
-          uf: originLocation.uf || 'SP',
+          uf: normalizeUf(originLocation.uf),
           latitude: latO,
           longitude: lngO,
         },
         destino: {
           logradouro: form.destination,
           cidade: destinationLocation.cidade || originLocation.cidade || 'São Paulo',
-          uf: destinationLocation.uf || originLocation.uf || 'SP',
+          uf: normalizeUf(destinationLocation.uf || originLocation.uf),
           latitude: latD,
           longitude: lngD,
         },
@@ -419,9 +419,9 @@ export const RideRequestCreate = () => {
       const selectedCcId = Number(form.costCenter) || backendCentrosCusto[0]?.numero || 101;
 
       const origemCidade = originLocation.cidade || destinationLocation.cidade || 'São Paulo';
-      const origemUf = originLocation.uf || destinationLocation.uf || 'SP';
+      const origemUf = normalizeUf(originLocation.uf || destinationLocation.uf);
       const destinoCidade = destinationLocation.cidade || originLocation.cidade || 'São Paulo';
-      const destinoUf = destinationLocation.uf || originLocation.uf || 'SP';
+      const destinoUf = normalizeUf(destinationLocation.uf || originLocation.uf);
 
       await ridesApi.create({
         dataCorrida: new Date(form.rideAt).toISOString(),

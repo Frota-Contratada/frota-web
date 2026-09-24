@@ -14,9 +14,11 @@ import { StatCard, Table, TableToolbar, type ColumnDef, StatusBadge } from '../.
 import {
   costCenterApi,
   ridesApi,
+  dashboardApi,
   extractListData,
   type CentroCustoDto,
   type SolicitacaoDto,
+  type DashboardGastosDto,
 } from '../../../services';
 import styles from '../Dashboards.module.css';
 
@@ -49,6 +51,7 @@ const columns: ColumnDef<ExpensesRow>[] = [
 
 export const ExpensesView = () => {
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [gastosData, setGastosData] = useState<DashboardGastosDto | null>(null);
   const [costCenters, setCostCenters] = useState<CentroCustoDto[]>([]);
   const [rides, setRides] = useState<SolicitacaoDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,11 +61,15 @@ export const ExpensesView = () => {
     setIsLoading(true);
 
     Promise.allSettled([
+      dashboardApi.getGastos(),
       costCenterApi.list(),
       ridesApi.list(),
-    ]).then(([ccRes, ridesRes]) => {
+    ]).then(([gastosRes, ccRes, ridesRes]) => {
       if (!isMounted) return;
 
+      if (gastosRes.status === 'fulfilled' && gastosRes.value?.response) {
+        setGastosData(gastosRes.value.response);
+      }
       if (ccRes.status === 'fulfilled') {
         setCostCenters(extractListData<CentroCustoDto>(ccRes.value));
       }
@@ -89,6 +96,12 @@ export const ExpensesView = () => {
   }, [costCenters]);
 
   const costCenterChartData = useMemo(() => {
+    if (gastosData?.maioresGastosCentroCusto && gastosData.maioresGastosCentroCusto.length > 0) {
+      return gastosData.maioresGastosCentroCusto.map((c) => ({
+        name: c.centroCusto,
+        valor: Math.round(c.valor),
+      }));
+    }
     if (rides.length === 0 && costCenters.length === 0) return [];
     const map: Record<string, number> = {};
 
@@ -121,9 +134,15 @@ export const ExpensesView = () => {
       .slice(0, 6);
 
     return entries;
-  }, [rides, costCenters]);
+  }, [gastosData, rides, costCenters]);
 
   const monthlyExpensesData = useMemo(() => {
+    if (gastosData?.evolucaoGastos && gastosData.evolucaoGastos.length > 0) {
+      return gastosData.evolucaoGastos.map((e) => ({
+        name: e.periodo,
+        valor: Math.round(e.fornecedores.reduce((acc, f) => acc + (f.valor || 0), 0)),
+      }));
+    }
     if (rides.length === 0) return [];
     const map: Record<string, number> = {};
     rides.forEach((r) => {
@@ -140,7 +159,7 @@ export const ExpensesView = () => {
       name,
       valor: Math.round(valor),
     }));
-  }, [rides]);
+  }, [gastosData, rides]);
 
   const expensesFilterSections = [
     {
@@ -170,7 +189,7 @@ export const ExpensesView = () => {
     return matchesStatus && matchesAprovador;
   });
 
-  const totalSpent = rides.reduce((sum, r) => {
+  const totalSpent = gastosData?.bigNumbers?.gastoTotal?.valor ?? rides.reduce((sum, r) => {
     const val = Number(r.corrida?.valorFinal ?? r.valorEstimado ?? 0);
     return sum + (isNaN(val) ? 0 : val);
   }, 0);

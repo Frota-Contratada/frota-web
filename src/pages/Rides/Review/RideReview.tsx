@@ -45,6 +45,10 @@ export const RideReview = () => {
   const [cancelReasons, setCancelReasons] = useState<MotivoSolicitacaoDto[]>([]);
   const [selectedCancelReasonId, setSelectedCancelReasonId] = useState<string>('1');
 
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [rejectReasons, setRejectReasons] = useState<MotivoSolicitacaoDto[]>([]);
+  const [selectedRejectReasonId, setSelectedRejectReasonId] = useState<string>('1');
+
   useEffect(() => {
     let isMounted = true;
     if (requestId && !isNaN(Number(requestId))) {
@@ -52,7 +56,8 @@ export const RideReview = () => {
         ridesApi.getById(Number(requestId)),
         supplierApi.list(),
         ridesApi.getMotivosCancelamento(),
-      ]).then(([reqRes, suppRes, motivosCancelRes]) => {
+        ridesApi.getMotivosRecusa(),
+      ]).then(([reqRes, suppRes, motivosCancelRes, motivosRecusaRes]) => {
         if (!isMounted) return;
         if (reqRes.status === 'fulfilled' && reqRes.value.response) {
           setSolicitacao(reqRes.value.response);
@@ -69,6 +74,13 @@ export const RideReview = () => {
           if (motivos.length > 0) {
             setCancelReasons(motivos);
             setSelectedCancelReasonId(String(motivos[0].id));
+          }
+        }
+        if (motivosRecusaRes.status === 'fulfilled' && motivosRecusaRes.value?.response) {
+          const motivos = extractListData<MotivoSolicitacaoDto>(motivosRecusaRes.value);
+          if (motivos.length > 0) {
+            setRejectReasons(motivos);
+            setSelectedRejectReasonId(String(motivos[0].id));
           }
         }
       }).finally(() => {
@@ -135,6 +147,54 @@ export const RideReview = () => {
   const goNext = () => setCurrentStep((step) => Math.min(step + 1, 3) as ReviewStep);
   const goBack = () => setCurrentStep((step) => Math.max(step - 1, 1) as ReviewStep);
 
+  const handleApprove = async () => {
+    if (!solicitacao) return;
+    try {
+      setIsSubmitting(true);
+      await ridesApi.aprovar(solicitacao.id, selectedSupplierId || undefined);
+      showToast({
+        type: 'success',
+        title: 'Solicitação aprovada',
+        description: `A solicitação #${solicitacao.id} foi aprovada com sucesso.`,
+      });
+      navigate('/corridas/solicitacoes');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Falha ao aprovar solicitação no servidor';
+      showToast({
+        type: 'error',
+        title: 'Erro na aprovação',
+        description: msg,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!solicitacao) return;
+    try {
+      setIsSubmitting(true);
+      const motivoId = Number(selectedRejectReasonId) || 1;
+      await ridesApi.rejeitar(solicitacao.id, motivoId);
+      showToast({
+        type: 'warning',
+        title: 'Solicitação reprovada',
+        description: `A solicitação #${solicitacao.id} foi reprovada.`,
+      });
+      setIsRejectModalOpen(false);
+      navigate('/corridas/solicitacoes');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Falha ao reprovar solicitação no servidor';
+      showToast({
+        type: 'error',
+        title: 'Erro na reprovação',
+        description: msg,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const cancelReview = async () => {
     if (!solicitacao) return;
     try {
@@ -187,10 +247,6 @@ export const RideReview = () => {
 
   return (
     <div className={styles.page}>
-      <div style={{ padding: '0.875rem 1rem', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '8px', color: '#92400e', marginBottom: '1.25rem', fontSize: '0.875rem' }}>
-        <strong>Aviso do Sistema:</strong> Os endpoints de decisão (aprovação e reprovação) pelo aprovador ainda não estão disponíveis no backend atual. As ações correspondentes estão desabilitadas para evitar erros de comunicação (404). O cancelamento da solicitação está plenamente funcional.
-      </div>
-
       <nav className={styles.stepper} aria-label="Etapas da revisão">
         {steps.map((step) => {
           const isActive = step.id === currentStep;
@@ -347,10 +403,10 @@ export const RideReview = () => {
               ) : (
                 <Button
                   leftIcon={<CheckIcon width={16} height={16} />}
-                  disabled={true}
-                  title="Endpoint de aprovação ainda não implementado no backend"
+                  onClick={handleApprove}
+                  isLoading={isSubmitting}
                 >
-                  Aprovação pendente no backend
+                  Aprovar solicitação
                 </Button>
               )}
               {currentStep > 1 && (
@@ -365,10 +421,10 @@ export const RideReview = () => {
                 className={styles.rejectButton}
                 variant="outline"
                 leftIcon={<ErroIcon width={14} height={14} />}
-                disabled={true}
-                title="Endpoint de reprovação ainda não implementado no backend"
+                onClick={() => setIsRejectModalOpen(true)}
+                disabled={isSubmitting}
               >
-                Reprovação pendente no backend
+                Reprovar solicitação
               </Button>
               <Button
                 className={styles.modalCancelButton}
@@ -386,6 +442,38 @@ export const RideReview = () => {
           </div>
         </aside>
       </section>
+
+      {isRejectModalOpen && (
+        <div className={styles.modalBackdrop} role="dialog" aria-modal="true" aria-labelledby="reject-modal-title">
+          <div className={styles.modalCard}>
+            <div className={styles.modalHeader}>
+              <h3 id="reject-modal-title">Reprovar solicitação #{solicitacao.id}</h3>
+              <p>Selecione o motivo da reprovação desta solicitação.</p>
+            </div>
+
+            <Select
+              label="Motivo da reprovação *"
+              value={selectedRejectReasonId}
+              onChange={(val) => setSelectedRejectReasonId(val)}
+              options={rejectReasons.map((m) => ({ label: m.nome, value: String(m.id) }))}
+            />
+
+            <div className={styles.modalActions}>
+              <Button variant="ghost" onClick={() => setIsRejectModalOpen(false)} disabled={isSubmitting}>
+                Voltar
+              </Button>
+              <Button
+                variant="primary"
+                className={styles.rejectButton}
+                onClick={handleReject}
+                isLoading={isSubmitting}
+              >
+                Confirmar reprovação
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isCancelModalOpen && (
         <div className={styles.modalBackdrop} role="dialog" aria-modal="true" aria-labelledby="cancel-modal-title">

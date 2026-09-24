@@ -83,23 +83,32 @@ export const SupplierEdit = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validate()) {
       showToast({ type: 'error', title: 'Erro de validação', description: 'Por favor, corrija os erros do formulário.' });
       return;
     }
 
-    setIsLoading(true);
-    setTimeout(() => {
+    try {
+      setIsLoading(true);
+      await supplierApi.update(Number(supplierId), {
+        nome: form.name.trim(),
+        cnpjCpf: cleanCnpj(form.document),
+      });
+
       showToast({
         type: 'success',
         title: 'Fornecedor atualizado',
-        description: `As informações de ${form.name} foram salvas.`,
+        description: `As informações de ${form.name} foram salvas com sucesso.`,
       });
-      setIsLoading(false);
       navigate(`/terceiros/fornecedores/${supplierId}`);
-    }, 400);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro ao atualizar dados do fornecedor';
+      showToast({ type: 'error', title: 'Falha na atualização', description: msg });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (isInitialLoading) {

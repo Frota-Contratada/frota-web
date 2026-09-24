@@ -1,3 +1,5 @@
+let throttledUntil = 0;
+
 export const TOMTOM_CONFIG = {
   get apiKey(): string {
     return (import.meta.env.VITE_TOMTOM_API_KEY || '').trim();
@@ -6,6 +8,18 @@ export const TOMTOM_CONFIG = {
   get hasKey(): boolean {
     const key = this.apiKey;
     return Boolean(key && key.length > 8 && key !== 'sua_chave_aqui');
+  },
+
+  get isThrottled(): boolean {
+    return Date.now() < throttledUntil;
+  },
+
+  markThrottled(durationMs = 5 * 60 * 1000): void {
+    throttledUntil = Date.now() + durationMs;
+  },
+
+  resetThrottle(): void {
+    throttledUntil = 0;
   },
 
   tileLayer: {

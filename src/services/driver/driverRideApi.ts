@@ -39,14 +39,21 @@ export interface CorridaMotoristaDto {
 }
 
 export interface ViagensMotoristaQueryParams {
+  inicio?: string;
+  fim?: string;
   dataInicio?: string;
   dataFim?: string;
 }
 
 export const driverRideApi = {
   getViagens(query?: ViagensMotoristaQueryParams) {
+    const mappedQuery: Record<string, string | number | boolean | null | undefined> = {};
+    const inicio = query?.inicio || query?.dataInicio;
+    const fim = query?.fim || query?.dataFim;
+    if (inicio) mappedQuery.inicio = inicio;
+    if (fim) mappedQuery.fim = fim;
     return apiClient.get<{ response: CorridaMotoristaDto[] }>('/motorista/viagens', {
-      query: query as Record<string, string | number | boolean | null | undefined>,
+      query: mappedQuery,
     });
   },
 
@@ -56,6 +63,12 @@ export const driverRideApi = {
 
   iniciarCorrida(id: number) {
     return apiClient.post<{ response: CorridaMotoristaDto }>(`/motorista/corridas/${id}/iniciar`);
+  },
+
+  recusarCorrida(id: number, motivo: string) {
+    return apiClient.post<{ response: CorridaMotoristaDto }>(`/motorista/corridas/${id}/recusar`, {
+      motivo,
+    });
   },
 
   getPerfil() {

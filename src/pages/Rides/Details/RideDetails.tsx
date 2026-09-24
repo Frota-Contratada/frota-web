@@ -26,18 +26,31 @@ export const RideDetails = () => {
   useEffect(() => {
     let isMounted = true;
     if (rideId && !isNaN(Number(rideId))) {
+      const id = Number(rideId);
       ridesApi
-        .getById(Number(rideId))
+        .getById(id)
         .then((res) => {
           if (!isMounted) return;
           if (res.response) {
             setSolicitacao(res.response);
           }
         })
-        .catch((err) => {
+        .catch(async () => {
+          try {
+            const corridaRes = await ridesApi.getCorridaById(id);
+            if (corridaRes.response?.solicitacaoId) {
+              const solRes = await ridesApi.getById(corridaRes.response.solicitacaoId);
+              if (!isMounted) return;
+              if (solRes.response) {
+                setSolicitacao(solRes.response);
+                return;
+              }
+            }
+          } catch {
+            // Handled below
+          }
           if (!isMounted) return;
-          const message = err instanceof Error ? err.message : 'Erro ao buscar detalhes da corrida';
-          showToast({ type: 'error', title: message });
+          showToast({ type: 'error', title: 'Erro ao buscar detalhes da corrida' });
           navigate('/corridas/historico');
         })
         .finally(() => {

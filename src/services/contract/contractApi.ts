@@ -116,6 +116,10 @@ export const contractApi = {
   getPdfBlob(id: number) {
     return apiClient.getBlob(`/contrato/${id}`);
   },
+
+  substituirRegras(id: number, regras: unknown[]) {
+    return apiClient.put<void>(`/contrato/${id}/regras`, { regras });
+  },
 };
 
 

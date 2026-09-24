@@ -83,10 +83,17 @@ export const contractIaApi = {
         method: 'POST',
         body: formData,
       });
-    } catch (networkError) {
-      throw new Error(
-        `Falha na comunicação com o microserviço de IA (${baseUrl}). Verifique se o serviço frota-ia está em execução e se o CORS está liberado.`
-      );
+    } catch {
+      try {
+        response = await fetch('/extrair/', {
+          method: 'POST',
+          body: formData,
+        });
+      } catch {
+        throw new Error(
+          `Falha na comunicação com o microserviço de IA (${baseUrl}). Verifique se o serviço frota-ia está em execução na porta 8000.`
+        );
+      }
     }
 
     if (!response.ok) {

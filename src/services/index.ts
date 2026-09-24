@@ -21,9 +21,7 @@ export type { ContratoDto, CriarContratoParams, BuscarContratosAdminQueryParams,
 export { costCenterApi } from './costCenter/costCenterApi';
 export type { CentroCustoDto, CentrosCustoListResponse, VincularAprovadorParams, AprovadorCentroCustoDto, VincularAprovadorResponse } from './costCenter/costCenterApi';
 export { ridesApi } from './rides/ridesApi';
-export type { EnderecoSolicitacaoDto, MotivoSolicitacaoDto, TipoCorridaDto, TipoVeiculoDto, SimularSolicitacaoParams, SimulacaoSolicitacaoDto, CriarSolicitacaoParams, SolicitacaoDto, CancelarSolicitacaoParams } from './rides/ridesApi';
-export { branchesApi, contractsApi, employeesApi, suppliersApi } from './platform/platformApi';
-export type { BranchDto, ContractDto, EmployeeDto, SupplierDto } from './platform/platformApi';
+export type { EnderecoSolicitacaoDto, MotivoSolicitacaoDto, TipoCorridaDto, TipoVeiculoDto, SimularSolicitacaoParams, SimulacaoSolicitacaoDto, CriarSolicitacaoParams, SolicitacaoDto, CancelarSolicitacaoParams, CorridaDto, CorridaPessoaDto, CorridaVeiculoDto } from './rides/ridesApi';
 export { geoService } from './maps/geoService';
 export type { EnderecoDetalhado, SugestaoEndereco } from './maps/geoService';
 export { routingService } from './maps/routingService';
@@ -38,4 +36,6 @@ export { notificationApi } from './notification/notificationApi';
 export type { NotificacaoDto, QuantidadeNotificacoesNaoLidasResponse, NotificacoesListResponse, NotificacaoResponse } from './notification/notificationApi';
 export { contractIaApi, normalizarDataIa } from './ia/contractIaApi';
 export type { ExtracaoResultadoIa, RegraExtracaoIa } from './ia/contractIaApi';
+export { dashboardApi } from './dashboard/dashboardApi';
+export type { DashboardExecutivoDto, DashboardGastosDto, DashboardAuditoriaDto, DashboardQueryParams } from './dashboard/dashboardApi';
 

@@ -1,9 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { routingService } from '../routingService';
 
+import { TOMTOM_CONFIG } from '../tomtomConfig';
+
 describe('routingService', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    routingService.clearCache();
+    TOMTOM_CONFIG.resetThrottle();
   });
 
   it('returns zero distance for less than 2 points', async () => {
@@ -61,5 +65,29 @@ describe('routingService', () => {
     expect(result.distanceKm).toBeGreaterThan(0);
     expect(result.durationMinutes).toBeGreaterThan(0);
     expect(result.coordinates).toHaveLength(2);
+  });
+
+  it('marks TOMTOM throttled when receiving status 429 and falls back seamlessly', async () => {
+    vi.spyOn(TOMTOM_CONFIG, 'hasKey', 'get').mockReturnValue(true);
+    const fetchSpy = vi.fn().mockResolvedValue({
+      status: 429,
+      ok: false,
+    });
+    globalThis.fetch = fetchSpy;
+
+    const points = [
+      { lat: -23.518, lng: -46.745 },
+      { lat: -23.435, lng: -46.473 },
+    ];
+
+    const result = await routingService.calcularRota(points);
+    expect(TOMTOM_CONFIG.isThrottled).toBe(true);
+    expect(result.distanceKm).toBeGreaterThan(0);
+
+    // Subsequent call uses cache immediately without calling fetch
+    fetchSpy.mockClear();
+    const cachedResult = await routingService.calcularRota(points);
+    expect(cachedResult).toEqual(result);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

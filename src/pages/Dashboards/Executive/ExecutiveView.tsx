@@ -24,10 +24,12 @@ import {
   ridesApi,
   supplierApi,
   contractApi,
+  dashboardApi,
   extractListData,
   type SolicitacaoDto,
   type FornecedorBigNumbers,
   type ContratoBigNumbers,
+  type DashboardExecutivoDto,
 } from '../../../services';
 import styles from '../Dashboards.module.css';
 
@@ -78,6 +80,7 @@ const columns: ColumnDef<ExecRideRow>[] = [
 
 export const ExecutiveView = () => {
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [dashboardData, setDashboardData] = useState<DashboardExecutivoDto | null>(null);
   const [rides, setRides] = useState<SolicitacaoDto[]>([]);
   const [supplierBigNumbers, setSupplierBigNumbers] = useState<FornecedorBigNumbers | null>(null);
   const [contractBigNumbers, setContractBigNumbers] = useState<ContratoBigNumbers | null>(null);
@@ -88,12 +91,16 @@ export const ExecutiveView = () => {
     setIsLoading(true);
 
     Promise.allSettled([
+      dashboardApi.getExecutivo(),
       ridesApi.list(),
       supplierApi.getAdminBigNumbers().catch(() => supplierApi.getFilialBigNumbers()),
       contractApi.getAdminBigNumbers().catch(() => contractApi.getFilialBigNumbers()),
-    ]).then(([ridesRes, suppRes, contRes]) => {
+    ]).then(([dashRes, ridesRes, suppRes, contRes]) => {
       if (!isMounted) return;
 
+      if (dashRes.status === 'fulfilled' && dashRes.value?.response) {
+        setDashboardData(dashRes.value.response);
+      }
       if (ridesRes.status === 'fulfilled') {
         setRides(extractListData<SolicitacaoDto>(ridesRes.value));
       }
@@ -140,6 +147,12 @@ export const ExecutiveView = () => {
   }, [rides]);
 
   const monthlyChartData = useMemo(() => {
+    if (dashboardData?.gastoMensal && dashboardData.gastoMensal.length > 0) {
+      return dashboardData.gastoMensal.map((g) => ({
+        name: g.mes,
+        valor: Math.round(g.gasto),
+      }));
+    }
     if (rides.length === 0) return [];
     const map: Record<string, number> = {};
     rides.forEach((r) => {
@@ -156,9 +169,16 @@ export const ExecutiveView = () => {
       name,
       valor: Math.round(valor),
     }));
-  }, [rides]);
+  }, [dashboardData, rides]);
 
   const supplierPieData = useMemo(() => {
+    if (dashboardData?.gastoPorFornecedor?.fornecedores && dashboardData.gastoPorFornecedor.fornecedores.length > 0) {
+      return dashboardData.gastoPorFornecedor.fornecedores.map((f, idx) => ({
+        name: f.fornecedor,
+        value: Math.round(f.gasto),
+        color: PIE_COLORS[idx % PIE_COLORS.length],
+      }));
+    }
     if (rides.length === 0) return [];
     const map: Record<string, number> = {};
     rides.forEach((r) => {
@@ -172,7 +192,7 @@ export const ExecutiveView = () => {
       value: Math.round(value),
       color: PIE_COLORS[idx % PIE_COLORS.length],
     }));
-  }, [rides]);
+  }, [dashboardData, rides]);
 
   const executiveFilterSections = [
     {
@@ -195,10 +215,12 @@ export const ExecutiveView = () => {
     });
   });
 
-  const completedCount = rides.filter((r) => {
+  const completedCount = dashboardData?.bigNumbers?.corridasConcluidas?.valor ?? rides.filter((r) => {
     const s = (r.status || '').toUpperCase();
     return s === 'CONCLUIDA' || s === 'FINALIZADA';
   }).length;
+
+  const totalCorridasCount = dashboardData?.bigNumbers?.totalCorridas?.valor ?? rides.length;
 
   return (
     <div className={styles.page}>
@@ -211,7 +233,7 @@ export const ExecutiveView = () => {
       <section className={styles.statsGrid}>
         <StatCard
           title="Total de solicitações"
-          value={String(rides.length)}
+          value={String(totalCorridasCount)}
           isLoading={isLoading}
         />
         <StatCard
