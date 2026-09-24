@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { Permission, UserProfile } from '../types/profile.types';
-import { getDefaultRouteForProfiles, hasAnyPermission, hasPermission } from '../types/profile.types';
+import { getDefaultRouteForProfiles, hasAnyPermission, hasPermission, normalizeProfile } from '../types/profile.types';
 import { useAuthStore } from '../stores/authStore';
 
 export const usePermissions = () => {
@@ -10,19 +10,21 @@ export const usePermissions = () => {
     if (!user) return [];
     const profiles = new Set<UserProfile>();
     if (user.profile) {
-      profiles.add(user.profile);
+      const norm = normalizeProfile(user.profile);
+      if (norm) profiles.add(norm);
     }
     if (user.perfis && Array.isArray(user.perfis)) {
       user.perfis.forEach((p) => {
         if (p.tipoPerfil) {
-          profiles.add(p.tipoPerfil as UserProfile);
+          const norm = normalizeProfile(p.tipoPerfil);
+          if (norm) profiles.add(norm);
         }
       });
     }
     return Array.from(profiles);
   }, [user]);
 
-  const primaryProfile = userProfiles[0] || user?.profile;
+  const primaryProfile = userProfiles[0] || normalizeProfile(user?.profile);
   const defaultRoute = useMemo(() => getDefaultRouteForProfiles(userProfiles), [userProfiles]);
 
   return {

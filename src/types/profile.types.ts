@@ -96,9 +96,38 @@ export const PROFILE_PERMISSIONS: Record<UserProfile, Permission[]> = {
   ],
 };
 
+export const normalizeProfile = (raw?: string | null): UserProfile | undefined => {
+  if (!raw) return undefined;
+  const cleaned = raw.trim().toLowerCase().replace(/_/g, '-');
+  
+  if (cleaned === 'admin-master' || cleaned === 'administrador-matriz' || cleaned === 'master' || cleaned === 'admin') {
+    return 'admin-master';
+  }
+  if (cleaned === 'admin-filial' || cleaned === 'administrador-filial' || cleaned === 'filial') {
+    return 'admin-filial';
+  }
+  if (cleaned === 'admin-fornecedor' || cleaned === 'administrador-fornecedor' || cleaned === 'fornecedor') {
+    return 'admin-fornecedor';
+  }
+  if (cleaned === 'aprovador' || cleaned === 'gestor') {
+    return 'aprovador';
+  }
+  if (cleaned === 'solicitante-emergencia' || cleaned === 'solicitante-emergencial') {
+    return 'solicitante-emergencia';
+  }
+  if (cleaned === 'solicitante' || cleaned === 'colaborador') {
+    return 'solicitante';
+  }
+  if (cleaned === 'motorista' || cleaned === 'driver') {
+    return 'motorista';
+  }
+  return undefined;
+};
+
 export const hasPermission = (profile: UserProfile | undefined, permission: Permission): boolean => {
-  if (!profile || !PROFILE_PERMISSIONS[profile]) return false;
-  return PROFILE_PERMISSIONS[profile].includes(permission);
+  const norm = normalizeProfile(profile);
+  if (!norm || !PROFILE_PERMISSIONS[norm]) return false;
+  return PROFILE_PERMISSIONS[norm].includes(permission);
 };
 
 export const hasAnyPermission = (profiles: (UserProfile | string)[] | undefined, permission: Permission): boolean => {
@@ -106,19 +135,26 @@ export const hasAnyPermission = (profiles: (UserProfile | string)[] | undefined,
   return profiles.some((p) => hasPermission(p as UserProfile, permission));
 };
 
-export const isAdminProfile = (profile: UserProfile | undefined): boolean =>
-  profile === 'admin-master' || profile === 'admin-filial';
+export const isAdminProfile = (profile: UserProfile | undefined): boolean => {
+  const norm = normalizeProfile(profile);
+  return norm === 'admin-master' || norm === 'admin-filial';
+};
 
 export const getDefaultRouteForProfiles = (profiles: (UserProfile | string)[] | undefined): string => {
   if (!profiles || profiles.length === 0) return '/corridas/solicitacoes';
-  if (profiles.includes('admin-master') || profiles.includes('admin-filial')) {
+  const normalized = profiles.map(normalizeProfile).filter(Boolean) as UserProfile[];
+  
+  if (normalized.includes('admin-master') || normalized.includes('admin-filial')) {
     return '/visao-executiva';
   }
-  if (profiles.includes('aprovador')) {
+  if (normalized.includes('aprovador')) {
     return '/corridas/solicitacoes';
   }
-  if (profiles.includes('admin-fornecedor')) {
+  if (normalized.includes('admin-fornecedor')) {
     return '/terceiros/motoristas';
+  }
+  if (normalized.includes('motorista')) {
+    return '/corridas/historico';
   }
   return '/corridas/solicitacoes';
 };

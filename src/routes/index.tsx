@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Login, TwoFactor, ForgotPassword, ResetPassword, SignUp } from '../pages/Auth';
+import { Login, ForgotPassword, ResetPassword, SignUp } from '../pages/Auth';
 import { Calendar } from '../pages/Calendar';
 import { ContractsList, ContractDetails, ContractCreate } from '../pages/Contracts';
 import { SuppliersList, SupplierDetails, SupplierCreate, SupplierEdit } from '../pages/Suppliers';
@@ -21,7 +21,6 @@ export const AppRoutes = () => {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={isAuthenticated ? <Navigate to={defaultRoute} replace /> : <Login />} />
-        <Route path="/two-factor" element={isAuthenticated ? <Navigate to={defaultRoute} replace /> : <TwoFactor />} />
         <Route path="/forgot-password" element={isAuthenticated ? <Navigate to={defaultRoute} replace /> : <ForgotPassword />} />
         <Route path="/reset-password" element={isAuthenticated ? <Navigate to={defaultRoute} replace /> : <ResetPassword />} />
         <Route path="/sign-up" element={isAuthenticated ? <Navigate to={defaultRoute} replace /> : <SignUp />} />
@@ -30,17 +29,17 @@ export const AppRoutes = () => {
           
           <Route path="/visao-executiva" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial']}><ExecutiveView /></ProtectedRoute>} />
           <Route path="/gastos" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'aprovador']}><ExpensesView /></ProtectedRoute>} />
-          <Route path="/preco-auditoria" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial']}><PriceAuditView /></ProtectedRoute>} />
+          <Route path="/preco-auditoria" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'aprovador']}><PriceAuditView /></ProtectedRoute>} />
 
           <Route path="/corridas" element={<Navigate to="/corridas/solicitacoes" replace />} />
-          <Route path="/corridas/solicitacoes" element={<RideRequestsList />} />
+          <Route path="/corridas/solicitacoes" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'aprovador', 'solicitante', 'solicitante-emergencia']}><RideRequestsList /></ProtectedRoute>} />
           <Route path="/corridas/solicitacoes/nova" element={<ProtectedRoute allowedProfiles={['solicitante', 'solicitante-emergencia', 'admin-master']}><RideRequestCreate /></ProtectedRoute>} />
-          <Route path="/corridas/solicitacoes/:requestId/revisar" element={<RideReview />} />
-          <Route path="/corridas/calendario" element={<Calendar />} />
+          <Route path="/corridas/solicitacoes/:requestId/revisar" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'aprovador']}><RideReview /></ProtectedRoute>} />
+          <Route path="/corridas/calendario" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'aprovador', 'solicitante', 'solicitante-emergencia']}><Calendar /></ProtectedRoute>} />
           <Route path="/corridas/historico" element={<RideHistoryList />} />
           <Route path="/corridas/historico/:rideId" element={<RideDetails />} />
           <Route path="/corridas/:rideId/acompanhamento" element={<RideTracking />} />
-          <Route path="/corridas/historico/:rideId/acompanhamento" element={<RideTracking />} />
+          <Route path="/corridas/historico/:rideId/acompanhamento" element={<Navigate to="/corridas/:rideId/acompanhamento" replace />} />
 
           <Route path="/terceiros" element={<Navigate to={isSupplier ? "/terceiros/motoristas" : "/terceiros/fornecedores"} replace />} />
           <Route path="/terceiros/fornecedores" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial']}><SuppliersList /></ProtectedRoute>} />
