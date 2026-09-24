@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { Button, Input, Card, useToast } from '../../../components/common';
+import { authApi } from '../../../services/auth/authApi';
 import emailIcon from '../../../assets/icons/email.svg';
 import cadeadoIcon from '../../../assets/icons/cadeado.svg';
 import searaJbsLogo from '../../../assets/images/seara-jbs.svg';
@@ -17,11 +18,14 @@ const LockIcon = () => (
 
 export const Login = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login, isLoading } = useAuth();
   const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [validationErrors, setValidationErrors] = useState<{ email?: string; password?: string }>({});
+
+  const isExpired = searchParams.get('expired') === 'true';
 
   const validateForm = (): boolean => {
     const errors: typeof validationErrors = {};
@@ -45,6 +49,22 @@ export const Login = () => {
     try {
       await login({ email, senha: password, plataforma: 'WEB' });
     } catch (err) {
+      // Verificar se o usuário possui primeiro acesso pendente
+      try {
+        const check = await authApi.verificarPrimeiroAcesso(email);
+        if (check?.response?.primeiroAcesso) {
+          showToast({
+            type: 'info',
+            title: 'Primeiro acesso identificado',
+            description: 'Você precisa definir sua primeira senha. Redirecionando para ativação...',
+          });
+          navigate('/sign-up', { state: { email } });
+          return;
+        }
+      } catch {
+        // Ignorar falha do check e manter erro original
+      }
+
       const message = err instanceof Error ? err.message : 'Erro ao fazer login';
       showToast({ type: 'error', title: message });
     }
@@ -61,6 +81,23 @@ export const Login = () => {
             <h1 className={styles.title}>Gestão de Frota</h1>
             <p className={styles.subtitle}>Entre com suas credenciais</p>
           </div>
+
+          {isExpired && (
+            <div
+              style={{
+                marginBottom: '1rem',
+                padding: '0.75rem 1rem',
+                borderRadius: '8px',
+                backgroundColor: '#fffbeb',
+                border: '1px solid #fef3c7',
+                color: '#92400e',
+                fontSize: '0.875rem',
+                lineHeight: 1.4,
+              }}
+            >
+              Sua sessão expirou por inatividade. Faça login novamente.
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} noValidate className={styles.form}>
             <Input
@@ -88,9 +125,9 @@ export const Login = () => {
           </form>
         </Card>
         <p className={styles.footer}>
-          Não tem uma conta?{' '}
-          <button type="button" className={styles.linkButton} onClick={() => navigate('/sign-up')} disabled={isLoading}>
-            Solicite acesso
+          Primeiro acesso?{' '}
+          <button type="button" className={styles.linkButton} onClick={() => navigate('/sign-up', { state: { email } })} disabled={isLoading}>
+            Ative sua conta
           </button>
         </p>
       </div>

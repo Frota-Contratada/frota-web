@@ -25,6 +25,7 @@ export const TwoFactor = () => {
   const [email] = useState(() => localStorage.getItem('auth_email') || '');
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
   const pinSentRef = useRef(false);
@@ -93,14 +94,14 @@ export const TwoFactor = () => {
 
   const handleReenviarPin = async () => {
     try {
-      setIsLoading(true);
+      setIsResending(true);
       await authApi.pinEnviar({ tipoToken: 'SIGN_UP', email });
       showToast({ type: 'success', title: 'Código reenviado para seu email.' });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao reenviar código';
       showToast({ type: 'error', title: message });
     } finally {
-      setIsLoading(false);
+      setIsResending(false);
     }
   };
 
@@ -221,10 +222,20 @@ export const TwoFactor = () => {
           </form>
 
           <div className={styles.footerActions}>
-            <button type="button" className={styles.linkButton} onClick={handleReenviarPin} disabled={isLoading}>
-              Reenviar código
+            <button
+              type="button"
+              className={styles.linkButton}
+              onClick={handleReenviarPin}
+              disabled={isLoading || isResending}
+            >
+              {isResending ? 'Enviando código...' : 'Reenviar código'}
             </button>
-            <button type="button" className={styles.linkButton} onClick={handleCancel} disabled={isLoading}>
+            <button
+              type="button"
+              className={styles.linkButton}
+              onClick={handleCancel}
+              disabled={isLoading || isResending}
+            >
               Cancelar
             </button>
           </div>

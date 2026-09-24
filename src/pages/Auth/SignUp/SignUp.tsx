@@ -1,5 +1,5 @@
 import { useRef, useState, type ChangeEvent, type ClipboardEvent, type FormEvent, type KeyboardEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Input, Card, useToast } from '../../../components/common';
 import { authApi } from '../../../services/auth/authApi';
 import emailIcon from '../../../assets/icons/email.svg';
@@ -20,15 +20,20 @@ type Step = 'email' | 'pin' | 'password';
 
 export const SignUp = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { showToast } = useToast();
 
+  const initialEmail = (location.state as { email?: string })?.email || searchParams.get('email') || '';
+
   const [step, setStep] = useState<Step>('email');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail);
   const [emailError, setEmailError] = useState<string | undefined>();
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
 
@@ -109,14 +114,14 @@ export const SignUp = () => {
 
   const handleReenviarPin = async () => {
     try {
-      setIsLoading(true);
+      setIsResending(true);
       await authApi.pinEnviar({ tipoToken: 'SIGN_UP', email });
       showToast({ type: 'success', title: 'Código reenviado para seu email.' });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao reenviar código';
       showToast({ type: 'error', title: message });
     } finally {
-      setIsLoading(false);
+      setIsResending(false);
     }
   };
 
@@ -242,8 +247,13 @@ export const SignUp = () => {
             </form>
 
             <div className={styles.footer}>
-              <button type="button" className={styles.linkButton} onClick={handleReenviarPin} disabled={isLoading}>
-                Reenviar código
+              <button
+                type="button"
+                className={styles.linkButton}
+                onClick={handleReenviarPin}
+                disabled={isLoading || isResending}
+              >
+                {isResending ? 'Enviando código...' : 'Reenviar código'}
               </button>
             </div>
           </Card>
