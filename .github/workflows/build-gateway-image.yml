@@ -1,6 +1,11 @@
 name: Build Gateway Image
 
 on:
+  pull_request:
+    paths:
+      - "gateway/**"
+      - ".github/workflows/build-gateway-image.yml"
+
   push:
     branches:
       - main
@@ -44,6 +49,20 @@ jobs:
             --tag "${{ steps.meta.outputs.image }}" \
             gateway
 
+      - name: Generate CI-only TLS certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p .ci-tls
+
+          openssl req \
+            -x509 -newkey rsa:2048 -nodes -sha256 -days 1 \
+            -subj "/CN=frota-contratada.hml.seara.com.br" \
+            -addext "subjectAltName=DNS:frota-contratada.hml.seara.com.br,DNS:api.frota-contratada.hml.seara.com.br,IP:127.0.0.1" \
+            -keyout .ci-tls/server.key \
+            -out .ci-tls/server.crt
+
       - name: Validate Nginx configuration
         shell: bash
         run: |
@@ -51,6 +70,7 @@ jobs:
 
           docker run \
             --rm \
+            --volume "$PWD/.ci-tls:/etc/nginx/tls:ro" \
             --env WEB_HOST=frota.local \
             --env API_HOST=api.frota.local \
             --env ACOMPANHAMENTO_HOST=acompanhamento.frota.local \
@@ -62,38 +82,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 gateway/ci-smoke.py "${{ steps.meta.outputs.image }}" .ci-tls
 
-          docker run \
-            --detach \
-            --name frota-gateway-ci \
-            --env WEB_HOST=frota.local \
-            --env API_HOST=api.frota.local \
-            --env ACOMPANHAMENTO_HOST=acompanhamento.frota.local \
-            --env IA_HOST=ia.frota.local \
-            --publish 127.0.0.1:18081:80 \
-            "${{ steps.meta.outputs.image }}"
-
-          cleanup() {
-            docker rm -f frota-gateway-ci >/dev/null 2>&1 || true
-          }
-
-          trap cleanup EXIT
-
-          for i in $(seq 1 30); do
-            if curl \
-              --fail \
-              --silent \
-              --show-error \
-              http://127.0.0.1:18081/health >/dev/null
-            then
-              exit 0
-            fi
-
-            sleep 1
-          done
-
-          docker logs frota-gateway-ci
-          exit 1
+      - name: Remove CI TLS material
+        if: always()
+        shell: bash
+        run: rm -f .ci-tls/server.key .ci-tls/server.crt
 
       - name: Export image
         shell: bash
