@@ -1,4 +1,5 @@
 import { apiClient } from '../api/apiClient';
+import { useAuthStore } from '../../stores/authStore';
 
 export interface FornecedorDto {
   id: number;
@@ -78,13 +79,11 @@ export const supplierApi = {
   },
 
   list(query?: BuscarFornecedoresQueryParams) {
-    return apiClient.get<FornecedoresListResponse>('/fornecedor/admin', {
-      query: query as Record<string, string | number | boolean | null | undefined>,
-    }).catch(() => {
-      return apiClient.get<FornecedoresListResponse>('/fornecedor/filial', {
-        query: query as Record<string, string | number | boolean | null | undefined>,
-      });
-    });
+    const user = useAuthStore.getState().user;
+    const isAdminMaster =
+      user?.profile === 'admin-master' ||
+      user?.perfis?.some((p) => p.tipoPerfil === 'admin-master' || p.tipoPerfil === 'ADMINISTRADOR_MATRIZ');
+    return isAdminMaster ? this.listAdmin(query) : this.listFilial(query);
   },
 
   getAdminBigNumbers(query?: { filialId?: number }) {
@@ -108,9 +107,12 @@ export const supplierApi = {
   },
 
   update(id: number, data: { nome?: string; cnpjCpf?: string }) {
-    return apiClient.patch<FornecedorResponse>(`/fornecedor/admin/${id}`, data).catch(() => {
-      return apiClient.patch<FornecedorResponse>(`/fornecedor/filial/${id}`, data);
-    });
+    const user = useAuthStore.getState().user;
+    const isAdminMaster =
+      user?.profile === 'admin-master' ||
+      user?.perfis?.some((p) => p.tipoPerfil === 'admin-master' || p.tipoPerfil === 'ADMINISTRADOR_MATRIZ');
+    const url = isAdminMaster ? `/fornecedor/admin/${id}` : `/fornecedor/filial/${id}`;
+    return apiClient.patch<FornecedorResponse>(url, data);
   },
 };
 

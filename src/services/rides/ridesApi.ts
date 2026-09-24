@@ -51,11 +51,13 @@ export interface CriarSolicitacaoParams {
   dataCorrida: string;
   tipoCorridaId: number;
   tipoVeiculoId?: number;
+  fornecedorId?: number;
   motivoSolicitacaoId: number;
   origem: EnderecoSolicitacaoDto;
   destino: EnderecoSolicitacaoDto;
   paradas?: EnderecoSolicitacaoDto[];
   centrosCustoIds: number[];
+  passageiros?: { nome: string; cpf?: string; solicitante?: boolean }[];
   cpfsAcompanhantes?: string[];
 }
 
@@ -275,10 +277,6 @@ export const ridesApi = {
         },
       };
     };
-
-    if (!isSolicitante) {
-      return computeLocalSimulation();
-    }
 
     try {
       return await apiClient.post<{ response: SimulacaoSolicitacaoDto }>('/solicitacoes/simulacao', sanitizedData);

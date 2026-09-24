@@ -1,4 +1,5 @@
 import { apiClient, type ApiQueryParams } from '../api/apiClient';
+import { useAuthStore } from '../../stores/authStore';
 
 export interface DashboardBigNumber {
   valor: number;
@@ -114,40 +115,39 @@ export interface DashboardQueryParams extends ApiQueryParams {
   centroCusto?: number;
 }
 
+function resolveDashboardPerfil(): 'admin' | 'filial' | 'aprovador' {
+  const user = useAuthStore.getState().user;
+  const perfis = user?.perfis?.map((p) => p.tipoPerfil.toLowerCase()) ?? [];
+  const profile = (user?.profile ?? '').toLowerCase();
+
+  const isAdminMaster =
+    profile === 'admin-master' ||
+    perfis.some((p) => p.includes('master') || p.includes('matriz'));
+
+  if (isAdminMaster) return 'admin';
+
+  const isAdminFilial =
+    profile === 'admin-filial' ||
+    perfis.some((p) => p.includes('admin') || p.includes('filial'));
+
+  if (isAdminFilial) return 'filial';
+
+  return 'aprovador';
+}
+
 export const dashboardApi = {
-  async getExecutivo(query?: DashboardQueryParams): Promise<{ response: DashboardExecutivoDto }> {
-    try {
-      return await apiClient.get<{ response: DashboardExecutivoDto }>('/dashboard/admin', { query });
-    } catch {
-      try {
-        return await apiClient.get<{ response: DashboardExecutivoDto }>('/dashboard/filial', { query });
-      } catch {
-        return await apiClient.get<{ response: DashboardExecutivoDto }>('/dashboard/aprovador', { query });
-      }
-    }
+  getExecutivo(query?: DashboardQueryParams): Promise<{ response: DashboardExecutivoDto }> {
+    const perfil = resolveDashboardPerfil();
+    return apiClient.get<{ response: DashboardExecutivoDto }>(`/dashboard/${perfil}`, { query });
   },
 
-  async getGastos(query?: DashboardQueryParams): Promise<{ response: DashboardGastosDto }> {
-    try {
-      return await apiClient.get<{ response: DashboardGastosDto }>('/dashboard/gastos/admin', { query });
-    } catch {
-      try {
-        return await apiClient.get<{ response: DashboardGastosDto }>('/dashboard/gastos/filial', { query });
-      } catch {
-        return await apiClient.get<{ response: DashboardGastosDto }>('/dashboard/gastos/aprovador', { query });
-      }
-    }
+  getGastos(query?: DashboardQueryParams): Promise<{ response: DashboardGastosDto }> {
+    const perfil = resolveDashboardPerfil();
+    return apiClient.get<{ response: DashboardGastosDto }>(`/dashboard/gastos/${perfil}`, { query });
   },
 
-  async getAuditoria(query?: DashboardQueryParams): Promise<{ response: DashboardAuditoriaDto }> {
-    try {
-      return await apiClient.get<{ response: DashboardAuditoriaDto }>('/dashboard/auditoria/admin', { query });
-    } catch {
-      try {
-        return await apiClient.get<{ response: DashboardAuditoriaDto }>('/dashboard/auditoria/filial', { query });
-      } catch {
-        return await apiClient.get<{ response: DashboardAuditoriaDto }>('/dashboard/auditoria/aprovador', { query });
-      }
-    }
+  getAuditoria(query?: DashboardQueryParams): Promise<{ response: DashboardAuditoriaDto }> {
+    const perfil = resolveDashboardPerfil();
+    return apiClient.get<{ response: DashboardAuditoriaDto }>(`/dashboard/auditoria/${perfil}`, { query });
   },
 };

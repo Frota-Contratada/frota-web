@@ -133,21 +133,35 @@ async function request<T>(path: string, options: ApiRequestOptions = {}): Promis
 
     const newToken = await refreshPromise;
     if (newToken) {
-
       return request<T>(path, {
         ...options,
         _retry: true,
       });
+    } else {
+      // Refresh falhou definitivamente: limpar sessão e emitir evento de logout
+      try {
+        const { useAuthStore } = await import('../../stores/authStore');
+        useAuthStore.getState().logout();
+      } catch {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('refresh_token');
+      }
     }
   }
 
   const data = await readResponse<T>(response);
 
   if (!response.ok) {
-    const message =
-      data && typeof data === 'object' && 'message' in data
-        ? String((data as { message: unknown }).message)
-        : 'Erro ao comunicar com a API.';
+    let message = 'Erro ao comunicar com a API.';
+    if (data && typeof data === 'object' && 'message' in data) {
+      const rawMessage = (data as { message: unknown }).message;
+      if (Array.isArray(rawMessage)) {
+        message = rawMessage.join('. ');
+      } else if (rawMessage) {
+        message = String(rawMessage);
+      }
+    }
+
     console.error(`[API ${response.status}] ${fetchOptions.method || 'GET'} ${buildUrl(path, query)}:`, {
       message,
       data,

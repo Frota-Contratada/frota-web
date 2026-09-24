@@ -1,4 +1,5 @@
 import { apiClient } from '../api/apiClient';
+import { useAuthStore } from '../../stores/authStore';
 
 export interface ContratoVinculoDto {
   filialId: number;
@@ -94,13 +95,15 @@ export const contractApi = {
   },
 
   list(query?: BuscarContratosAdminQueryParams) {
-    return apiClient.get<ContratosListResponse>('/contrato/admin', {
-      query: query as Record<string, string | number | boolean | null | undefined>,
-    }).catch(() => {
-      return apiClient.get<ContratosListResponse>('/contrato/filial', {
-        query: query as Record<string, string | number | boolean | null | undefined>,
-      });
-    });
+    const user = useAuthStore.getState().user;
+    const isAdmin =
+      user?.profile === 'admin-master' ||
+      user?.perfis?.some((p) => p.tipoPerfil === 'admin-master');
+
+    if (isAdmin) {
+      return this.listAdmin(query);
+    }
+    return this.listFilial(query);
   },
 
   getAdminBigNumbers(query?: { filialId?: number }) {

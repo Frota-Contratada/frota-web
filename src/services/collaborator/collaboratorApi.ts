@@ -1,4 +1,5 @@
 import { apiClient } from '../api/apiClient';
+import { useAuthStore } from '../../stores/authStore';
 
 export interface ColaboradorDto {
   id: number;
@@ -86,13 +87,11 @@ export const collaboratorApi = {
   },
 
   list(query?: ColaboradoresAdminQueryParams) {
-    return apiClient.get<ColaboradoresListResponse>('/usuario/colaborador/admin', {
-      query: query as Record<string, string | number | boolean | null | undefined>,
-    }).catch(() => {
-      return apiClient.get<ColaboradoresListResponse>('/usuario/colaborador/filial', {
-        query: query as Record<string, string | number | boolean | null | undefined>,
-      });
-    });
+    const user = useAuthStore.getState().user;
+    const isAdminMaster =
+      user?.profile === 'admin-master' ||
+      user?.perfis?.some((p) => p.tipoPerfil === 'admin-master' || p.tipoPerfil === 'ADMINISTRADOR_MATRIZ');
+    return isAdminMaster ? this.listAdmin(query) : this.listFilial(query);
   },
 
   getAdminBigNumbers(query?: { filialId?: number; centroCustoId?: number; perfil?: string }) {
