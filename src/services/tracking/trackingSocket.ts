@@ -30,8 +30,11 @@ export interface TrackingSocketCallbacks {
 }
 
 const getWsUrl = (): string => {
-  const wsUrl = import.meta.env.VITE_WS_URL || import.meta.env.VITE_API_URL || 'http://localhost:3000';
-  return wsUrl.replace(/\/+$/, '');
+  const wsUrl = import.meta.env.VITE_WS_URL || import.meta.env.VITE_API_URL;
+  if (!wsUrl && import.meta.env.PROD) {
+    throw new Error('VITE_WS_URL is required for a production build.');
+  }
+  return (wsUrl || 'http://localhost:3000').replace(/\/+$/, '');
 };
 
 export class TrackingSocketClient {

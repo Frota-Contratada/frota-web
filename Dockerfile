@@ -20,28 +20,46 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
 
 FROM base AS build
 
-ARG VITE_API_URL=""
-ARG VITE_WS_URL=""
-ARG VITE_ACOMPANHAMENTO_URL=""
-ARG VITE_IA_API_URL=""
-ARG VITE_TOMTOM_API_KEY=""
-
-ENV VITE_API_URL=${VITE_API_URL}
-ENV VITE_WS_URL=${VITE_WS_URL}
-ENV VITE_ACOMPANHAMENTO_URL=${VITE_ACOMPANHAMENTO_URL}
-ENV VITE_IA_API_URL=${VITE_IA_API_URL}
-ENV VITE_TOMTOM_API_KEY=${VITE_TOMTOM_API_KEY}
+ARG LOCAL_VITE_API_URL
+ARG LOCAL_VITE_WS_URL
+ARG LOCAL_VITE_ACOMPANHAMENTO_URL
+ARG LOCAL_VITE_IA_API_URL
+ARG HML_VITE_API_URL
+ARG HML_VITE_WS_URL
+ARG HML_VITE_ACOMPANHAMENTO_URL
+ARG HML_VITE_IA_API_URL
+ARG VITE_TOMTOM_API_KEY
 
 COPY . .
 
-RUN npm run build
+RUN test -n "$LOCAL_VITE_API_URL" \
+    && test -n "$LOCAL_VITE_WS_URL" \
+    && test -n "$LOCAL_VITE_ACOMPANHAMENTO_URL" \
+    && test -n "$LOCAL_VITE_IA_API_URL" \
+    && test -n "$HML_VITE_API_URL" \
+    && test -n "$HML_VITE_WS_URL" \
+    && test -n "$HML_VITE_ACOMPANHAMENTO_URL" \
+    && test -n "$HML_VITE_IA_API_URL" \
+    && VITE_API_URL="$LOCAL_VITE_API_URL" \
+       VITE_WS_URL="$LOCAL_VITE_WS_URL" \
+       VITE_ACOMPANHAMENTO_URL="$LOCAL_VITE_ACOMPANHAMENTO_URL" \
+       VITE_IA_API_URL="$LOCAL_VITE_IA_API_URL" \
+       VITE_TOMTOM_API_KEY="$VITE_TOMTOM_API_KEY" \
+       npm run build -- --outDir dist-local \
+    && VITE_API_URL="$HML_VITE_API_URL" \
+       VITE_WS_URL="$HML_VITE_WS_URL" \
+       VITE_ACOMPANHAMENTO_URL="$HML_VITE_ACOMPANHAMENTO_URL" \
+       VITE_IA_API_URL="$HML_VITE_IA_API_URL" \
+       VITE_TOMTOM_API_KEY="$VITE_TOMTOM_API_KEY" \
+       npm run build -- --outDir dist-hml
 
 
 FROM nginx:1.28-alpine AS runner
 
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=build /app/dist-local /usr/share/nginx/html/local
+COPY --from=build /app/dist-hml /usr/share/nginx/html/hml
 
 EXPOSE 8080
 
