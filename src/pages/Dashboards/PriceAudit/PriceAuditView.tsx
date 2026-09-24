@@ -77,6 +77,8 @@ const columns: ColumnDef<AuditRideRow>[] = [
 ];
 
 export const PriceAuditView = () => {
+  const [query, setQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [auditoriaData, setAuditoriaData] = useState<DashboardAuditoriaDto | null>(null);
   const [suppliers, setSuppliers] = useState<FornecedorDto[]>([]);
@@ -253,21 +255,48 @@ export const PriceAuditView = () => {
     },
   ];
 
-  const filteredData = tableData.filter((item) => {
-    if (selectedFilters.length === 0) return true;
-    return selectedFilters.some((filter) => {
-      const [key, val] = filter.split(':');
-      if (key === 'status') return item.status === val;
-      return true;
+  const filteredData = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const statusFilters = selectedFilters
+      .filter((f) => f.startsWith('status:'))
+      .map((f) => f.replace('status:', ''));
+
+    return tableData.filter((item) => {
+      const matchesQuery =
+        !q ||
+        item.solicitante.toLowerCase().includes(q) ||
+        item.email.toLowerCase().includes(q) ||
+        item.origem.toLowerCase().includes(q) ||
+        item.destino.toLowerCase().includes(q);
+
+      const matchesStatus = statusFilters.length === 0 || statusFilters.includes(item.status);
+
+      return matchesQuery && matchesStatus;
     });
-  });
+  }, [tableData, query, selectedFilters]);
+
+  const PAGE_SIZE = 5;
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
+  const pageData = filteredData.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <div className={styles.page}>
       <TableToolbar
+        searchPlaceholder="Buscar por solicitante, email ou local..."
+        onSearch={(val) => {
+          setQuery(val);
+          setCurrentPage(1);
+        }}
         filterSections={priceAuditFilterSections}
         selectedFilters={selectedFilters}
-        onFilterChange={setSelectedFilters}
+        onFilterChange={(vals) => {
+          setSelectedFilters(vals);
+          setCurrentPage(1);
+        }}
+        onFilterClear={() => {
+          setSelectedFilters([]);
+          setCurrentPage(1);
+        }}
       />
 
       <section className={styles.statsGrid}>
@@ -354,10 +383,15 @@ export const PriceAuditView = () => {
       <section className={styles.tableSection}>
         <Table
           columns={columns}
-          data={filteredData}
+          data={pageData}
           keyExtractor={(item) => item.id}
           emptyMessage="Nenhuma corrida registrada para auditoria."
           isLoading={isLoading}
+          pagination={{
+            currentPage,
+            totalPages,
+            onPageChange: setCurrentPage,
+          }}
         />
       </section>
     </div>

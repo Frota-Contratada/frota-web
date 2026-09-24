@@ -50,6 +50,8 @@ const columns: ColumnDef<ExpensesRow>[] = [
 ];
 
 export const ExpensesView = () => {
+  const [query, setQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [gastosData, setGastosData] = useState<DashboardGastosDto | null>(null);
   const [costCenters, setCostCenters] = useState<CentroCustoDto[]>([]);
@@ -178,16 +180,28 @@ export const ExpensesView = () => {
     },
   ];
 
-  const filteredData = tableData.filter((item) => {
-    if (selectedFilters.length === 0) return true;
+  const filteredData = useMemo(() => {
+    const q = query.trim().toLowerCase();
     const statusFilters = selectedFilters.filter((f) => f.startsWith('status:')).map((f) => f.replace('status:', ''));
     const aprovadorFilters = selectedFilters.filter((f) => f.startsWith('aprovador:')).map((f) => f.replace('aprovador:', ''));
 
-    const matchesStatus = statusFilters.length === 0 || statusFilters.includes(item.ativo ? 'ativo' : 'inativo');
-    const matchesAprovador = aprovadorFilters.length === 0 || aprovadorFilters.includes(item.aprovador);
+    return tableData.filter((item) => {
+      const matchesQuery =
+        !q ||
+        item.centroCusto.toLowerCase().includes(q) ||
+        item.nome.toLowerCase().includes(q) ||
+        item.aprovador.toLowerCase().includes(q);
 
-    return matchesStatus && matchesAprovador;
-  });
+      const matchesStatus = statusFilters.length === 0 || statusFilters.includes(item.ativo ? 'ativo' : 'inativo');
+      const matchesAprovador = aprovadorFilters.length === 0 || aprovadorFilters.includes(item.aprovador);
+
+      return matchesQuery && matchesStatus && matchesAprovador;
+    });
+  }, [tableData, query, selectedFilters]);
+
+  const PAGE_SIZE = 5;
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
+  const pageData = filteredData.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const totalSpent = gastosData?.bigNumbers?.gastoTotal?.valor ?? rides.reduce((sum, r) => {
     const val = Number(r.corrida?.valorFinal ?? r.valorEstimado ?? 0);
@@ -199,9 +213,21 @@ export const ExpensesView = () => {
   return (
     <div className={styles.page}>
       <TableToolbar
+        searchPlaceholder="Buscar por código, nome ou aprovador..."
+        onSearch={(val) => {
+          setQuery(val);
+          setCurrentPage(1);
+        }}
         filterSections={expensesFilterSections}
         selectedFilters={selectedFilters}
-        onFilterChange={setSelectedFilters}
+        onFilterChange={(vals) => {
+          setSelectedFilters(vals);
+          setCurrentPage(1);
+        }}
+        onFilterClear={() => {
+          setSelectedFilters([]);
+          setCurrentPage(1);
+        }}
       />
 
       <section className={styles.statsGrid}>
@@ -313,10 +339,15 @@ export const ExpensesView = () => {
       <section className={styles.tableSection}>
         <Table
           columns={columns}
-          data={filteredData}
+          data={pageData}
           keyExtractor={(item) => item.id}
           emptyMessage="Nenhum centro de custo registrado."
           isLoading={isLoading}
+          pagination={{
+            currentPage,
+            totalPages,
+            onPageChange: setCurrentPage,
+          }}
         />
       </section>
     </div>
