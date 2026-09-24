@@ -27,8 +27,8 @@ export const BranchCreate = () => {
     neighborhood: '',
     city: '',
     state: '',
-    latitude: -26.9078,
-    longitude: -48.6619,
+    latitude: 0,
+    longitude: 0,
   });
 
   useEffect(() => {

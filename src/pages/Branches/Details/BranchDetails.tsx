@@ -76,8 +76,8 @@ export const BranchDetails = () => {
   }
 
   const endereco = branch.endereco;
-  const lat = endereco?.latitude ?? -26.9046;
-  const lng = endereco?.longitude ?? -48.6617;
+  const lat = endereco?.latitude ?? null;
+  const lng = endereco?.longitude ?? null;
   const branchCode = `#FILIAL-${String(branch.id).padStart(4, '0')}`;
 
   return (
@@ -203,11 +203,11 @@ export const BranchDetails = () => {
           <div className={styles.infoGrid} style={{ gridTemplateColumns: 'repeat(2, 1fr)', marginBottom: '1rem' }}>
             <div className={styles.infoItem}>
               <span>Latitude Registrada</span>
-              <strong>{endereco?.latitude ? Number(endereco.latitude).toFixed(6) : lat.toFixed(6)}</strong>
+              <strong>{lat !== null && lat !== undefined ? Number(lat).toFixed(6) : '—'}</strong>
             </div>
             <div className={styles.infoItem}>
               <span>Longitude Registrada</span>
-              <strong>{endereco?.longitude ? Number(endereco.longitude).toFixed(6) : lng.toFixed(6)}</strong>
+              <strong>{lng !== null && lng !== undefined ? Number(lng).toFixed(6) : '—'}</strong>
             </div>
           </div>
 

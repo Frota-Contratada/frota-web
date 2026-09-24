@@ -90,6 +90,7 @@ export const DriverCreate = () => {
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 required
+                disabled={isSubmitting}
               />
             </div>
 
@@ -99,6 +100,7 @@ export const DriverCreate = () => {
               value={cpf}
               onChange={(e) => setCpf(e.target.value)}
               required
+              disabled={isSubmitting}
             />
 
             <Input
@@ -106,6 +108,7 @@ export const DriverCreate = () => {
               mask="phone"
               value={telefone}
               onChange={(e) => setTelefone(e.target.value)}
+              disabled={isSubmitting}
             />
 
             <div className={styles.fullWidth}>
@@ -116,6 +119,7 @@ export const DriverCreate = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={isSubmitting}
               />
             </div>
 
@@ -125,6 +129,7 @@ export const DriverCreate = () => {
                 options={supplierOptions.length > 0 ? supplierOptions : [{ value: '1', label: 'Fornecedor Padrão' }]}
                 value={fornecedorId}
                 onChange={(val) => setFornecedorId(val)}
+                disabled={isSubmitting}
               />
             </div>
           </div>

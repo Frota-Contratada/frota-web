@@ -139,10 +139,15 @@ export const DriversList = () => {
       header: 'Status',
       sortable: true,
       render: (_, row) => (
-        <StatusBadge status={row.ativo !== false ? 'aprovado' : 'cancelado'} />
+        <StatusBadge
+          status={row.ativo !== false ? 'aprovado' : 'cancelado'}
+          label={row.ativo !== false ? 'Ativo' : 'Inativo'}
+        />
       ),
     },
   ];
+
+
 
 
 

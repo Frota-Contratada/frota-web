@@ -6,6 +6,7 @@ import CheckIcon from '../../../assets/icons/check.svg?react';
 import { supplierApi, driverApi, extractListData, type FornecedorDto, type MotoristaDto } from '../../../services';
 import { formatDocument } from '../List';
 import { formatCpf } from '../../../utils';
+import { usePermissions } from '../../../hooks/usePermissions';
 import styles from './SupplierDetails.module.css';
 
 const getInitials = (name: string) =>
@@ -21,6 +22,7 @@ export const SupplierDetails = () => {
   const navigate = useNavigate();
   const { supplierId } = useParams();
   const { showToast } = useToast();
+  const { can } = usePermissions();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [supplier, setSupplier] = useState<FornecedorDto | null>(null);
@@ -186,9 +188,11 @@ export const SupplierDetails = () => {
         </div>
 
         <div className={styles.heroActions}>
-          <Button onClick={() => navigate('/terceiros/contratos/novo')}>
-            Novo Contrato
-          </Button>
+          {can('contracts:manage') && (
+            <Button onClick={() => navigate('/terceiros/contratos/novo')}>
+              Novo Contrato
+            </Button>
+          )}
           <Button variant="outline" onClick={() => navigate('/terceiros/fornecedores')}>
             Voltar para Fornecedores
           </Button>
@@ -245,12 +249,14 @@ export const SupplierDetails = () => {
               <h3>Instrumentos Contratuais Vigentes</h3>
               <p>Contratos firmados com filiais para prestação de serviços de frota.</p>
             </div>
-            <Button
-              variant="outline"
-              onClick={() => navigate('/terceiros/contratos/novo')}
-            >
-              + Anexar Contrato
-            </Button>
+            {can('contracts:manage') && (
+              <Button
+                variant="outline"
+                onClick={() => navigate('/terceiros/contratos/novo')}
+              >
+                + Anexar Contrato
+              </Button>
+            )}
           </div>
 
           {contratosVigentes.length > 0 ? (

@@ -25,8 +25,8 @@ export const BranchEdit = () => {
     city: '',
     state: 'SC',
     zipCode: '',
-    latitude: -26.9078,
-    longitude: -48.6619,
+    latitude: 0,
+    longitude: 0,
   });
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -46,8 +46,8 @@ export const BranchEdit = () => {
             city: b.endereco?.cidade || '',
             state: b.endereco?.uf || 'SC',
             zipCode: b.endereco?.cep || '',
-            latitude: b.endereco?.latitude || -26.9078,
-            longitude: b.endereco?.longitude || -48.6619,
+            latitude: b.endereco?.latitude ?? 0,
+            longitude: b.endereco?.longitude ?? 0,
           });
         }
       }).catch((err) => {
