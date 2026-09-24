@@ -50,7 +50,7 @@ def main():
                 health_status, _ = get("/health", "127.0.0.1")
                 if health_status == 200:
                     break
-            except urllib.error.URLError:
+            except (urllib.error.URLError, OSError):
                 pass
             time.sleep(1)
         else:
