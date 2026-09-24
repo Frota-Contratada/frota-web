@@ -65,7 +65,7 @@ const allMenuItems: MenuItem[] = [
     label: 'Corridas',
     icon: <CorridasIcon />,
     submenu: [
-      { id: 'solicitacoes', label: 'Solicitações', icon: <SolicitacoesIcon />, path: '/corridas/solicitacoes', allowedProfiles: ['admin-master', 'admin-filial', 'aprovador', 'solicitante', 'solicitante-emergencia'] },
+      { id: 'solicitacoes', label: 'Solicitações', icon: <SolicitacoesIcon />, path: '/corridas/solicitacoes', allowedProfiles: ['admin-master', 'admin-filial', 'aprovador', 'solicitante', 'solicitante-emergencia', 'admin-fornecedor'] },
       { id: 'calendario', label: 'Calendário', icon: <CalendarioIcon />, path: '/corridas/calendario', allowedProfiles: ['admin-master', 'admin-filial', 'aprovador', 'solicitante', 'solicitante-emergencia'] },
       { id: 'historico', label: 'Histórico', icon: <HistoricoIcon />, path: '/corridas/historico' },
     ],
