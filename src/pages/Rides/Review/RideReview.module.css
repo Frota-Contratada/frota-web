@@ -735,3 +735,84 @@
     grid-template-columns: 1fr;
   }
 }
+
+.costCenterSection {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background-color: var(--surface-muted);
+}
+
+.costCenterHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.costCenterHeader strong {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.costCenterHeader span {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.costCenterChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.costCenterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.costCenterChip:hover {
+  border-color: var(--brand-primary);
+  background-color: var(--brand-primary-lightest);
+}
+
+.costCenterChipActive {
+  background-color: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: var(--white);
+}
+
+.costCenterChipActive:hover {
+  background-color: var(--brand-primary-dark, #b91c1c);
+  border-color: var(--brand-primary-dark, #b91c1c);
+  color: var(--white);
+}
+
+.costCenterCheckIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.costCenterCheckIcon svg {
+  width: 12px;
+  height: 12px;
+}
+

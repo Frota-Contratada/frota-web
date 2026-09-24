@@ -9,6 +9,8 @@ import type { RoutePoint } from '../../../services/maps/routingService';
 import { ridesApi, supplierApi, extractListData, type SolicitacaoDto, type FornecedorDto, type MotivoSolicitacaoDto } from '../../../services';
 import styles from './RideReview.module.css';
 
+import { usePermissions } from '../../../hooks/usePermissions';
+
 type ReviewStep = 1 | 2 | 3;
 
 type InfoItemProps = {
@@ -33,6 +35,7 @@ export const RideReview = () => {
   const { requestId } = useParams();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { can, isRequester, isAdminMaster } = usePermissions();
 
   const [solicitacao, setSolicitacao] = useState<SolicitacaoDto | null>(null);
   const [availableSuppliers, setAvailableSuppliers] = useState<FornecedorDto[]>([]);
@@ -398,43 +401,55 @@ export const RideReview = () => {
             <span className={styles.actionsTitle}>Ações da revisão</span>
 
             <div className={styles.primaryActions}>
-              {currentStep < 3 ? (
-                <Button onClick={goNext}>Próximo</Button>
+              {solicitacao.status !== 'C' && solicitacao.status !== 'R' && solicitacao.status !== 'A' ? (
+                <>
+                  {currentStep < 3 ? (
+                    <Button onClick={goNext}>Próximo</Button>
+                  ) : can('rides:approve') ? (
+                    <Button
+                      leftIcon={<CheckIcon width={16} height={16} />}
+                      onClick={handleApprove}
+                      isLoading={isSubmitting}
+                    >
+                      Aprovar solicitação
+                    </Button>
+                  ) : null}
+                  {currentStep > 1 && (
+                    <Button variant="outline" onClick={goBack} disabled={isSubmitting}>
+                      Voltar
+                    </Button>
+                  )}
+                </>
               ) : (
-                <Button
-                  leftIcon={<CheckIcon width={16} height={16} />}
-                  onClick={handleApprove}
-                  isLoading={isSubmitting}
-                >
-                  Aprovar solicitação
-                </Button>
-              )}
-              {currentStep > 1 && (
-                <Button variant="outline" onClick={goBack} disabled={isSubmitting}>
-                  Voltar
+                <Button onClick={() => navigate('/corridas/solicitacoes')}>
+                  Voltar às solicitações
                 </Button>
               )}
             </div>
 
             <div className={styles.dangerZone}>
-              <Button
-                className={styles.rejectButton}
-                variant="outline"
-                leftIcon={<ErroIcon width={14} height={14} />}
-                onClick={() => setIsRejectModalOpen(true)}
-                disabled={isSubmitting}
-              >
-                Reprovar solicitação
-              </Button>
-              <Button
-                className={styles.modalCancelButton}
-                variant="outline"
-                leftIcon={<ErroIcon width={14} height={14} />}
-                onClick={() => setIsCancelModalOpen(true)}
-                disabled={isSubmitting}
-              >
-                Cancelar solicitação
-              </Button>
+              {solicitacao.status !== 'C' && solicitacao.status !== 'R' && solicitacao.status !== 'A' && can('rides:reject') && (
+                <Button
+                  className={styles.rejectButton}
+                  variant="outline"
+                  leftIcon={<ErroIcon width={14} height={14} />}
+                  onClick={() => setIsRejectModalOpen(true)}
+                  disabled={isSubmitting}
+                >
+                  Reprovar solicitação
+                </Button>
+              )}
+              {solicitacao.status !== 'C' && solicitacao.status !== 'R' && (isRequester || isAdminMaster) && (
+                <Button
+                  className={styles.modalCancelButton}
+                  variant="outline"
+                  leftIcon={<ErroIcon width={14} height={14} />}
+                  onClick={() => setIsCancelModalOpen(true)}
+                  disabled={isSubmitting}
+                >
+                  Cancelar solicitação
+                </Button>
+              )}
               <Button variant="ghost" onClick={() => navigate('/corridas/solicitacoes')} disabled={isSubmitting}>
                 Voltar à lista
               </Button>

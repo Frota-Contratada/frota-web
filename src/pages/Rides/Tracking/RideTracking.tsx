@@ -197,10 +197,10 @@ export const RideTracking = () => {
         <div style={{ padding: '2rem', textAlign: 'center', background: '#fff', borderRadius: '12px' }}>
           <h3>Não foi possível carregar o rastreamento da corrida #{rideId}</h3>
           <p style={{ color: '#64748b', margin: '1rem 0' }}>{loadError}</p>
-          <Button variant="primary" onClick={() => fetchTracking(true)}>
+          <Button variant="primary" onClick={() => fetchTracking(true)} isLoading={isLoading}>
             Tentar novamente
           </Button>
-          <Button variant="ghost" onClick={() => navigate(-1)} style={{ marginLeft: '0.75rem' }}>
+          <Button variant="ghost" onClick={() => navigate(-1)} style={{ marginLeft: '0.75rem' }} disabled={isLoading}>
             Voltar
           </Button>
         </div>

@@ -61,8 +61,8 @@ const columns: ColumnDef<RideRequest>[] = [
     header: 'Rota',
     render: (_, row) => <span className={styles.mutedText}>{row.origin} → {row.destination}</span>,
   },
-  { key: 'estimatedDistanceKm', header: 'KM estimado', sortable: true, render: (_, row) => `${row.estimatedDistanceKm.toLocaleString('pt-BR')} km` },
-  { key: 'estimatedValue', header: 'Valor estimado', sortable: true },
+  { key: 'estimatedDistanceKm', header: 'KM estimado', sortable: true, align: 'right', render: (_, row) => `${row.estimatedDistanceKm.toLocaleString('pt-BR')} km` },
+  { key: 'estimatedValue', header: 'Valor estimado', sortable: true, align: 'right' },
   {
     key: 'status',
     header: 'Status',
@@ -74,7 +74,7 @@ const columns: ColumnDef<RideRequest>[] = [
 export const RideRequestsList = () => {
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const { isApprover, isAdminMaster } = usePermissions();
+  const { isApprover, isAdminMaster, can, isRequester } = usePermissions();
   const [currentPage, setCurrentPage] = useState(1);
   const [query, setQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
@@ -268,16 +268,19 @@ export const RideRequestsList = () => {
     {
       icon: <RedirecionarIcon width={18} height={18} />,
       label: 'Revisar solicitação',
+      hidden: () => !can('rides:review'),
       onClick: (row) => navigate(`/corridas/solicitacoes/${row.id}/revisar`),
     },
     {
       icon: <CheckIcon width={16} height={16} />,
       label: 'Alocar motorista e veículo',
+      hidden: (row) => row.status !== 'A' || !can('rides:execute'),
       onClick: (row) => setSelectedRequestForAllocation(row),
     },
     {
       icon: <ErroIcon width={16} height={16} />,
       label: 'Cancelar solicitação',
+      hidden: (row) => row.status === 'C' || row.status === 'R' || (!isRequester && !isAdminMaster),
       onClick: (row) => {
         setSelectedRequestToCancel(row);
         setIsCancelModalOpen(true);
@@ -320,7 +323,7 @@ export const RideRequestsList = () => {
               showToast({ type: 'warning', title: 'Aviso', description: 'Nenhum dado encontrado para exportar.' });
             }
           }}
-          rightActions={<Button onClick={() => navigate('/corridas/solicitacoes/nova')}>Cadastrar solicitação</Button>}
+          rightActions={can('rides:create') ? <Button onClick={() => navigate('/corridas/solicitacoes/nova')}>Cadastrar solicitação</Button> : undefined}
           filterSections={filterSections}
           selectedFilters={selectedFilters}
           onFilterChange={(values) => {

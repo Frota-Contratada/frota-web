@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../../components/common';
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
+import AlvoIcon from '../../../assets/icons/alvo.svg?react';
 import { ridesApi, extractListData, type CorridaDto } from '../../../services';
 import { exportToCsv } from '../../../utils/exportHelper';
 import styles from './RideHistory.module.css';
@@ -52,8 +53,8 @@ const columns: ColumnDef<RideHistory>[] = [
   { key: 'supplier', header: 'Fornecedor', sortable: true },
   { key: 'vehiclePlate', header: 'Placa', sortable: true },
   { key: 'startedAt', header: 'Início', sortable: true },
-  { key: 'distanceKm', header: 'KM percorrido', sortable: true, render: (_, row) => `${row.distanceKm.toLocaleString('pt-BR')} km` },
-  { key: 'finalValue', header: 'Valor final', sortable: true },
+  { key: 'distanceKm', header: 'KM percorrido', sortable: true, align: 'right', render: (_, row) => `${row.distanceKm.toLocaleString('pt-BR')} km` },
+  { key: 'finalValue', header: 'Valor final', sortable: true, align: 'right' },
   {
     key: 'status',
     header: 'Status',
@@ -261,12 +262,13 @@ export const RideHistoryList = () => {
   const actions: TableAction<RideHistory>[] = [
     {
       icon: <RedirecionarIcon width={18} height={18} />,
-      label: 'Visualizar corrida',
+      label: 'Visualizar detalhes da corrida',
       onClick: (row) => navigate(`/corridas/historico/${row.id}`),
     },
     {
-      icon: <RedirecionarIcon width={18} height={18} />,
+      icon: <AlvoIcon width={18} height={18} />,
       label: 'Acompanhar em tempo real',
+      hidden: (row) => row.status !== 'I',
       onClick: (row) => navigate(`/corridas/${row.id}/acompanhamento`),
     },
   ];

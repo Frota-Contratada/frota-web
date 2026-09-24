@@ -157,9 +157,11 @@ export const RideDetails = () => {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <Button onClick={() => navigate(`/corridas/${solicitacao.id}/acompanhamento`)}>
-            Acompanhar ao vivo
-          </Button>
+          {(solicitacao.status === 'I' || solicitacao.status === 'EM_ANDAMENTO') && (
+            <Button onClick={() => navigate(`/corridas/${solicitacao.id}/acompanhamento`)}>
+              Acompanhar ao vivo
+            </Button>
+          )}
           <Button variant="outline" onClick={handlePrintReceipt}>
             Imprimir Recibo
           </Button>

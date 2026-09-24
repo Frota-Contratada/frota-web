@@ -89,8 +89,8 @@ export const RideRequestCreate = () => {
     uf?: string;
   }>({
     address: '',
-    lat: -23.3045,
-    lng: -51.1696,
+    lat: 0,
+    lng: 0,
     cidade: '',
     uf: '',
   });
@@ -103,8 +103,8 @@ export const RideRequestCreate = () => {
     uf?: string;
   }>({
     address: '',
-    lat: -23.3128,
-    lng: -51.1585,
+    lat: 0,
+    lng: 0,
     cidade: '',
     uf: '',
   });
@@ -122,7 +122,7 @@ export const RideRequestCreate = () => {
     destination: '',
     rideAt: new Date(Date.now() + 3600000).toISOString().slice(0, 16),
     rideType: 'Executiva',
-    costCenter: '',
+    costCenterIds: [] as string[],
     passengers: '1',
     passengerCpfs: [''],
     reason: 'Reunião externa',
@@ -158,7 +158,10 @@ export const RideRequestCreate = () => {
         const ccs = extractListData<CentroCustoDto>(ccRes.value);
         setBackendCentrosCusto(ccs);
         if (ccs.length > 0) {
-          setForm((prev) => ({ ...prev, costCenter: prev.costCenter || String(ccs[0].numero) }));
+          setForm((prev) => ({
+            ...prev,
+            costCenterIds: prev.costCenterIds.length > 0 ? prev.costCenterIds : [String(ccs[0].numero)],
+          }));
         }
       }
       if (suppRes.status === 'fulfilled') {
@@ -253,12 +256,29 @@ export const RideRequestCreate = () => {
     ? backendMotivos.map((m) => ({ label: m.nome, value: m.nome }))
     : defaultReasonOptions;
 
-  const costCenterOptions = useMemo(() => {
-    return backendCentrosCusto.map((cc) => ({
-      label: `${cc.nome} (Nº ${cc.numero})`,
-      value: String(cc.numero),
-    }));
-  }, [backendCentrosCusto]);
+  const toggleCostCenter = (ccNumero: string) => {
+    setForm((current) => {
+      const exists = current.costCenterIds.includes(ccNumero);
+      if (exists) {
+        if (current.costCenterIds.length === 1) {
+          showToast({
+            type: 'warning',
+            title: 'Centro de custo',
+            description: 'Pelo menos um centro de custo deve permanecer selecionado.',
+          });
+          return current;
+        }
+        return {
+          ...current,
+          costCenterIds: current.costCenterIds.filter((id) => id !== ccNumero),
+        };
+      }
+      return {
+        ...current,
+        costCenterIds: [...current.costCenterIds, ccNumero],
+      };
+    });
+  };
 
   const selectedSupplierName = selectedSupplier?.nome ?? 'Fornecedor não selecionado';
   const requesterEmployee = collaboratorsList.find((c) => c.nome === form.requester);
@@ -371,20 +391,22 @@ export const RideRequestCreate = () => {
         form.destination,
         form.rideAt,
         form.passengers,
-        form.costCenter,
         form.reason,
       ];
       const hasEmptyField = requiredFields.some((field) => field.trim().length === 0);
+      const hasMissingCostCenter = form.costCenterIds.length === 0;
       const hasMissingCpf = passengerCount > 1 && Array.from({ length: passengerCount }, (_, index) => {
         const cpf = index === 0 ? selectedBeneficiaryCpf : form.passengerCpfs[index] ?? '';
         return cleanCpf(cpf).length !== 11;
       }).some(Boolean);
 
-      if (hasEmptyField || hasMissingCpf) {
+      if (hasEmptyField || hasMissingCostCenter || hasMissingCpf) {
         showToast({
           type: 'warning',
           title: 'Campos obrigatórios',
-          description: 'Preencha todos os campos marcados com * antes de continuar.',
+          description: hasMissingCostCenter
+            ? 'Selecione ao menos um centro de custo antes de continuar.'
+            : 'Preencha todos os campos marcados com * antes de continuar.',
         });
         return false;
       }
@@ -416,17 +438,36 @@ export const RideRequestCreate = () => {
       setIsSubmitting(true);
       const selectedTipo = backendTiposCorrida.find((t) => t.nome === form.rideType);
       const selectedMotivo = backendMotivos.find((m) => m.nome === form.reason);
-      const selectedCcId = Number(form.costCenter) || backendCentrosCusto[0]?.numero || 101;
+      const selectedCcIds = form.costCenterIds.length > 0
+        ? form.costCenterIds.map((id) => Number(id)).filter(Boolean)
+        : [backendCentrosCusto[0]?.numero || 101];
 
       const origemCidade = originLocation.cidade || destinationLocation.cidade || 'São Paulo';
       const origemUf = normalizeUf(originLocation.uf || destinationLocation.uf);
       const destinoCidade = destinationLocation.cidade || originLocation.cidade || 'São Paulo';
       const destinoUf = normalizeUf(destinationLocation.uf || originLocation.uf);
 
+      const passengerList = Array.from({ length: passengerCount }, (_, index) => {
+        const cpfRaw = index === 0 ? selectedBeneficiaryCpf : form.passengerCpfs[index] ?? '';
+        const name = index === 0 ? form.beneficiaryName : `Passageiro ${index + 1}`;
+        const clean = cleanCpf(cpfRaw);
+        return {
+          nome: name,
+          cpf: clean || undefined,
+          solicitante: index === 0 && isRideForSelf,
+        };
+      });
+
+      const companionCpfs = form.passengerCpfs
+        .slice(1)
+        .map(cleanCpf)
+        .filter((c) => c.length === 11);
+
       await ridesApi.create({
         dataCorrida: new Date(form.rideAt).toISOString(),
         tipoCorridaId: selectedTipo?.id ?? 1,
         motivoSolicitacaoId: selectedMotivo?.id ?? 1,
+        fornecedorId: selectedSupplierId || undefined,
         origem: {
           logradouro: form.origin,
           cidade: origemCidade,
@@ -441,7 +482,9 @@ export const RideRequestCreate = () => {
           latitude: destinationLocation.lat,
           longitude: destinationLocation.lng,
         },
-        centrosCustoIds: [selectedCcId],
+        centrosCustoIds: selectedCcIds,
+        passageiros: passengerList,
+        cpfsAcompanhantes: companionCpfs.length > 0 ? companionCpfs : undefined,
       });
 
       showToast({
@@ -462,10 +505,10 @@ export const RideRequestCreate = () => {
     }
   };
 
-  const selectedCcObject = backendCentrosCusto.find((c) => String(c.numero) === form.costCenter);
-  const costCenterSummaryLabel = selectedCcObject
-    ? `${selectedCcObject.nome} (Nº ${selectedCcObject.numero})`
-    : `CC-${form.costCenter}`;
+  const selectedCcObjects = backendCentrosCusto.filter((c) => form.costCenterIds.includes(String(c.numero)));
+  const costCenterSummaryLabel = selectedCcObjects.length > 0
+    ? selectedCcObjects.map((cc) => `${cc.nome} (Nº ${cc.numero})`).join(', ')
+    : form.costCenterIds.map((id) => `CC-${id}`).join(', ') || 'Nenhum';
 
   return (
     <div className={styles.page}>
@@ -524,8 +567,35 @@ export const RideRequestCreate = () => {
 
                 <Input label="Data e horário" type="datetime-local" value={form.rideAt} onChange={(event) => updateField('rideAt', event.target.value)} required />
                 <Input label="Passageiros" type="number" min="1" value={form.passengers} onChange={(event) => updatePassengers(event.target.value)} required />
-                <Select label="Centro de custo" value={form.costCenter} options={costCenterOptions} onChange={(val) => updateField('costCenter', val)} required />
                 <Select label="Motivo" value={form.reason} options={reasonOptions} onChange={(value) => updateField('reason', value)} required />
+
+                <div className={styles.costCenterSection}>
+                  <div className={styles.costCenterHeader}>
+                    <strong>Centros de custo *</strong>
+                    <span>{form.costCenterIds.length} selecionado{form.costCenterIds.length === 1 ? '' : 's'} (rateio igual)</span>
+                  </div>
+                  <div className={styles.costCenterChips} role="group" aria-label="Centros de custo">
+                    {backendCentrosCusto.map((cc) => {
+                      const isSelected = form.costCenterIds.includes(String(cc.numero));
+                      return (
+                        <button
+                          key={cc.numero}
+                          type="button"
+                          className={`${styles.costCenterChip} ${isSelected ? styles.costCenterChipActive : ''}`}
+                          onClick={() => toggleCostCenter(String(cc.numero))}
+                          aria-pressed={isSelected}
+                        >
+                          {isSelected && (
+                            <span className={styles.costCenterCheckIcon}>
+                              <CheckIcon width={12} height={12} />
+                            </span>
+                          )}
+                          <span>{cc.nome} (Nº {cc.numero})</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               {passengerCount > 1 && (
