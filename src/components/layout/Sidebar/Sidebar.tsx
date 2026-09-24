@@ -13,6 +13,7 @@ import GastosIcon from '../../../assets/icons/gastos.svg?react';
 import PrecoAuditoriaIcon from '../../../assets/icons/preco-auditoria.svg?react';
 import SolicitacoesIcon from '../../../assets/icons/solicitacoes.svg?react';
 import CalendarioIcon from '../../../assets/icons/calendario.svg?react';
+import HistoricoIcon from '../../../assets/icons/historico.svg?react';
 import TerceirosIcon from '../../../assets/icons/terceiros.svg?react';
 import FornecedoresIcon from '../../../assets/icons/fornecedores.svg?react';
 import setaDireitaIcon from '../../../assets/icons/seta-direita.svg';
@@ -56,7 +57,7 @@ const allMenuItems: MenuItem[] = [
     submenu: [
       { id: 'visao-executiva', label: 'Visão executiva', icon: <AlvoIcon />, path: '/visao-executiva', allowedProfiles: ['admin-master', 'admin-filial'] },
       { id: 'gastos', label: 'Gastos', icon: <GastosIcon />, path: '/gastos', allowedProfiles: ['admin-master', 'admin-filial', 'aprovador'] },
-      { id: 'preco-auditoria', label: 'Preço & Auditoria', icon: <PrecoAuditoriaIcon />, path: '/preco-auditoria', allowedProfiles: ['admin-master', 'admin-filial'] },
+      { id: 'preco-auditoria', label: 'Preço & Auditoria', icon: <PrecoAuditoriaIcon />, path: '/preco-auditoria', allowedProfiles: ['admin-master', 'admin-filial', 'aprovador'] },
     ],
   },
   {
@@ -64,8 +65,9 @@ const allMenuItems: MenuItem[] = [
     label: 'Corridas',
     icon: <CorridasIcon />,
     submenu: [
-      { id: 'solicitacoes', label: 'Solicitações', icon: <SolicitacoesIcon />, path: '/corridas/solicitacoes' },
-      { id: 'calendario', label: 'Calendário', icon: <CalendarioIcon />, path: '/corridas/calendario' },
+      { id: 'solicitacoes', label: 'Solicitações', icon: <SolicitacoesIcon />, path: '/corridas/solicitacoes', allowedProfiles: ['admin-master', 'admin-filial', 'aprovador', 'solicitante', 'solicitante-emergencia'] },
+      { id: 'calendario', label: 'Calendário', icon: <CalendarioIcon />, path: '/corridas/calendario', allowedProfiles: ['admin-master', 'admin-filial', 'aprovador', 'solicitante', 'solicitante-emergencia'] },
+      { id: 'historico', label: 'Histórico', icon: <HistoricoIcon />, path: '/corridas/historico' },
     ],
   },
   {
@@ -194,6 +196,8 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
                   <button
                     className={`${styles.menuButton} ${openMenus.includes(item.id) ? styles.open : ''} ${isItemActive(item) ? styles.active : ''}`}
                     onClick={() => handleMenuWithSubmenuClick(item.id)}
+                    title={isCollapsed ? item.label : undefined}
+                    aria-label={item.label}
                   >
                     <span className={styles.menuIcon}>{item.icon}</span>
                     <span className={styles.menuLabel}>{item.label}</span>
@@ -209,6 +213,7 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
                           <Link
                             to={subItem.path}
                             className={`${styles.submenuLink} ${isActive(subItem.path) ? styles.active : ''}`}
+                            title={isCollapsed ? subItem.label : undefined}
                           >
                             {subItem.icon && (
                               <span className={styles.submenuIcon}>{subItem.icon}</span>
@@ -224,6 +229,8 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
                 <Link
                   to={item.path || '#'}
                   className={`${styles.menuButton} ${isActive(item.path) ? styles.active : ''}`}
+                  title={isCollapsed ? item.label : undefined}
+                  aria-label={item.label}
                 >
                   <span className={styles.menuIcon}>{item.icon}</span>
                   <span className={styles.menuLabel}>{item.label}</span>

@@ -105,11 +105,8 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  cursor: grab;
-}
-
-.map-location-picker-pin:active {
-  cursor: grabbing;
+  cursor: default;
+  user-select: none;
 }
 
 .map-location-picker-pin-inner {

@@ -110,18 +110,20 @@ export const LiveTrackingMap = ({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const initialCenter: [number, number] = vehiclePosition
+    const hasInitialPosition = Boolean((vehiclePosition?.lng && vehiclePosition?.lat) || (origin?.lng && origin?.lat));
+    const initialCenter: [number, number] = vehiclePosition?.lng && vehiclePosition?.lat
       ? [vehiclePosition.lng, vehiclePosition.lat]
-      : origin
+      : origin?.lng && origin?.lat
       ? [origin.lng, origin.lat]
-      : [-46.633308, -23.55052];
+      : [-47.9292, -15.7801];
+    const initialZoom = hasInitialPosition ? 14 : 4.5;
 
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: OPEN_FREE_MAP_STYLE,
       center: initialCenter,
-      zoom: 14,
-      pitch: cameraMode === 'driver' ? 52 : 0,
+      zoom: initialZoom,
+      pitch: cameraMode === 'driver' && hasInitialPosition ? 52 : 0,
       bearing: 0,
       maxZoom: MAX_ROUTE_MAP_ZOOM,
       cooperativeGestures: false,

@@ -53,9 +53,9 @@ export const Button = ({
           <Spinner size={spinnerSize} variant={spinnerVariant} />
         </span>
       )}
-      {!isLoading && leftIcon && <span className={styles.icon}>{leftIcon}</span>}
+      {leftIcon && <span className={styles.icon}>{leftIcon}</span>}
       <span className={styles.content}>{children}</span>
-      {!isLoading && rightIcon && <span className={styles.icon}>{rightIcon}</span>}
+      {rightIcon && <span className={styles.icon}>{rightIcon}</span>}
     </button>
   );
 };

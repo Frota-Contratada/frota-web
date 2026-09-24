@@ -66,7 +66,8 @@ export const RouteMap = ({
   const defaultCenter: [number, number] =
     validPoints.length > 0
       ? [validPoints[0].lng, validPoints[0].lat]
-      : [-46.633308, -23.55052];
+      : [-47.9292, -15.7801]; // Ponto neutro para visão geral do Brasil
+  const defaultZoom = validPoints.length > 0 ? 13 : 4.5;
 
   // Cálculo da rota via routingService
   useEffect(() => {
@@ -136,7 +137,7 @@ export const RouteMap = ({
       container: containerRef.current,
       style: OPEN_FREE_MAP_STYLE,
       center: defaultCenter,
-      zoom: 13,
+      zoom: defaultZoom,
       pitch: 0,
       bearing: 0,
       maxZoom: MAX_ROUTE_MAP_ZOOM,

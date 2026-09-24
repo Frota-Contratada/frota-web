@@ -15,6 +15,7 @@ export interface ColumnDef<T> {
   header: string;
   width?: string;
   sortable?: boolean;
+  align?: 'left' | 'center' | 'right';
   render?: (value: unknown, row: T) => React.ReactNode;
 }
 
@@ -22,6 +23,8 @@ export interface TableAction<T> {
   icon: React.ReactNode;
   label: string;
   onClick: (row: T) => void;
+  hidden?: (row: T) => boolean;
+  disabled?: (row: T) => boolean;
 }
 
 export interface PaginationProps {
@@ -128,7 +131,10 @@ export function Table<T>({
                 <th
                   key={String(col.key)}
                   className={`${styles.th} ${col.sortable ? styles.thSortable : ''}`}
-                  style={col.width ? { width: col.width } : undefined}
+                  style={{
+                    ...(col.width ? { width: col.width } : {}),
+                    ...(col.align ? { textAlign: col.align } : {}),
+                  }}
                   onClick={col.sortable ? () => handleSort(String(col.key)) : undefined}
                   aria-sort={isSorted ? (sort!.direction === 'asc' ? 'ascending' : 'descending') : undefined}
                 >
@@ -146,12 +152,16 @@ export function Table<T>({
           {isLoading ? (
             Array.from({ length: loadingRows }, (_, rowIndex) => (
               <tr key={`skeleton-row-${rowIndex}`} className={styles.tr}>
-                {columns.map((_, colIndex) => {
+                {columns.map((col, colIndex) => {
                   
                   const widths = ['80%', '60%', '90%', '45%', '70%'];
                   const width = widths[(rowIndex + colIndex) % widths.length];
                   return (
-                    <td key={`skeleton-cell-${colIndex}`} className={styles.td}>
+                    <td
+                      key={`skeleton-cell-${colIndex}`}
+                      className={styles.td}
+                      style={col.align ? { textAlign: col.align } : undefined}
+                    >
                       <Skeleton width={width} height={16} />
                     </td>
                   );
@@ -175,24 +185,35 @@ export function Table<T>({
                 {columns.map((col) => {
                   const value = (row as Record<string, unknown>)[col.key as string];
                   return (
-                    <td key={String(col.key)} className={styles.td}>
+                    <td
+                      key={String(col.key)}
+                      className={styles.td}
+                      style={col.align ? { textAlign: col.align } : undefined}
+                    >
                       {col.render ? col.render(value, row) : (value as React.ReactNode)}
                     </td>
                   );
                 })}
                 {hasActions && (
                   <td className={`${styles.td} ${styles.actionsCell}`}>
-                    {actions.map((action) => (
-                      <button
-                        key={action.label}
-                        className={styles.actionButton}
-                        title={action.label}
-                        aria-label={action.label}
-                        onClick={() => action.onClick(row)}
-                      >
-                        {action.icon}
-                      </button>
-                    ))}
+                    {actions
+                      .filter((action) => !action.hidden || !action.hidden(row))
+                      .map((action) => {
+                        const isDisabled = action.disabled ? action.disabled(row) : false;
+                        const rowKey = keyExtractor(row);
+                        return (
+                          <button
+                            key={action.label}
+                            className={styles.actionButton}
+                            title={action.label}
+                            aria-label={`${action.label} (registro #${rowKey})`}
+                            disabled={isDisabled}
+                            onClick={() => !isDisabled && action.onClick(row)}
+                          >
+                            {action.icon}
+                          </button>
+                        );
+                      })}
                   </td>
                 )}
               </tr>

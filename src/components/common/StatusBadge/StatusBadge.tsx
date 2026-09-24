@@ -12,13 +12,14 @@ const STATUS_LABELS: Record<BadgeStatus, string> = {
 
 interface StatusBadgeProps {
   status: BadgeStatus;
+  label?: string;
 }
 
-export function StatusBadge({ status }: StatusBadgeProps) {
+export function StatusBadge({ status, label }: StatusBadgeProps) {
   return (
     <span className={`${styles.badge} ${styles[status]}`}>
       <span className={styles.dot} />
-      {STATUS_LABELS[status]}
+      {label || STATUS_LABELS[status]}
     </span>
   );
 }

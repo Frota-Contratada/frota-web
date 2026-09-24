@@ -100,8 +100,13 @@
 
 .loading {
   position: relative;
-  color: transparent !important;
   pointer-events: none;
+}
+
+.loading .content,
+.loading .icon {
+  visibility: hidden;
+  opacity: 0;
 }
 
 .spinnerWrapper {

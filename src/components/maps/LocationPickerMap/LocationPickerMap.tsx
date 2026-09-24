@@ -9,8 +9,8 @@ import '../styles/mapStyles.css';
 import styles from './LocationPickerMap.module.css';
 
 export interface LocationPickerMapProps {
-  latitude: number;
-  longitude: number;
+  latitude?: number | null;
+  longitude?: number | null;
   label?: string;
   height?: string | number;
   onChange?: (coords: { latitude: number; longitude: number }) => void;
@@ -31,14 +31,18 @@ export const LocationPickerMap = ({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  const validLat =
-    typeof latitude === 'number' && !isNaN(latitude) && latitude !== 0
-      ? latitude
-      : -23.55052;
-  const validLng =
-    typeof longitude === 'number' && !isNaN(longitude) && longitude !== 0
-      ? longitude
-      : -46.633308;
+  const hasValidCoords =
+    typeof latitude === 'number' &&
+    typeof longitude === 'number' &&
+    !isNaN(latitude) &&
+    !isNaN(longitude) &&
+    (latitude !== 0 || longitude !== 0);
+
+  // Ponto central neutro para navegação inicial do mapa (Brasil) se não houver coordenadas definidas
+  const initialCenter: [number, number] = hasValidCoords
+    ? [longitude, latitude]
+    : [-48.6619, -26.9078];
+  const initialZoom = hasValidCoords ? 14 : 4.5;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -48,14 +52,13 @@ export const LocationPickerMap = ({
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: OPEN_FREE_MAP_STYLE,
-      center: [validLng, validLat],
-      zoom: 14,
+      center: initialCenter,
+      zoom: initialZoom,
       pitch: 0,
       bearing: 0,
       maxZoom: 18,
     });
 
-    // Se houver qualquer falha com o estilo vetorial ou worker, usa fallback raster
     map.on('error', (err) => {
       if (!fallbackApplied) {
         fallbackApplied = true;
@@ -73,36 +76,46 @@ export const LocationPickerMap = ({
       'top-right'
     );
 
-    const pinEl = createHtmlElement(
-      'map-location-picker-pin',
-      `<div class="map-location-picker-pin-inner" title="${label}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-          <circle cx="12" cy="10" r="3"></circle>
-        </svg>
-      </div>`
-    );
+    const updateOrCreateMarker = (lng: number, lat: number) => {
+      if (!markerRef.current) {
+        const pinEl = createHtmlElement(
+          'map-location-picker-pin',
+          `<div class="map-location-picker-pin-inner" title="${label}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+          </div>`
+        );
 
-    const marker = new maplibregl.Marker({
-      element: pinEl,
-      draggable: true,
-      anchor: 'bottom',
-    })
-      .setLngLat([validLng, validLat])
-      .addTo(map);
+        const marker = new maplibregl.Marker({
+          element: pinEl,
+          draggable: false, // Pin estritamente fixo - sem arrastar
+          anchor: 'bottom',
+        })
+          .setLngLat([lng, lat])
+          .addTo(map);
 
-    marker.on('dragend', () => {
-      const lngLat = marker.getLngLat();
-      onChangeRef.current?.({ latitude: lngLat.lat, longitude: lngLat.lng });
-    });
+        markerRef.current = marker;
+      } else {
+        markerRef.current.setLngLat([lng, lat]);
+      }
+    };
 
+    // Só adiciona o pin se houver localização válida selecionada pelo usuário ou registro existente
+    if (hasValidCoords) {
+      updateOrCreateMarker(longitude!, latitude!);
+    }
+
+    // Clique no mapa define ou reposiciona o pin explicitamente (sem arrastar)
     map.on('click', (e: maplibregl.MapMouseEvent) => {
-      marker.setLngLat(e.lngLat);
-      onChangeRef.current?.({ latitude: e.lngLat.lat, longitude: e.lngLat.lng });
+      if (onChangeRef.current) {
+        updateOrCreateMarker(e.lngLat.lng, e.lngLat.lat);
+        onChangeRef.current({ latitude: e.lngLat.lat, longitude: e.lngLat.lng });
+      }
     });
 
     mapRef.current = map;
-    markerRef.current = marker;
 
     const t1 = window.setTimeout(() => map.resize(), 100);
     const t2 = window.setTimeout(() => map.resize(), 400);
@@ -116,7 +129,7 @@ export const LocationPickerMap = ({
       window.clearTimeout(t1);
       window.clearTimeout(t2);
       resizeObserver.disconnect();
-      marker.remove();
+      markerRef.current?.remove();
       map.remove();
       mapRef.current = null;
       markerRef.current = null;
@@ -125,20 +138,57 @@ export const LocationPickerMap = ({
 
   // Sincroniza posição do marcador e câmera quando lat/lng mudam externamente
   useEffect(() => {
-    if (!markerRef.current || !mapRef.current) return;
-    const currentPos = markerRef.current.getLngLat();
-    const diff =
-      Math.abs(currentPos.lat - validLat) + Math.abs(currentPos.lng - validLng);
+    if (!mapRef.current) return;
 
-    if (diff > 0.0001) {
-      markerRef.current.setLngLat([validLng, validLat]);
-      mapRef.current.easeTo({
-        center: [validLng, validLat],
-        zoom: Math.max(mapRef.current.getZoom(), 14),
+    if (!hasValidCoords) {
+      if (markerRef.current) {
+        markerRef.current.remove();
+        markerRef.current = null;
+      }
+      return;
+    }
+
+    const map = mapRef.current;
+    if (!markerRef.current) {
+      const pinEl = createHtmlElement(
+        'map-location-picker-pin',
+        `<div class="map-location-picker-pin-inner" title="${label}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+          </svg>
+        </div>`
+      );
+
+      const marker = new maplibregl.Marker({
+        element: pinEl,
+        draggable: false, // Fixo
+        anchor: 'bottom',
+      })
+        .setLngLat([longitude!, latitude!])
+        .addTo(map);
+
+      markerRef.current = marker;
+      map.easeTo({
+        center: [longitude!, latitude!],
+        zoom: Math.max(map.getZoom(), 14),
         duration: 500,
       });
+    } else {
+      const currentPos = markerRef.current.getLngLat();
+      const diff =
+        Math.abs(currentPos.lat - latitude!) + Math.abs(currentPos.lng - longitude!);
+
+      if (diff > 0.0001) {
+        markerRef.current.setLngLat([longitude!, latitude!]);
+        map.easeTo({
+          center: [longitude!, latitude!],
+          zoom: Math.max(map.getZoom(), 14),
+          duration: 500,
+        });
+      }
     }
-  }, [validLat, validLng]);
+  }, [hasValidCoords, latitude, longitude, label]);
 
   return (
     <div
@@ -148,11 +198,13 @@ export const LocationPickerMap = ({
       <div ref={containerRef} className={styles.map} />
       <div className={styles.hintOverlay}>
         <span>
-          💡 <strong>{label}:</strong> Arraste o pin ou clique no mapa para ajustar.
+          💡 <strong>{label}:</strong> {hasValidCoords ? 'Clique no mapa para alterar a localização.' : 'Pesquise pelo CEP/endereço ou clique no mapa para selecionar a localização.'}
         </span>
-        <span className={styles.coordinates}>
-          {validLat.toFixed(5)}, {validLng.toFixed(5)}
-        </span>
+        {hasValidCoords && (
+          <span className={styles.coordinates}>
+            {latitude!.toFixed(5)}, {longitude!.toFixed(5)}
+          </span>
+        )}
       </div>
     </div>
   );

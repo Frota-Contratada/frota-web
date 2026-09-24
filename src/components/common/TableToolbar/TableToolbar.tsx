@@ -7,6 +7,7 @@ import styles from './TableToolbar.module.css';
 
 interface TableToolbarProps {
   onSearch?: (query: string) => void;
+  searchPlaceholder?: string;
   onExport?: () => void;
   onFilter?: () => void;
   filterSections?: FilterSection[];
@@ -28,6 +29,7 @@ const renderFilterButton = (activeCount: number): ReactNode => (
 
 export function TableToolbar({
   onSearch,
+  searchPlaceholder = 'Buscar',
   onExport,
   onFilter,
   filterSections,
@@ -46,7 +48,7 @@ export function TableToolbar({
     <div className={styles.toolbar}>
       <div className={styles.search}>
         <Input
-          placeholder="Buscar"
+          placeholder={searchPlaceholder}
           leftIcon={<SearchIcon width={18} height={18} />}
           onChange={(e) => onSearch?.(e.target.value)}
           className={styles.searchInput}
