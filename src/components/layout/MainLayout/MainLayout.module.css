@@ -26,6 +26,25 @@
   overflow: auto;
 }
 
+.pageWrapper {
+  animation: pageFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  min-height: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0.88;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 768px) {
   .main {
     margin-left: 0;

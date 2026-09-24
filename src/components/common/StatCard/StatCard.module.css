@@ -7,6 +7,13 @@
   border-radius: var(--radius-xl);
   padding: 1.25rem 1.5rem;
   min-width: 0;
+  transition: border-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base);
+}
+
+.card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
 }
 
 .title {

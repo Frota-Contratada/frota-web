@@ -9,9 +9,14 @@
   border: 1.4px solid transparent;
   border-radius: 10px;
   cursor: pointer;
-  transition: all var(--transition-base);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), transform 0.1s ease;
   outline: none;
   white-space: nowrap;
+  user-select: none;
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.985);
 }
 
 .button:focus-visible {

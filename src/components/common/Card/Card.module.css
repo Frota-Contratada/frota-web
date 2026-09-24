@@ -1,8 +1,8 @@
 .card {
   background-color: white;
-  border-radius: 17px;
-  transition: all var(--transition-base);
-  min-width: 448px;
+  border-radius: 16px;
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+  width: 100%;
 }
 
 .default {

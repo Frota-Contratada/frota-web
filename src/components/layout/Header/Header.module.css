@@ -196,8 +196,20 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background-color: var(--surface);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-floating);
   overflow: hidden;
+  animation: subtleDropdown 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes subtleDropdown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .notificationsHeader {
@@ -412,11 +424,11 @@
   width: 240px;
   background-color: white;
   border: 1px solid var(--color-gray-200);
-  border-radius: 12px;
-  box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
+  border-radius: 14px;
+  box-shadow: var(--shadow-floating);
   padding: 6px;
   z-index: 100;
-  animation: fadeIn 0.15s ease-out;
+  animation: subtleDropdown 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .dropdownHeader {
