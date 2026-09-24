@@ -248,12 +248,6 @@ export const ridesApi = {
   },
 
   async simular(data: SimularSolicitacaoParams): Promise<{ response: SimulacaoSolicitacaoDto }> {
-    const user = useAuthStore.getState().user;
-    const isSolicitante =
-      user?.profile === 'solicitante' ||
-      user?.profile === 'solicitante-emergencia' ||
-      user?.perfis?.some((p) => p.tipoPerfil === 'solicitante' || p.tipoPerfil === 'solicitante-emergencia');
-
     const sanitizedData: SimularSolicitacaoParams = {
       ...data,
       dataCorrida: data.dataCorrida ? new Date(data.dataCorrida).toISOString() : new Date().toISOString(),
