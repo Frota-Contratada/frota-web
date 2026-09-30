@@ -45,7 +45,6 @@ export const AcompanhamentoEmbed = ({
     }
   }, [targetOrigin]);
 
-  // Handshake inicial
   const handleIframeLoad = () => {
     setLoadError(null);
     sendToIframe({
@@ -55,10 +54,9 @@ export const AcompanhamentoEmbed = ({
     });
   };
 
-  // Escuta mensagens do micro-frontend
   useEffect(() => {
     const handleWindowMessage = (event: MessageEvent) => {
-      // Validação estrita da origem
+
       if (event.origin !== targetOrigin) {
         return;
       }
@@ -71,7 +69,7 @@ export const AcompanhamentoEmbed = ({
 
       if (data.type === 'web.ready') {
         setIsReady(true);
-        // Se temos um snapshot, enviamos o bootstrap imediatamente
+
         if (snapshot && snapshot.route) {
           sendToIframe({
             schemaVersion: 1,
@@ -100,7 +98,6 @@ export const AcompanhamentoEmbed = ({
     };
   }, [targetOrigin, rideId, role, snapshot, sendToIframe, onCommand]);
 
-  // Repasse do bootstrap quando o snapshot carregar depois do web.ready
   useEffect(() => {
     if (isReady && snapshot && snapshot.route) {
       sendToIframe({
@@ -121,7 +118,6 @@ export const AcompanhamentoEmbed = ({
     }
   }, [isReady, snapshot, rideId, role, sendToIframe]);
 
-  // Encaminhamento de eventos WebSocket em tempo real para o iframe
   useEffect(() => {
     if (isReady && lastEvent) {
       sendToIframe(lastEvent);

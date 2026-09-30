@@ -1,7 +1,4 @@
-/**
- * Utilitários geoespaciais e matemáticos para cálculo de distâncias,
- * rotação/bearing, detecção de desvio de rota e formatação de telemetria.
- */
+
 
 const EARTH_RADIUS_METERS = 6371000;
 
@@ -13,9 +10,6 @@ export function toDeg(rad: number): number {
   return (rad * 180) / Math.PI;
 }
 
-/**
- * Calcula a distância Haversine em metros entre dois pontos geográficos
- */
 export function calculateDistance(
   lat1: number,
   lon1: number,
@@ -35,9 +29,6 @@ export function calculateDistance(
   return EARTH_RADIUS_METERS * c;
 }
 
-/**
- * Calcula o azimute / bearing em graus (0° a 360°)
- */
 export function calculateBearing(
   lat1: number,
   lon1: number,
@@ -52,9 +43,6 @@ export function calculateBearing(
   return bearing;
 }
 
-/**
- * Projeta um ponto P sobre o segmento AB
- */
 export function pointToSegmentDistance(
   point: [number, number],
   segStart: [number, number],
@@ -88,9 +76,6 @@ export function pointToSegmentDistance(
   };
 }
 
-/**
- * Calcula a distância mínima entre a posição do veículo e a polilinha da rota
- */
 export function minDistanceToPolyline(
   point: [number, number],
   coordinates: Array<[number, number]>,
@@ -129,9 +114,6 @@ export function minDistanceToPolyline(
   };
 }
 
-/**
- * Formata distância geral para exibição em métricas (ex: 14.5 km ou 850 m)
- */
 export function formatDistance(meters: number | null | undefined): string {
   if (meters === undefined || meters === null || isNaN(meters)) return '--';
   if (meters < 1000) {
@@ -141,9 +123,6 @@ export function formatDistance(meters: number | null | undefined): string {
   return `${(meters / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
 }
 
-/**
- * Formata duração em segundos (ex: 25 min ou 1h 15 min)
- */
 export function formatDuration(seconds: number | null | undefined): string {
   if (seconds === undefined || seconds === null || isNaN(seconds)) return '--';
   const mins = Math.round(seconds / 60);
@@ -155,9 +134,6 @@ export function formatDuration(seconds: number | null | undefined): string {
   return `${hours}h ${remainingMins} min`;
 }
 
-/**
- * Formata o Horário Estimado de Chegada (ETA)
- */
 export function formatETA(secondsFromNow: number | null | undefined): string {
   if (secondsFromNow === undefined || secondsFromNow === null || isNaN(secondsFromNow)) return '--:--';
   const date = new Date(Date.now() + secondsFromNow * 1000);

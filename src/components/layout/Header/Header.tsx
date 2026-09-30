@@ -147,7 +147,7 @@ export const Header = () => {
         setUnreadCount(res.response.quantidade);
       }
     } catch {
-      // Falha silenciosa se token expirou ou offline
+
     }
   };
 
@@ -185,7 +185,7 @@ export const Header = () => {
       );
       setUnreadCount((count) => Math.max(0, count - 1));
     } catch {
-      // Ignorar erro
+
     }
   };
 

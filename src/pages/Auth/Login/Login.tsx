@@ -49,7 +49,7 @@ export const Login = () => {
     try {
       await login({ email, senha: password, plataforma: 'WEB' });
     } catch (err) {
-      // Verificar se o usuário possui primeiro acesso pendente
+
       try {
         const check = await authApi.verificarPrimeiroAcesso(email);
         if (check?.response?.primeiroAcesso) {
@@ -62,7 +62,7 @@ export const Login = () => {
           return;
         }
       } catch {
-        // Ignorar falha do check e manter erro original
+
       }
 
       const message = err instanceof Error ? err.message : 'Erro ao fazer login';

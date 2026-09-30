@@ -1,4 +1,4 @@
-/* Estilos para mapa vetorial OpenFreeMap + MapLibre GL no frota-web */
+
 
 .maplibregl-map {
   width: 100%;
@@ -20,10 +20,6 @@
   backdrop-filter: blur(4px);
 }
 
-/* ============================================================
-   PINOS E MARCADORES CUSTOMIZADOS
-   ============================================================ */
-
 .custom-map-pin {
   border: 0 !important;
   background: transparent !important;
@@ -42,7 +38,6 @@
   cursor: grabbing;
 }
 
-/* Pino de Origem */
 .map-origin-pin {
   display: block;
   width: 20px;
@@ -63,7 +58,6 @@
   animation: map-pulse 2.2s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
 }
 
-/* Pino de Destino */
 .map-destination-pin {
   width: 36px;
   height: 36px;
@@ -83,7 +77,6 @@
   transform: rotate(45deg);
 }
 
-/* Pino de Parada Intermediária */
 .map-stop-pin {
   width: 26px;
   height: 26px;
@@ -97,7 +90,6 @@
   box-shadow: 0 3px 10px rgba(14, 165, 233, 0.38);
 }
 
-/* Pino de Localização / Filial (LocationPicker) */
 .map-location-picker-pin {
   width: 40px;
   height: 40px;
@@ -132,10 +124,6 @@
 .map-location-picker-pin:hover .map-location-picker-pin-inner {
   transform: rotate(-45deg) scale(1.1);
 }
-
-/* ============================================================
-   MARCADOR DO VEÍCULO (TELEMETRIA AO VIVO)
-   ============================================================ */
 
 .map-vehicle-wrapper {
   border: 0 !important;
@@ -192,10 +180,6 @@
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
 }
 
-/* ============================================================
-   POPUPS & CONTROLES
-   ============================================================ */
-
 .traffic-map-popup .maplibregl-popup-content {
   padding: 8px 12px;
   border-radius: 10px;
@@ -228,10 +212,6 @@
   }
 }
 
-/* ============================================================
-   MODO TELA CHEIA (FULLSCREEN COCKPIT)
-   ============================================================ */
-
 .map-fullscreen-active {
   position: fixed !important;
   inset: 0 !important;
@@ -243,10 +223,6 @@
   box-shadow: none !important;
   border: none !important;
 }
-
-/* ============================================================
-   PAINEL DE CONTROLE DE REPLAY / PLAYBACK
-   ============================================================ */
 
 .map-playback-container {
   position: absolute;

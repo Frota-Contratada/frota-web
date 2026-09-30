@@ -24,20 +24,17 @@ export interface ExtracaoResultadoIa {
     cnpj_cpf: string | null;
   } | null;
   contrato: {
-    dt_vigencia_inicio: string | null; // Formato original retornado pela IA: DD-MM-YYYY
-    dt_vigencia_fim: string | null;    // Formato original retornado pela IA: DD-MM-YYYY
+    dt_vigencia_inicio: string | null;
+    dt_vigencia_fim: string | null;
   } | null;
   regras: RegraExtracaoIa[];
-  // Campos normalizados para uso direto no frontend frota-web:
+
   datasNormalizadas?: {
-    dataVigenciaInicio: string | null; // Formato YYYY-MM-DD
-    dataVigenciaFim: string | null;    // Formato YYYY-MM-DD
+    dataVigenciaInicio: string | null;
+    dataVigenciaFim: string | null;
   };
 }
 
-/**
- * Converte data de formato DD-MM-YYYY para YYYY-MM-DD (padrão HTML5 date e Zod date).
- */
 export function normalizarDataIa(dataStr?: string | null): string | null {
   if (!dataStr || typeof dataStr !== 'string') return null;
   const trimmed = dataStr.trim();
@@ -61,10 +58,7 @@ const getIaApiUrl = (): string => {
 };
 
 export const contractIaApi = {
-  /**
-   * Envia o buffer binário de um arquivo PDF para a API do frota-ia (POST /extrair/)
-   * e retorna os dados de contrato, fornecedor e regras financeiras validadas.
-   */
+
   async extrairDados(file: File): Promise<ExtracaoResultadoIa> {
     const nome = file.name || '';
     if (!nome.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
@@ -107,7 +101,7 @@ export const contractIaApi = {
           errorDetail = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail);
         }
       } catch {
-        // Fallback de texto se não for JSON
+
         const text = await response.text();
         if (text) errorDetail = text;
       }
@@ -116,7 +110,6 @@ export const contractIaApi = {
 
     const data: ExtracaoResultadoIa = await response.json();
 
-    // Normalização das datas para YYYY-MM-DD
     const dtInicio = normalizarDataIa(data.contrato?.dt_vigencia_inicio);
     const dtFim = normalizarDataIa(data.contrato?.dt_vigencia_fim);
 

@@ -79,7 +79,7 @@ export class TrackingSocketClient {
     });
 
     this.socket.on('trip.joined', () => {
-      // Ingresso confirmado no canal da corrida
+
     });
 
     this.socket.on('trip.event', (envelope: TrackingEnvelope) => {

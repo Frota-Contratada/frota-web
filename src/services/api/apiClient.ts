@@ -137,7 +137,7 @@ async function request<T>(path: string, options: ApiRequestOptions = {}): Promis
         _retry: true,
       });
     } else {
-      // Refresh falhou definitivamente: limpar sessão e emitir evento de logout
+
       try {
         const { useAuthStore } = await import('../../stores/authStore');
         useAuthStore.getState().logout();

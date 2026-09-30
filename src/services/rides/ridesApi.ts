@@ -144,8 +144,6 @@ export interface CancelarSolicitacaoParams {
   motivoCancelamentoId: number;
 }
 
-
-
 export const FALLBACK_MOTIVOS: Record<string, MotivoSolicitacaoDto[]> = {
   cancelamento: [
     { id: 11, nome: 'Mudança de agenda' },
@@ -206,7 +204,7 @@ export const ridesApi = {
           return { response: list };
         }
       } catch {
-        // Fall back below
+
       }
       return { response: FALLBACK_MOTIVOS[tipo || 'cancelamento'] || FALLBACK_MOTIVOS.cancelamento };
     }
@@ -363,5 +361,4 @@ export const ridesApi = {
     });
   },
 };
-
 

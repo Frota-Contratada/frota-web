@@ -84,7 +84,6 @@ describe('routingService', () => {
     expect(TOMTOM_CONFIG.isThrottled).toBe(true);
     expect(result.distanceKm).toBeGreaterThan(0);
 
-    // Subsequent call uses cache immediately without calling fetch
     fetchSpy.mockClear();
     const cachedResult = await routingService.calcularRota(points);
     expect(cachedResult).toEqual(result);

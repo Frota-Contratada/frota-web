@@ -87,7 +87,6 @@
   flex-wrap: wrap;
 }
 
-/* Modo de Câmera (Passageiro vs 3D) */
 .cameraToggleGroup {
   display: inline-flex;
   align-items: center;
@@ -123,7 +122,6 @@
   height: 15px;
 }
 
-/* Painel de Telemetria Resumida (Inspirado no passengerRideCard) */
 .passengerSummaryCard {
   background: #ffffff;
   border: 1px solid #e2e8f0;

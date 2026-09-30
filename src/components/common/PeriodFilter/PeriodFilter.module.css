@@ -1,0 +1,164 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+}
+
+.container:hover {
+  border-color: var(--border-strong);
+}
+
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.modeToggle {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--bg-muted, #f1f5f9);
+  padding: 0.25rem;
+  border-radius: var(--radius-lg, 8px);
+  gap: 0.25rem;
+  border: 1px solid var(--border);
+}
+
+.modeBtn {
+  border: none;
+  background: transparent;
+  padding: 0.4rem 0.875rem;
+  border-radius: var(--radius-md, 6px);
+  font-family: var(--font-family);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  transition: all var(--transition-fast);
+}
+
+.modeBtn:hover {
+  color: var(--text-primary);
+}
+
+.modeBtnActive {
+  background-color: var(--surface, #ffffff);
+  color: var(--primary, #0052cc);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.navControls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.navBtn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-md, 6px);
+  font-family: var(--font-family);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: 600;
+  color: var(--text-secondary, #475569);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  transition: all var(--transition-fast);
+}
+
+.navBtn:hover {
+  border-color: var(--primary, #0052cc);
+  color: var(--primary, #0052cc);
+  background-color: var(--primary-light, #eff6ff);
+}
+
+.activeLabelBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.35rem 0.85rem;
+  background-color: var(--primary-light, #eff6ff);
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-full, 9999px);
+  font-family: var(--font-family);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: 700;
+  color: var(--primary, #0052cc);
+  letter-spacing: 0.02em;
+}
+
+.periodGrid {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.yearPillGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-right: 0.5rem;
+  padding-right: 0.75rem;
+  border-right: 1px solid var(--border);
+}
+
+.periodPill {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0.375rem 0.7rem;
+  border-radius: var(--radius-md, 6px);
+  font-family: var(--font-family);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: 500;
+  color: var(--text-secondary, #475569);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.periodPill:hover {
+  border-color: var(--primary, #0052cc);
+  color: var(--primary, #0052cc);
+  background-color: #f8fafc;
+}
+
+.periodPillActive {
+  background-color: var(--primary, #0052cc) !important;
+  color: #ffffff !important;
+  border-color: var(--primary, #0052cc) !important;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(0, 82, 204, 0.2);
+}
+
+.periodSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  padding-top: 0.25rem;
+}
+
+.highlightText {
+  color: var(--text-primary);
+  font-weight: 600;
+}

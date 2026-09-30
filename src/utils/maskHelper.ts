@@ -1,11 +1,5 @@
-/**
- * Utilitários centralizados para máscaras, validações e formatações de dados.
- * Suporta novo padrão alfanumérico para CPF e CNPJ.
- */
 
-// ==========================================
-// CPF (suporta alfanumérico: letras A-Z e números 0-9)
-// ==========================================
+
 export const cleanCpf = (cpf: string | null | undefined): string => {
   if (!cpf) return '';
   return cpf.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 11);
@@ -33,9 +27,6 @@ export const isValidCpf = (cpf: string | null | undefined): boolean => {
   return raw.length === 11;
 };
 
-// ==========================================
-// CNPJ (suporta alfanumérico: letras A-Z e números 0-9)
-// ==========================================
 export const cleanCnpj = (cnpj: string | null | undefined): string => {
   if (!cnpj) return '';
   return cnpj.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 14);
@@ -66,9 +57,6 @@ export const isValidCnpj = (cnpj: string | null | undefined): boolean => {
   return raw.length === 14;
 };
 
-// ==========================================
-// CEP (8 dígitos numéricos)
-// ==========================================
 export const cleanCep = (cep: string | null | undefined): string => {
   if (!cep) return '';
   return cep.replace(/\D/g, '').slice(0, 8);
@@ -90,9 +78,6 @@ export const isValidCep = (cep: string | null | undefined): boolean => {
   return raw.length === 8;
 };
 
-// ==========================================
-// Telefone / Celular (10 ou 11 dígitos numéricos)
-// ==========================================
 export const cleanPhone = (phone: string | null | undefined): string => {
   if (!phone) return '';
   return phone.replace(/\D/g, '').slice(0, 11);

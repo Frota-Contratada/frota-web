@@ -100,7 +100,7 @@ export const routingService = {
             }
           }
         } catch {
-          // TomTom failed, proceed to OSRM
+
         }
       }
 
@@ -140,7 +140,7 @@ export const routingService = {
           }
         }
       } catch {
-        // OSRM failed, proceed to fallback
+
       }
 
       const fallback = this.calcularDistanciaFallback(pontos);

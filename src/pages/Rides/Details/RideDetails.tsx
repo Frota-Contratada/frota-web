@@ -47,7 +47,7 @@ export const RideDetails = () => {
               }
             }
           } catch {
-            // Handled below
+
           }
           if (!isMounted) return;
           showToast({ type: 'error', title: 'Erro ao buscar detalhes da corrida' });

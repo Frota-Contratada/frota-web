@@ -38,7 +38,6 @@ export const LocationPickerMap = ({
     !isNaN(longitude) &&
     (latitude !== 0 || longitude !== 0);
 
-  // Ponto central neutro para navegação inicial do mapa (Brasil) se não houver coordenadas definidas
   const initialCenter: [number, number] = hasValidCoords
     ? [longitude, latitude]
     : [-48.6619, -26.9078];
@@ -90,7 +89,7 @@ export const LocationPickerMap = ({
 
         const marker = new maplibregl.Marker({
           element: pinEl,
-          draggable: false, // Pin estritamente fixo - sem arrastar
+          draggable: false,
           anchor: 'bottom',
         })
           .setLngLat([lng, lat])
@@ -102,12 +101,10 @@ export const LocationPickerMap = ({
       }
     };
 
-    // Só adiciona o pin se houver localização válida selecionada pelo usuário ou registro existente
     if (hasValidCoords) {
       updateOrCreateMarker(longitude!, latitude!);
     }
 
-    // Clique no mapa define ou reposiciona o pin explicitamente (sem arrastar)
     map.on('click', (e: maplibregl.MapMouseEvent) => {
       if (onChangeRef.current) {
         updateOrCreateMarker(e.lngLat.lng, e.lngLat.lat);
@@ -136,7 +133,6 @@ export const LocationPickerMap = ({
     };
   }, []);
 
-  // Sincroniza posição do marcador e câmera quando lat/lng mudam externamente
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -162,7 +158,7 @@ export const LocationPickerMap = ({
 
       const marker = new maplibregl.Marker({
         element: pinEl,
-        draggable: false, // Fixo
+        draggable: false,
         anchor: 'bottom',
       })
         .setLngLat([longitude!, latitude!])

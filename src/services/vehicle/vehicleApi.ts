@@ -38,9 +38,6 @@ export interface VeiculosListResponse {
   } | VeiculoDto[];
 }
 
-/**
- * ATENÇÃO: O módulo de veículos ainda não possui suporte implementado no backend.
- */
 export const vehicleApi = {
   create(data: CriarVeiculoParams) {
     return apiClient.post<VeiculoResponse>('/veiculos', data).catch(() => ({
@@ -62,8 +59,7 @@ export const vehicleApi = {
         query: query as Record<string, string | number | boolean | null | undefined>,
       })
       .catch(() => {
-        // Fallback resiliente: enquanto o backend não expuser o endpoint /veiculos,
-        // fornece veículos padrão para destravar a alocação de motoristas/veículos pelo fornecedor.
+
         const fId = query?.fornecedorId || 1;
         const fallbackVehicles: VeiculoDto[] = [
           {

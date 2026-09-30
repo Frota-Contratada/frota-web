@@ -10,7 +10,7 @@ import {
 
 describe('geoUtils (Matemática geoespacial e formatação de telemetria)', () => {
   it('calculates Haversine distance correctly between two points', () => {
-    // Distância aproximada entre dois pontos em São Paulo (~8.4 km)
+
     const lat1 = -23.507248;
     const lon1 = -46.653695;
     const lat2 = -23.513207;
@@ -22,7 +22,7 @@ describe('geoUtils (Matemática geoespacial e formatação de telemetria)', () =
   });
 
   it('calculates bearing angle between 0 and 360 degrees', () => {
-    // Indo para o Oeste (aproximadamente 270°)
+
     const bearing = calculateBearing(-23.507248, -46.653695, -23.507248, -46.731058);
     expect(bearing).toBeGreaterThan(260);
     expect(bearing).toBeLessThan(280);
@@ -42,7 +42,7 @@ describe('geoUtils (Matemática geoespacial e formatação de telemetria)', () =
   });
 
   it('formats ETA from now', () => {
-    const eta = formatETA(1800); // 30 minutos a partir de agora
+    const eta = formatETA(1800);
     expect(eta).toMatch(/^\d{2}:\d{2}$/);
   });
 

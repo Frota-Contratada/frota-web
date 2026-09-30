@@ -54,7 +54,6 @@ export const RideTracking = () => {
     }
   };
 
-  // Inicialização e conexão ao WebSocket do TrackingGateway
   useEffect(() => {
     fetchTracking(true);
 
@@ -103,7 +102,6 @@ export const RideTracking = () => {
     };
   }, [rideId]);
 
-  // Handler para comandos recebidos da ponte de acompanhamento
   const handleIframeCommand = async (commandType: string, payload: unknown) => {
     if (!rideId) return;
     try {

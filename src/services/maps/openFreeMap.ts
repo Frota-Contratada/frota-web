@@ -2,12 +2,10 @@ import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 
-// Configuração obrigatória do Web Worker no Vite para decodificação de tiles vetoriais
 maplibregl.setWorkerUrl(mapLibreWorkerUrl);
 
 export const OPEN_FREE_MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
 
-// Estilo raster de fallback (Carto Positron) para ambientes offline, proxies ou bloqueios de Web Worker
 export const CARTO_POSITRON_RASTER_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
@@ -34,11 +32,10 @@ export const CARTO_POSITRON_RASTER_STYLE: maplibregl.StyleSpecification = {
   ],
 };
 
-// Acima deste nível, pequenas diferenças entre a geometria do routing e o OSM podem se tornar visíveis
 export const MAX_ROUTE_MAP_ZOOM = 17;
 
-export type LatLngCoord = [number, number]; // [lat, lng]
-export type LngLatCoord = [number, number]; // [lng, lat]
+export type LatLngCoord = [number, number];
+export type LngLatCoord = [number, number];
 
 export function toLngLat(position: LatLngCoord | { lat: number; lng: number }): LngLatCoord {
   if (Array.isArray(position)) {

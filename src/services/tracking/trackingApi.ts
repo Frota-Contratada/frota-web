@@ -78,16 +78,11 @@ export interface TrackingSnapshot {
 }
 
 export const trackingApi = {
-  /**
-   * Obtém o snapshot autoritativo da corrida (GET /corridas/:id/tracking)
-   */
+
   getSnapshot(rideId: number | string) {
     return apiClient.get<{ response: TrackingSnapshot }>(`/corridas/${rideId}/tracking`);
   },
 
-  /**
-   * Persiste lote de posições do veículo (POST /corridas/:id/tracking/positions/batch)
-   */
   postPositions(rideId: number | string, positions: TrackingPosition[]) {
     return apiClient.post<{ response: { accepted: TrackingPosition | null } }>(
       `/corridas/${rideId}/tracking/positions/batch`,
@@ -95,9 +90,6 @@ export const trackingApi = {
     );
   },
 
-  /**
-   * Atualiza posição do passageiro (POST /corridas/:id/tracking/passenger-position)
-   */
   postPassengerPosition(rideId: number | string, position: TrackingPosition) {
     return apiClient.post<{ response: { accepted: TrackingPosition | null } }>(
       `/corridas/${rideId}/tracking/passenger-position`,
@@ -105,9 +97,6 @@ export const trackingApi = {
     );
   },
 
-  /**
-   * Inicia espera do motorista (POST /corridas/:id/waiting/start)
-   */
   startWaiting(rideId: number | string, idempotencyKey: string = crypto.randomUUID()) {
     return apiClient.post<{ response: TrackingWaiting }>(
       `/corridas/${rideId}/waiting/start`,
@@ -116,9 +105,6 @@ export const trackingApi = {
     );
   },
 
-  /**
-   * Retoma corrida após espera (POST /corridas/:id/waiting/resume)
-   */
   resumeWaiting(rideId: number | string, idempotencyKey: string = crypto.randomUUID()) {
     return apiClient.post<{ response: TrackingWaiting }>(
       `/corridas/${rideId}/waiting/resume`,
@@ -127,9 +113,6 @@ export const trackingApi = {
     );
   },
 
-  /**
-   * Conclui a corrida (POST /corridas/:id/finish)
-   */
   finishTrip(rideId: number | string, idempotencyKey: string = crypto.randomUUID()) {
     return apiClient.post<{ response: { tripStatus: 'finished'; finishedAt: string } }>(
       `/corridas/${rideId}/finish`,
@@ -138,9 +121,6 @@ export const trackingApi = {
     );
   },
 
-  /**
-   * Solicita recálculo da rota com base no desvio (POST /corridas/:id/route/reroute)
-   */
   reroute(rideId: number | string, position: TrackingPosition, idempotencyKey: string = crypto.randomUUID()) {
     return apiClient.post<{ response: CanonicalRoute }>(
       `/corridas/${rideId}/route/reroute`,

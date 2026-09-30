@@ -48,7 +48,6 @@ export const ContractCreate = () => {
       const resultado = await contractIaApi.extrairDados(selectedFile);
       setIaResult(resultado);
 
-      // Preenche datas automaticamente se encontradas pela IA
       if (resultado.datasNormalizadas?.dataVigenciaInicio) {
         updateField('inicio', resultado.datasNormalizadas.dataVigenciaInicio);
       }
@@ -197,7 +196,6 @@ export const ContractCreate = () => {
             </div>
           )}
 
-          {/* Painel de Resultados da IA */}
           {iaResult && (
             <div
               style={{

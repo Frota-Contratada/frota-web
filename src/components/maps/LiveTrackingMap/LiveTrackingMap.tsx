@@ -56,9 +56,9 @@ const TRACKING_IDS = Object.freeze({
 function getTrafficColor(category?: string, delaySec = 0): string {
   const cat = (category || '').toUpperCase();
   if (cat === 'ROAD_CLOSURE' || cat === 'BLOCKED') return '#7F1D1D';
-  if (delaySec >= 600) return '#DC2626'; // Vermelho intenso
-  if (delaySec >= 180) return '#F97316'; // Laranja
-  return '#FACC15'; // Amarelo
+  if (delaySec >= 600) return '#DC2626';
+  if (delaySec >= 180) return '#F97316';
+  return '#FACC15';
 }
 
 export const LiveTrackingMap = ({
@@ -87,7 +87,6 @@ export const LiveTrackingMap = ({
   const [isOverviewActive, setIsOverviewActive] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Tecla ESC para sair de tela cheia
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isFullscreen) {
@@ -98,7 +97,6 @@ export const LiveTrackingMap = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isFullscreen]);
 
-  // Redimensionamento do mapa ao alternar tela cheia
   useEffect(() => {
     const timer = setTimeout(() => {
       mapRef.current?.resize();
@@ -106,7 +104,6 @@ export const LiveTrackingMap = ({
     return () => clearTimeout(timer);
   }, [isFullscreen]);
 
-  // Inicialização do mapa MapLibre GL
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -150,7 +147,6 @@ export const LiveTrackingMap = ({
       if (isMapLoadedRef.current || !map.getStyle()?.layers?.length) return;
       isMapLoadedRef.current = true;
 
-      // 1. Rota principal
       if (!map.getSource(TRACKING_IDS.routeSource)) {
         map.addSource(TRACKING_IDS.routeSource, {
           type: 'geojson',
@@ -206,7 +202,6 @@ export const LiveTrackingMap = ({
         });
       }
 
-      // 2. Linhas de tráfego / congestionamento
       if (!map.getSource(TRACKING_IDS.trafficSource)) {
         map.addSource(TRACKING_IDS.trafficSource, {
           type: 'geojson',
@@ -238,7 +233,6 @@ export const LiveTrackingMap = ({
         });
       }
 
-      // Eventos de clique na linha de trânsito
       map.on('mouseenter', TRACKING_IDS.trafficLine, () => {
         map.getCanvas().style.cursor = 'pointer';
       });
@@ -289,7 +283,6 @@ export const LiveTrackingMap = ({
     };
   }, []);
 
-  // Atualização das camadas de rota e tráfego
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !isMapLoadedRef.current) return;
@@ -297,7 +290,6 @@ export const LiveTrackingMap = ({
     if (routeCoordinates && routeCoordinates.length >= 2) {
       setSourceData(map, TRACKING_IDS.routeSource, lineFeature(routeCoordinates));
 
-      // Calcula geometrias de trânsito
       const trafficFeatures = trafficSections
         .map((sec) => {
           const start = Math.max(0, Number(sec.startIndex ?? sec.startPointIndex ?? 0));
@@ -328,12 +320,10 @@ export const LiveTrackingMap = ({
     }
   }, [routeCoordinates, trafficSections]);
 
-  // Marcadores de Origem, Destino e Paradas
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    // Origem
     if (origin && origin.lat && origin.lng) {
       if (!originMarkerRef.current) {
         const el = createHtmlElement('custom-map-pin', '<span class="map-origin-pin"></span>');
@@ -348,7 +338,6 @@ export const LiveTrackingMap = ({
       originMarkerRef.current = null;
     }
 
-    // Destino
     if (destination && destination.lat && destination.lng) {
       if (!destMarkerRef.current) {
         const el = createHtmlElement(
@@ -371,7 +360,6 @@ export const LiveTrackingMap = ({
       destMarkerRef.current = null;
     }
 
-    // Paradas
     stopMarkersRef.current.forEach((m) => m.remove());
     stopMarkersRef.current = stops.map((st, i) => {
       const el = createHtmlElement(
@@ -388,7 +376,6 @@ export const LiveTrackingMap = ({
     });
   }, [origin, destination, stops]);
 
-  // Marcador e animação fluida do Veículo com Heading
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !vehiclePosition || !vehiclePosition.lat || !vehiclePosition.lng) return;
@@ -426,7 +413,6 @@ export const LiveTrackingMap = ({
         .setLngLat([targetLng, targetLat])
         .addTo(map);
 
-      // Centraliza inicialmente no veículo se estiver no modo motorista
       if (cameraMode === 'driver') {
         map.easeTo({
           center: [targetLng, targetLat],
@@ -439,12 +425,10 @@ export const LiveTrackingMap = ({
       return;
     }
 
-    // Gira a seta de direção suavemente
     if (vehicleArrowRef.current) {
       vehicleArrowRef.current.style.transform = `rotate(${targetHeading}deg)`;
     }
 
-    // Interpolação suave de posição via requestAnimationFrame
     if (vehicleAnimationRef.current) cancelAnimationFrame(vehicleAnimationRef.current);
     const startPos = vehicleMarkerRef.current.getLngLat();
     const startedAt = performance.now();
@@ -452,14 +436,13 @@ export const LiveTrackingMap = ({
 
     const frame = (now: number) => {
       const linear = Math.min(1, (now - startedAt) / duration);
-      const eased = 1 - Math.pow(1 - linear, 3); // Easing cúbico
+      const eased = 1 - Math.pow(1 - linear, 3);
 
       const curLng = startPos.lng + (targetLng - startPos.lng) * eased;
       const curLat = startPos.lat + (targetLat - startPos.lat) * eased;
 
       vehicleMarkerRef.current?.setLngLat([curLng, curLat]);
 
-      // No modo motorista, a câmera segue rigorosamente a posição e o ângulo do carro
       if (cameraMode === 'driver') {
         map.easeTo({
           center: [curLng, curLat],
@@ -480,7 +463,6 @@ export const LiveTrackingMap = ({
     vehicleAnimationRef.current = requestAnimationFrame(frame);
   }, [vehiclePosition?.lat, vehiclePosition?.lng, vehiclePosition?.heading, cameraMode]);
 
-  // Transição de modo de câmera (Passageiro vs Motorista 3D)
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -500,7 +482,7 @@ export const LiveTrackingMap = ({
       });
       setIsOverviewActive(false);
     } else {
-      // Modo passageiro: visão 2D
+
       map.easeTo({
         pitch: 0,
         bearing: 0,
@@ -509,7 +491,6 @@ export const LiveTrackingMap = ({
     }
   }, [cameraMode]);
 
-  // Ação de visão geral da rota
   const handleShowRouteOverview = () => {
     const map = mapRef.current;
     if (!map || !routeCoordinates || routeCoordinates.length < 2) return;
@@ -527,7 +508,6 @@ export const LiveTrackingMap = ({
     }
   };
 
-  // Ação de centralizar no veículo
   const handleRecenterVehicle = () => {
     const map = mapRef.current;
     if (!map || !vehiclePosition) return;

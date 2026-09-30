@@ -164,11 +164,9 @@ export const BranchesList = () => {
     };
   }, [showToast]);
 
-  // Seções de filtro geradas dinamicamente com base nos dados reais retornados da API
   const filterSections: FilterSection[] = useMemo(() => {
     const sections: FilterSection[] = [];
 
-    // 1. UFs dinâmicas vindas da API
     const uniqueUfs = Array.from(
       new Set(branchesList.map((b) => b.state).filter(Boolean))
     ).sort();
@@ -180,7 +178,6 @@ export const BranchesList = () => {
       });
     }
 
-    // 2. Cidades dinâmicas vindas da API
     const uniqueCities = Array.from(
       new Set(branchesList.map((b) => b.city).filter(Boolean))
     ).sort();
@@ -192,7 +189,6 @@ export const BranchesList = () => {
       });
     }
 
-    // 3. Status dinâmico
     sections.push({
       title: 'Status',
       options: [
@@ -201,7 +197,6 @@ export const BranchesList = () => {
       ],
     });
 
-    // 4. Vínculos reais baseados nos dados da API
     sections.push({
       title: 'Vínculos',
       options: [
