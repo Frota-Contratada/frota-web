@@ -93,4 +93,14 @@ describe('contractIaApi - Integração com frota-ia (FastAPI)', () => {
       'Falha na extração com IA: O arquivo enviado está vazio ou corrompido.'
     );
   });
+
+  it('não reenvia o PDF ao host Web quando o endpoint de IA falha', async () => {
+    const fetchSpy = vi.fn().mockRejectedValue(new TypeError('Network error'));
+    globalThis.fetch = fetchSpy;
+    const pdfFile = new File(['%PDF-1.4 dummy content'], 'contrato_teste.pdf', { type: 'application/pdf' });
+
+    await expect(contractIaApi.extrairDados(pdfFile)).rejects.toThrow('Falha na comunicação com o microserviço de IA');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0][0]).not.toBe('/extrair/');
+  });
 });
