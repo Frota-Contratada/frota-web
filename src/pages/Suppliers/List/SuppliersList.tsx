@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction, type BadgeStatus } from '../../../components/common';
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
 import { supplierApi, extractListData, type FornecedorDto, type FornecedorBigNumbers } from '../../../services';
+import { exportToCsv } from '../../../utils/exportHelper';
 import styles from './SuppliersList.module.css';
 
 export type Supplier = {
@@ -277,7 +278,20 @@ export const SuppliersList = () => {
             setQuery(value);
             setCurrentPage(1);
           }}
-          onExport={() => showToast({ type: 'success', title: 'Exportação iniciada', description: 'A lista de fornecedores será preparada em instantes.' })}
+          onExport={() => {
+            const ok = exportToCsv('fornecedores-frota', filteredSuppliers, [
+              { key: 'id', label: 'Código' },
+              { key: 'name', label: 'Fornecedor' },
+              { key: 'document', label: 'CNPJ/CPF' },
+              { key: 'linkedBranches', label: 'Filiais atendidas' },
+              { key: 'linkedContracts', label: 'Contratos vigentes' },
+              { key: 'vehicles', label: 'Veículos ativos' },
+              { key: 'status', label: 'Status' },
+            ]);
+            showToast(ok
+              ? { type: 'success', title: 'Exportação concluída', description: 'O relatório em CSV foi baixado.' }
+              : { type: 'warning', title: 'Aviso', description: 'Nenhum fornecedor encontrado para exportar.' });
+          }}
           rightActions={<Button onClick={() => navigate('/terceiros/fornecedores/novo')}>Cadastrar fornecedor</Button>}
           filterSections={filterSections}
           selectedFilters={selectedFilters}

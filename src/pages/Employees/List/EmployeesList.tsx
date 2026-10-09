@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction, type BadgeStatus } from '../../../components/common';
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
 import { collaboratorApi, extractListData, type ColaboradorDto, type ColaboradorBigNumbers } from '../../../services';
+import { exportToCsv } from '../../../utils/exportHelper';
 import styles from './EmployeesList.module.css';
 
 export type Employee = {
@@ -257,13 +258,20 @@ export const EmployeesList = () => {
             setQuery(value);
             setCurrentPage(1);
           }}
-          onExport={() =>
-            showToast({
-              type: 'success',
-              title: 'Exportação iniciada',
-              description: 'A lista de colaboradores será preparada em instantes.',
-            })
-          }
+          onExport={() => {
+            const ok = exportToCsv('colaboradores-frota', filteredEmployees, [
+              { key: 'id', label: 'Código' },
+              { key: 'name', label: 'Colaborador' },
+              { key: 'email', label: 'E-mail' },
+              { key: 'branch', label: 'Filial' },
+              { key: 'role', label: 'Cargo' },
+              { key: 'profiles', label: 'Perfis', format: (value: string[]) => value.join(', ') },
+              { key: 'status', label: 'Status' },
+            ]);
+            showToast(ok
+              ? { type: 'success', title: 'Exportação concluída', description: 'O relatório em CSV foi baixado.' }
+              : { type: 'warning', title: 'Aviso', description: 'Nenhum colaborador encontrado para exportar.' });
+          }}
           filterSections={filterSections}
           selectedFilters={selectedFilters}
           onFilterChange={(values) => {

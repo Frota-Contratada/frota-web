@@ -24,6 +24,7 @@ import {
   type SolicitacaoDto,
 } from '../../../services';
 import { formatCnpj } from '../../../utils';
+import { exportToCsv } from '../../../utils/exportHelper';
 import styles from './BranchesList.module.css';
 
 export type Branch = {
@@ -293,13 +294,21 @@ export const BranchesList = () => {
             setQuery(value);
             setCurrentPage(1);
           }}
-          onExport={() =>
-            showToast({
-              type: 'success',
-              title: 'Exportação iniciada',
-              description: 'A lista de filiais será preparada em instantes.',
-            })
-          }
+          onExport={() => {
+            const ok = exportToCsv('filiais-frota', filteredBranches, [
+              { key: 'id', label: 'Código' },
+              { key: 'name', label: 'Filial' },
+              { key: 'cnpj', label: 'CNPJ' },
+              { key: 'address', label: 'Endereço' },
+              { key: 'city', label: 'Cidade' },
+              { key: 'state', label: 'UF' },
+              { key: 'zipCode', label: 'CEP' },
+              { key: 'status', label: 'Status' },
+            ]);
+            showToast(ok
+              ? { type: 'success', title: 'Exportação concluída', description: 'O relatório em CSV foi baixado.' }
+              : { type: 'warning', title: 'Aviso', description: 'Nenhuma filial encontrada para exportar.' });
+          }}
           rightActions={<Button onClick={() => navigate('/filiais/nova')}>Cadastrar filial</Button>}
           filterSections={filterSections}
           selectedFilters={selectedFilters}
