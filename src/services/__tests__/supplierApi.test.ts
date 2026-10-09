@@ -30,7 +30,7 @@ describe('supplierApi', () => {
     expect(result.response.id).toBe(101);
   });
 
-  it('calls list suppliers with query parameters', async () => {
+  it('lists branch suppliers with query parameters when no master profile is active', async () => {
     const mockList = {
       response: [
         { id: 1, nome: 'Mobilidade Prime', cnpjCpf: '35211434000115' },
@@ -43,7 +43,7 @@ describe('supplierApi', () => {
     const query = { nome: 'Mobilidade' };
     const result = await supplierApi.list(query);
 
-    expect(getSpy).toHaveBeenCalledWith('/fornecedor/admin', { query });
+    expect(getSpy).toHaveBeenCalledWith('/fornecedor/filial', { query });
     expect(result.response).toHaveLength(2);
   });
 

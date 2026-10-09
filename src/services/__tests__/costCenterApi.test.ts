@@ -34,13 +34,13 @@ describe('costCenterApi', () => {
     expect(result.response.centroCustoId).toBe(5);
   });
 
-  it('calls list with GET /centro-de-custo', async () => {
+  it('lists branch cost centers when no master profile is active', async () => {
     const mockList = { response: [{ filialId: 1, numero: 101, nome: 'Operações' }] };
     const getSpy = vi.spyOn(apiClient, 'get').mockResolvedValue(mockList);
 
     const result = await costCenterApi.list();
 
-    expect(getSpy).toHaveBeenCalledWith('/centro-de-custo');
+    expect(getSpy).toHaveBeenCalledWith('/centro-de-custo/filial', { query: undefined });
     expect(result.response).toEqual(mockList.response);
   });
 });

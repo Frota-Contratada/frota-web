@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction, type BadgeStatus } from '../../../components/common';
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
 import { supplierApi, extractListData, type FornecedorDto, type FornecedorBigNumbers } from '../../../services';
+import { exportToCsv } from '../../../utils/exportHelper';
 import styles from './SuppliersList.module.css';
 
 export type Supplier = {
@@ -18,7 +19,8 @@ export type Supplier = {
   status: BadgeStatus;
 };
 
-export const formatDocument = (document: string) => {
+export const formatDocument = (document: string | null | undefined) => {
+  if (!document) return 'Não informado';
   if (document.length === 14) {
     return document.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
   }
@@ -122,7 +124,7 @@ export const SuppliersList = () => {
             return {
               id: s.id,
               name: s.nome,
-              document: s.cnpjCpf,
+              document: s.cnpjCpf ?? '',
               filePath: s.foto || null,
               activatedAt: activationDate,
               deactivatedAt: s.ativo === false ? 'Sim' : null,
@@ -276,7 +278,20 @@ export const SuppliersList = () => {
             setQuery(value);
             setCurrentPage(1);
           }}
-          onExport={() => showToast({ type: 'success', title: 'Exportação iniciada', description: 'A lista de fornecedores será preparada em instantes.' })}
+          onExport={() => {
+            const ok = exportToCsv('fornecedores-frota', filteredSuppliers, [
+              { key: 'id', label: 'Código' },
+              { key: 'name', label: 'Fornecedor' },
+              { key: 'document', label: 'CNPJ/CPF' },
+              { key: 'linkedBranches', label: 'Filiais atendidas' },
+              { key: 'linkedContracts', label: 'Contratos vigentes' },
+              { key: 'vehicles', label: 'Veículos ativos' },
+              { key: 'status', label: 'Status' },
+            ]);
+            showToast(ok
+              ? { type: 'success', title: 'Exportação concluída', description: 'O relatório em CSV foi baixado.' }
+              : { type: 'warning', title: 'Aviso', description: 'Nenhum fornecedor encontrado para exportar.' });
+          }}
           rightActions={<Button onClick={() => navigate('/terceiros/fornecedores/novo')}>Cadastrar fornecedor</Button>}
           filterSections={filterSections}
           selectedFilters={selectedFilters}

@@ -4,7 +4,7 @@ import { useAuthStore } from '../../stores/authStore';
 export interface FornecedorDto {
   id: number;
   nome: string;
-  cnpjCpf: string;
+  cnpjCpf: string | null;
   foto?: string;
   dataAtivacao?: string;
   ativo?: boolean;
