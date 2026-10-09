@@ -177,6 +177,7 @@ export const SupplierDetails = () => {
                 className={styles.copyButton}
                 onClick={handleCopyCnpj}
                 title="Copiar número do documento"
+                disabled={!supplier.cnpjCpf}
               >
                 {copied ? <CheckIcon width={12} height={12} /> : null}
                 {copied ? 'Copiado!' : 'Copiar CNPJ'}
@@ -227,7 +228,7 @@ export const SupplierDetails = () => {
             <div className={styles.infoItem}>
               <span>Tipo de Pessoa</span>
               <strong>
-                {supplier.cnpjCpf.length > 11 ? 'Pessoa Jurídica (CNPJ)' : 'Pessoa Física (CPF)'}
+                {supplier.cnpjCpf ? (supplier.cnpjCpf.length > 11 ? 'Pessoa Jurídica (CNPJ)' : 'Pessoa Física (CPF)') : 'Não informado'}
               </strong>
             </div>
 

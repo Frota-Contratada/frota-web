@@ -18,7 +18,8 @@ export type Supplier = {
   status: BadgeStatus;
 };
 
-export const formatDocument = (document: string) => {
+export const formatDocument = (document: string | null | undefined) => {
+  if (!document) return 'Não informado';
   if (document.length === 14) {
     return document.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
   }
@@ -122,7 +123,7 @@ export const SuppliersList = () => {
             return {
               id: s.id,
               name: s.nome,
-              document: s.cnpjCpf,
+              document: s.cnpjCpf ?? '',
               filePath: s.foto || null,
               activatedAt: activationDate,
               deactivatedAt: s.ativo === false ? 'Sim' : null,
