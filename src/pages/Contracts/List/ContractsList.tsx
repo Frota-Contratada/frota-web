@@ -5,6 +5,7 @@ import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
 import CheckIcon from '../../../assets/icons/check.svg?react';
 import ErroIcon from '../../../assets/icons/erro.svg?react';
 import { contractApi, contractIaApi, extractListData, type ContratoDto, type ContratoBigNumbers } from '../../../services';
+import { exportToCsv } from '../../../utils/exportHelper';
 import styles from './ContractsList.module.css';
 
 export type Contract = {
@@ -283,7 +284,20 @@ export const ContractsList = () => {
             setQuery(value);
             setCurrentPage(1);
           }}
-          onExport={() => showToast({ type: 'success', title: 'Exportação iniciada', description: 'A lista de contratos será preparada em instantes.' })}
+          onExport={() => {
+            const ok = exportToCsv('contratos-frota', filteredContracts, [
+              { key: 'codigo', label: 'Contrato' },
+              { key: 'fornecedor', label: 'Fornecedor' },
+              { key: 'filial', label: 'Filial' },
+              { key: 'inicio', label: 'Início Vigência' },
+              { key: 'vencimento', label: 'Fim Vigência' },
+              { key: 'status', label: 'Status' },
+              { key: 'arquivo', label: 'Arquivo' },
+            ]);
+            showToast(ok
+              ? { type: 'success', title: 'Exportação concluída', description: 'O relatório em CSV foi baixado.' }
+              : { type: 'warning', title: 'Aviso', description: 'Nenhum contrato encontrado para exportar.' });
+          }}
           rightActions={
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <Button variant="outline" onClick={() => setIsModalOpen(true)}>Anexar PDF</Button>
