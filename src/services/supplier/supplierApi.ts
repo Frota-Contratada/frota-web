@@ -61,6 +61,11 @@ export interface FornecedorBigNumbersResponse {
   response: FornecedorBigNumbers;
 }
 
+export interface AtualizarFornecedorParams {
+  nome: string;
+  cnpjCpf: string;
+}
+
 export const supplierApi = {
   create(data: CriarFornecedorParams) {
     return apiClient.post<FornecedorResponse>('/fornecedor', data);
@@ -106,7 +111,7 @@ export const supplierApi = {
     return apiClient.patch<FornecedorResponse>(`/fornecedor/${id}/foto`, formData);
   },
 
-  update(id: number, data: { nome?: string; cnpjCpf?: string }) {
+  update(id: number, data: AtualizarFornecedorParams) {
     const user = useAuthStore.getState().user;
     const isAdminMaster =
       user?.profile === 'admin-master' ||

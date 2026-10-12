@@ -2,6 +2,11 @@ import { apiClient, type ApiQueryParams } from '../api/apiClient';
 import { normalizeUf } from '../../utils/brazilianStates';
 import { useAuthStore } from '../../stores/authStore';
 import { routingService } from '../maps/routingService';
+import type { PaginatedResponse } from '../../utils/apiHelpers';
+
+export type StatusSolicitacao = 'P' | 'A' | 'R' | 'C' | string;
+export type StatusCorrida = 'I' | 'F' | 'C' | 'A' | string;
+export type RespostaPergunta = 'SIM' | 'NAO';
 
 export interface EnderecoSolicitacaoDto {
   logradouro: string;
@@ -15,36 +20,42 @@ export interface EnderecoSolicitacaoDto {
   complemento?: string;
 }
 
-export interface MotivoSolicitacaoDto {
+export interface CatalogoItemDto {
   id: number;
   nome: string;
   descricao?: string;
 }
 
-export interface TipoCorridaDto {
-  id: number;
-  nome: string;
-  descricao?: string;
-}
+export type MotivoSolicitacaoDto = CatalogoItemDto;
+export type TipoCorridaDto = CatalogoItemDto;
+export type TipoVeiculoDto = CatalogoItemDto;
 
-export interface TipoVeiculoDto {
-  id: number;
-  nome: string;
-  descricao?: string;
+export interface RespostaPerguntaRequest {
+  contratoId: number;
+  perguntaId: number;
+  resposta: RespostaPergunta;
 }
 
 export interface SimularSolicitacaoParams {
   dataCorrida: string;
   tipoCorridaId: number;
+  tipoVeiculoId?: number;
   origem: EnderecoSolicitacaoDto;
   destino: EnderecoSolicitacaoDto;
   paradas?: EnderecoSolicitacaoDto[];
+  cpfsAcompanhantes?: string[];
+  respostasPerguntas?: RespostaPerguntaRequest[];
 }
 
 export interface SimulacaoSolicitacaoDto {
-  distanciaKm: number;
-  duracaoMinutos: number;
+  distanciaEstimadaKm: number;
+  duracaoEstimadaMinutos: number;
+  dataChegadaEstimada?: string;
   valorEstimado: number;
+  fornecedorId?: number;
+  fornecedorNome?: string;
+  distanciaKm?: number;
+  duracaoMinutos?: number;
 }
 
 export interface CriarSolicitacaoParams {
@@ -59,6 +70,15 @@ export interface CriarSolicitacaoParams {
   centrosCustoIds: number[];
   passageiros?: { nome: string; cpf?: string; solicitante?: boolean }[];
   cpfsAcompanhantes?: string[];
+  respostasPerguntas?: RespostaPerguntaRequest[];
+}
+
+export interface ParadaDto {
+  ordem: number;
+  endereco: EnderecoSolicitacaoDto;
+  tempoParadaMinutos?: number;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface SolicitacaoCentroCustoDto {
@@ -68,12 +88,28 @@ export interface SolicitacaoCentroCustoDto {
   aprovadorId: number;
   aprovadorNome?: string;
   statusAprovacao: string;
+  motivoRecusa?: CatalogoItemDto;
 }
 
 export interface PassageiroDto {
   cpf: string;
   nome?: string;
   solicitante: boolean;
+}
+
+export type PassageiroSolicitacaoDto = PassageiroDto;
+
+export interface CorridaSolicitacaoDto {
+  id: number;
+  status: StatusCorrida;
+  dataInicio: string;
+  dataFim?: string;
+  motoristaId: number;
+  motoristaNome?: string;
+  placaVeiculo: string;
+  kmPercorrido: number;
+  valorFinal: number;
+  emAndamento: boolean;
 }
 
 export interface CorridaPessoaDto {
@@ -108,9 +144,23 @@ export interface CorridaDto {
   veiculo?: CorridaVeiculoDto;
 }
 
+export interface ViagemAgendadaDto {
+  solicitacaoId: number;
+  corridaId?: string;
+  dataHoraPartida: string;
+  dataChegadaEstimada?: string;
+  origem: string;
+  destino: string;
+  status: 'AGENDADA' | 'EM_ANDAMENTO' | string;
+  tipoCorrida: string;
+  valorEstimado: number;
+  motoristaNome?: string;
+  placaVeiculo?: string;
+}
+
 export interface SolicitacaoDto {
   id: number;
-  status: string;
+  status: StatusSolicitacao;
   dataCriacao?: string;
   dataCorrida: string;
   dataChegadaEstimada?: string;
@@ -118,23 +168,26 @@ export interface SolicitacaoDto {
   distanciaEstimadaKm?: number;
   distanciaKm?: number;
   valorEstimado: number;
-  tipoCorrida: TipoCorridaDto;
-  tipoVeiculo?: TipoVeiculoDto;
+  tipoCorrida: CatalogoItemDto;
+  tipoVeiculo?: CatalogoItemDto;
   solicitanteId?: number;
   solicitanteNome?: string;
   fornecedorId?: number;
   fornecedorNome?: string;
   origem: EnderecoSolicitacaoDto;
   destino: EnderecoSolicitacaoDto;
-  paradas?: EnderecoSolicitacaoDto[];
-  motivoSolicitacao?: MotivoSolicitacaoDto;
-  motivo?: MotivoSolicitacaoDto;
+  paradas?: Array<ParadaDto | EnderecoSolicitacaoDto>;
+  motivoSolicitacao?: CatalogoItemDto;
+  motivo?: CatalogoItemDto;
+  motivoCancelamento?: CatalogoItemDto;
+  motivoReprovacao?: CatalogoItemDto;
+  motivoRecusaFornecedor?: string;
   centrosCusto?: SolicitacaoCentroCustoDto[];
   CentrosCusto?: SolicitacaoCentroCustoDto[];
-  passageiros?: PassageiroDto[];
-  Passageiros?: PassageiroDto[];
-  corrida?: CorridaDto;
-  Corrida?: CorridaDto[];
+  passageiros?: PassageiroSolicitacaoDto[];
+  Passageiros?: PassageiroSolicitacaoDto[];
+  corrida?: CorridaSolicitacaoDto | CorridaDto;
+  Corrida?: Array<CorridaSolicitacaoDto | CorridaDto>;
   emAndamento?: boolean;
   cancelavel?: boolean;
   createdAt?: string;
@@ -144,7 +197,7 @@ export interface CancelarSolicitacaoParams {
   motivoCancelamentoId: number;
 }
 
-export const FALLBACK_MOTIVOS: Record<string, MotivoSolicitacaoDto[]> = {
+export const FALLBACK_MOTIVOS: Record<string, CatalogoItemDto[]> = {
   cancelamento: [
     { id: 11, nome: 'Mudança de agenda' },
     { id: 12, nome: 'Não preciso mais da corrida' },
@@ -188,18 +241,18 @@ function sanitizeEndereco(endereco: EnderecoSolicitacaoDto): EnderecoSolicitacao
 }
 
 export const ridesApi = {
-  async getMotivos(tipo?: 'solicitacao' | 'cancelamento' | 'recusa'): Promise<{ response: MotivoSolicitacaoDto[] }> {
+  async getMotivos(tipo?: 'solicitacao' | 'cancelamento' | 'recusa'): Promise<{ response: CatalogoItemDto[] }> {
     const user = useAuthStore.getState().user;
     const isAdminMaster = user?.profile === 'admin-master' || user?.perfis?.some((p) => p.tipoPerfil === 'admin-master');
 
     if (isAdminMaster) {
       try {
-        const adminRes = await apiClient.get<{ response: { data: MotivoSolicitacaoDto[] } | MotivoSolicitacaoDto[] }>('/motivo/admin', {
+        const adminRes = await apiClient.get<{ response: { data: CatalogoItemDto[] } | CatalogoItemDto[] }>('/motivo/admin', {
           query: tipo ? { tipo } : undefined,
         });
         const list = Array.isArray(adminRes?.response)
           ? adminRes.response
-          : (adminRes?.response as any)?.data || [];
+          : (adminRes?.response as { data?: CatalogoItemDto[] })?.data || [];
         if (list.length > 0) {
           return { response: list };
         }
@@ -210,7 +263,7 @@ export const ridesApi = {
     }
 
     try {
-      return await apiClient.get<{ response: MotivoSolicitacaoDto[] }>('/solicitacoes/motivos', {
+      return await apiClient.get<{ response: CatalogoItemDto[] }>('/solicitacoes/motivos', {
         query: tipo ? { tipo } : undefined,
       });
     } catch {
@@ -227,31 +280,38 @@ export const ridesApi = {
   },
 
   getTiposCorrida() {
-    return apiClient.get<{ response: TipoCorridaDto[] }>('/solicitacoes/tipos-corrida');
+    return apiClient.get<{ response: CatalogoItemDto[] }>('/solicitacoes/tipos-corrida');
   },
 
   getTiposVeiculo() {
-    return apiClient.get<{ response: TipoVeiculoDto[] }>('/solicitacoes/tipos-veiculo');
+    return apiClient.get<{ response: CatalogoItemDto[] }>('/solicitacoes/tipos-veiculo');
   },
 
   getViagens(query?: { inicio?: string; fim?: string; dataInicio?: string; dataFim?: string }) {
     const mappedQuery: Record<string, string | number | boolean | null | undefined> = {};
-    const inicio = query?.inicio || query?.dataInicio;
-    const fim = query?.fim || query?.dataFim;
-    if (inicio) mappedQuery.inicio = inicio;
-    if (fim) mappedQuery.fim = fim;
-    return apiClient.get<{ response: SolicitacaoDto[] }>('/solicitacoes/viagens', {
+    const now = new Date();
+    const firstDay = new Date(now.setDate(now.getDate() - now.getDay()));
+    const lastDay = new Date(now.setDate(now.getDate() - now.getDay() + 6));
+    const inicio = query?.inicio || query?.dataInicio || firstDay.toISOString();
+    const fim = query?.fim || query?.dataFim || lastDay.toISOString();
+    mappedQuery.inicio = inicio;
+    mappedQuery.fim = fim;
+
+    return apiClient.get<{ response: ViagemAgendadaDto[] }>('/solicitacoes/viagens', {
       query: mappedQuery,
     });
   },
 
   async simular(data: SimularSolicitacaoParams): Promise<{ response: SimulacaoSolicitacaoDto }> {
-    const sanitizedData: SimularSolicitacaoParams = {
-      ...data,
+    const sanitizedData = {
       dataCorrida: data.dataCorrida ? new Date(data.dataCorrida).toISOString() : new Date().toISOString(),
+      tipoCorridaId: data.tipoCorridaId,
+      tipoVeiculoId: data.tipoVeiculoId,
       origem: sanitizeEndereco(data.origem),
       destino: sanitizeEndereco(data.destino),
       paradas: data.paradas ? data.paradas.map(sanitizeEndereco) : [],
+      cpfsAcompanhantes: data.cpfsAcompanhantes ?? [],
+      respostasPerguntas: data.respostasPerguntas ?? [],
     };
 
     const computeLocalSimulation = () => {
@@ -263,6 +323,8 @@ export const ridesApi = {
       const valorEstimado = Math.round((8.5 + routing.distanceKm * 3.2) * 100) / 100;
       return {
         response: {
+          distanciaEstimadaKm: routing.distanceKm,
+          duracaoEstimadaMinutos: routing.durationMinutes,
           distanciaKm: routing.distanceKm,
           duracaoMinutos: routing.durationMinutes,
           valorEstimado,
@@ -271,29 +333,51 @@ export const ridesApi = {
     };
 
     try {
-      return await apiClient.post<{ response: SimulacaoSolicitacaoDto }>('/solicitacoes/simulacao', sanitizedData);
+      const res = await apiClient.post<{ response: SimulacaoSolicitacaoDto }>('/solicitacoes/simulacao', sanitizedData);
+      if (res?.response) {
+        const distancia = res.response.distanciaEstimadaKm ?? res.response.distanciaKm ?? 0;
+        const duracao = res.response.duracaoEstimadaMinutos ?? res.response.duracaoMinutos ?? 0;
+        res.response.distanciaEstimadaKm = distancia;
+        res.response.duracaoEstimadaMinutos = duracao;
+        res.response.distanciaKm = distancia;
+        res.response.duracaoMinutos = duracao;
+      }
+      return res;
     } catch {
       return computeLocalSimulation();
     }
   },
 
   create(data: CriarSolicitacaoParams) {
-    const payload: CriarSolicitacaoParams = {
-      ...data,
+    let cpfs = data.cpfsAcompanhantes;
+    if (!cpfs && data.passageiros) {
+      cpfs = data.passageiros
+        .filter((p) => !p.solicitante && p.cpf)
+        .map((p) => p.cpf!.replace(/\D/g, ''))
+        .filter((c) => c.length === 11);
+    }
+
+    const payload = {
       dataCorrida: data.dataCorrida ? new Date(data.dataCorrida).toISOString() : new Date().toISOString(),
+      tipoCorridaId: data.tipoCorridaId,
+      tipoVeiculoId: data.tipoVeiculoId,
+      motivoSolicitacaoId: data.motivoSolicitacaoId,
       origem: sanitizeEndereco(data.origem),
       destino: sanitizeEndereco(data.destino),
       paradas: data.paradas ? data.paradas.map(sanitizeEndereco) : [],
+      centrosCustoIds: data.centrosCustoIds,
+      cpfsAcompanhantes: cpfs ?? [],
+      respostasPerguntas: data.respostasPerguntas ?? [],
     };
     return apiClient.post<{ response: SolicitacaoDto }>('/solicitacoes', payload);
   },
 
   list(query?: ApiQueryParams) {
-    return apiClient.get<{ response: SolicitacaoDto[] | { data: SolicitacaoDto[] } }>('/solicitacoes', { query });
+    return apiClient.get<{ response: PaginatedResponse<SolicitacaoDto> | SolicitacaoDto[] }>('/solicitacoes', { query });
   },
 
   listAprovadorPendentes(query?: ApiQueryParams) {
-    return apiClient.get<{ response: SolicitacaoDto[] | { data: SolicitacaoDto[] } }>('/solicitacoes/aprovador/pendentes', { query });
+    return apiClient.get<{ response: PaginatedResponse<SolicitacaoDto> | SolicitacaoDto[] }>('/solicitacoes/aprovador/pendentes', { query });
   },
 
   getById(id: number) {
@@ -317,10 +401,10 @@ export const ridesApi = {
     });
   },
 
-  rejeitar(id: number, motivoRecusaId?: number): Promise<{ response: SolicitacaoDto }> {
+  rejeitar(id: number, motivoRecusaId: number = 1): Promise<{ response: SolicitacaoDto }> {
     return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/aprovacao`, {
-      decisao: 'RECUSAR',
-      motivoRecusaId: motivoRecusaId || 1,
+      decisao: 'REPROVAR',
+      motivoRecusaId,
     });
   },
 
@@ -328,7 +412,7 @@ export const ridesApi = {
     return this.aprovar(requestId, fornecedorId);
   },
 
-  rejectRequest(requestId: number, motivoRecusaId?: number) {
+  rejectRequest(requestId: number, motivoRecusaId: number = 1) {
     return this.rejeitar(requestId, motivoRecusaId);
   },
 
@@ -342,11 +426,11 @@ export const ridesApi = {
   },
 
   getRequest(requestId: number) {
-    return apiClient.get<{ response: SolicitacaoDto }>(`/solicitacoes/${requestId}`);
+    return this.getById(requestId);
   },
 
   createRequest(payload: CriarSolicitacaoParams) {
-    return apiClient.post<{ response: SolicitacaoDto }>('/solicitacoes', payload);
+    return this.create(payload);
   },
 
   cancelRequest(requestId: number, motivoId = 1) {
@@ -360,5 +444,11 @@ export const ridesApi = {
       veiculoId: params.veiculoId,
     });
   },
-};
 
+  decisaoFornecedor(
+    id: number,
+    data: { decisao: 'REATRIBUIR'; motoristaId: number; veiculoId: number } | { decisao: 'RECUSAR'; motivo: string }
+  ) {
+    return apiClient.post<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/decisao-fornecedor`, data);
+  },
+};

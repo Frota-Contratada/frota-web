@@ -3,19 +3,31 @@ import { useAuthStore } from '../../stores/authStore';
 
 export interface VincularAprovadorParams {
   usuarioId: number;
-  filialId: number;
+  filialId?: number;
   centroCustoId: number;
 }
 
 export interface AprovadorCentroCustoDto {
-  usuarioId: number;
-  filialId: number;
-  centroCustoId: number;
-  dataVinculo: string;
+  usuarioId?: number;
+  filialId?: number;
+  centroCustoId?: number;
+  id?: number;
+  nome?: string;
+  email?: string;
+  dataVinculo?: string;
+  [key: string]: unknown;
 }
 
 export interface VincularAprovadorResponse {
   response: AprovadorCentroCustoDto;
+}
+
+export interface CentroCustoAdminDto {
+  id: number;
+  filialId: number;
+  nome: string;
+  dataAtivacao: string;
+  dataDesativacao?: string;
 }
 
 export interface CentroCustoDto {
@@ -35,12 +47,15 @@ export interface PaginatedCentrosCusto {
 }
 
 export interface CentrosCustoListResponse {
-  response: PaginatedCentrosCusto | CentroCustoDto[];
+  response: PaginatedCentrosCusto | CentroCustoDto[] | CentroCustoAdminDto[];
 }
 
 export interface CentroCustoQueryParams {
   filialId?: number;
   ativo?: boolean;
+  nome?: string;
+  page?: number;
+  limit?: number;
 }
 
 function listAdmin(query?: CentroCustoQueryParams) {
@@ -64,18 +79,18 @@ function list(query?: CentroCustoQueryParams) {
   if (isAdminMaster) {
     return listAdmin(query);
   }
-  return listFilial(query).catch(() => {
+  return listFilial(query);
+}
 
-    return apiClient.get<CentrosCustoListResponse>('/centro-de-custo', {
-      query: query as Record<string, string | number | boolean | null | undefined>,
-    });
-  });
+function listMinhas() {
+  return apiClient.get<CentrosCustoListResponse>('/centro-de-custo');
 }
 
 export const costCenterApi = {
   list,
   listAdmin,
   listFilial,
+  listMinhas,
 
   vincularAprovador(data: VincularAprovadorParams) {
     return apiClient.put<VincularAprovadorResponse>(`/usuario/colaborador/${data.usuarioId}/perfis/aprovador`, {
@@ -83,4 +98,3 @@ export const costCenterApi = {
     });
   },
 };
-

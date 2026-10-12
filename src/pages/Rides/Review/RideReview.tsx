@@ -10,6 +10,7 @@ import { ridesApi, supplierApi, extractListData, type SolicitacaoDto, type Forne
 import styles from './RideReview.module.css';
 
 import { usePermissions } from '../../../hooks/usePermissions';
+import { useAuthStore } from '../../../stores/authStore';
 
 type ReviewStep = 1 | 2 | 3;
 
@@ -17,12 +18,6 @@ type InfoItemProps = {
   label: string;
   value: string;
 };
-
-const steps: { id: ReviewStep; title: string }[] = [
-  { id: 1, title: 'Informações da corrida' },
-  { id: 2, title: 'Selecionar fornecedor' },
-  { id: 3, title: 'Revisar tudo' },
-];
 
 const InfoItem = ({ label, value }: InfoItemProps) => (
   <div className={styles.infoItem}>
@@ -35,6 +30,7 @@ export const RideReview = () => {
   const { requestId } = useParams();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const currentUser = useAuthStore((state) => state.user);
   const { can, isRequester, isAdminMaster } = usePermissions();
 
   const [solicitacao, setSolicitacao] = useState<SolicitacaoDto | null>(null);
@@ -43,6 +39,32 @@ export const RideReview = () => {
   const [currentStep, setCurrentStep] = useState<ReviewStep>(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isPrimaryApprover = useMemo(() => {
+    if (!solicitacao || !currentUser?.id) return true;
+    const centros = solicitacao.centrosCusto || solicitacao.CentrosCusto || [];
+    if (centros.length <= 1) return true;
+    const primeiroCentro = centros[0];
+    const userIdNum = Number(currentUser.id);
+    return Boolean(
+      primeiroCentro?.aprovadorId != null &&
+      (primeiroCentro.aprovadorId === userIdNum || String(primeiroCentro.aprovadorId) === currentUser.id)
+    );
+  }, [solicitacao, currentUser]);
+
+  const reviewSteps = useMemo<{ id: number; title: string }[]>(() => {
+    if (isPrimaryApprover) {
+      return [
+        { id: 1, title: 'Informações da corrida' },
+        { id: 2, title: 'Selecionar fornecedor' },
+        { id: 3, title: 'Revisar tudo' },
+      ];
+    }
+    return [
+      { id: 1, title: 'Informações da corrida' },
+      { id: 2, title: 'Revisar tudo' },
+    ];
+  }, [isPrimaryApprover]);
 
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [cancelReasons, setCancelReasons] = useState<MotivoSolicitacaoDto[]>([]);
@@ -147,14 +169,16 @@ export const RideReview = () => {
     return pts;
   }, [solicitacao, originText, destinationText]);
 
-  const goNext = () => setCurrentStep((step) => Math.min(step + 1, 3) as ReviewStep);
+  const goNext = () => setCurrentStep((step) => Math.min(step + 1, reviewSteps.length) as ReviewStep);
   const goBack = () => setCurrentStep((step) => Math.max(step - 1, 1) as ReviewStep);
 
   const handleApprove = async () => {
     if (!solicitacao) return;
+
     try {
       setIsSubmitting(true);
-      await ridesApi.aprovar(solicitacao.id, selectedSupplierId || undefined);
+      const fornecedorFinal = isPrimaryApprover ? (selectedSupplierId || undefined) : undefined;
+      await ridesApi.aprovar(solicitacao.id, fornecedorFinal);
       showToast({
         type: 'success',
         title: 'Solicitação aprovada',
@@ -251,7 +275,7 @@ export const RideReview = () => {
   return (
     <div className={styles.page}>
       <nav className={styles.stepper} aria-label="Etapas da revisão">
-        {steps.map((step) => {
+        {reviewSteps.map((step) => {
           const isActive = step.id === currentStep;
           const isDone = step.id < currentStep;
 
@@ -317,7 +341,7 @@ export const RideReview = () => {
             </>
           )}
 
-          {currentStep === 2 && (
+          {isPrimaryApprover && currentStep === 2 && (
             <>
               <div className={styles.cardHeader}>
                 <div>
@@ -354,7 +378,7 @@ export const RideReview = () => {
             </>
           )}
 
-          {currentStep === 3 && (
+          {((isPrimaryApprover && currentStep === 3) || (!isPrimaryApprover && currentStep === 2)) && (
             <>
               <div className={styles.cardHeader}>
                 <div>
@@ -365,7 +389,7 @@ export const RideReview = () => {
 
               <div className={styles.reviewSummaryGrid}>
                 <InfoItem label="Solicitante" value={solicitacao.solicitanteNome || 'Colaborador Solicitante'} />
-                <InfoItem label="Fornecedor selecionado" value={selectedSupplierName} />
+                {isPrimaryApprover && <InfoItem label="Fornecedor selecionado" value={selectedSupplierName} />}
                 <InfoItem
                   label="Data da corrida"
                   value={solicitacao.dataCorrida ? new Date(solicitacao.dataCorrida).toLocaleString('pt-BR') : '—'}
@@ -403,7 +427,7 @@ export const RideReview = () => {
             <div className={styles.primaryActions}>
               {solicitacao.status !== 'C' && solicitacao.status !== 'R' && solicitacao.status !== 'A' ? (
                 <>
-                  {currentStep < 3 ? (
+                  {currentStep < reviewSteps.length ? (
                     <Button onClick={goNext}>Próximo</Button>
                   ) : can('rides:approve') ? (
                     <Button

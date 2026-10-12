@@ -1,11 +1,19 @@
 import { apiClient } from '../api/apiClient';
 import { useAuthStore } from '../../stores/authStore';
 
+export interface ColaboradorSummaryDto {
+  id: number;
+  nome: string;
+  email: string;
+  cargo?: string;
+  fotoPerfil?: string;
+}
+
 export interface ColaboradorDto {
   id: number;
   nome: string;
   email: string;
-  cpf: string;
+  cpf?: string;
   cargo?: string;
   dataAtivacao?: string;
   filialId?: number;
@@ -13,6 +21,7 @@ export interface ColaboradorDto {
   centroCustoId?: number;
   centroCustoNome?: string;
   centroCustoCodigo?: string;
+  fotoPerfil?: string;
   perfis?: Array<{
     tipoPerfil: string;
     dataInicioVigencia: string;
@@ -26,6 +35,8 @@ export interface ColaboradoresAdminQueryParams {
   filialId?: number;
   centroCustoId?: number;
   perfil?: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface ColaboradoresFilialQueryParams {
@@ -33,6 +44,8 @@ export interface ColaboradoresFilialQueryParams {
   cpf?: string;
   centroCustoId?: number;
   perfil?: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface ColaboradorBigNumbers {
@@ -51,15 +64,22 @@ export interface ColaboradorBigNumbersResponse {
 export interface PaginatedColaboradores {
   totalCount: number;
   hasNextPage: boolean;
-  data: ColaboradorDto[];
+  data: ColaboradorDto[] | ColaboradorSummaryDto[];
 }
 
 export interface ColaboradoresListResponse {
-  response: PaginatedColaboradores | ColaboradorDto[];
+  response: PaginatedColaboradores | ColaboradorDto[] | ColaboradorSummaryDto[];
+}
+
+export interface ColaboradorResponse {
+  response: ColaboradorDto;
 }
 
 export interface PerfisColaboradorResponse {
   response: {
+    id?: number;
+    filialId?: number;
+    centroCustoId?: number;
     perfis: Array<{
       tipoPerfil: string;
       dataInicioVigencia: string;
@@ -88,10 +108,11 @@ export const collaboratorApi = {
 
   list(query?: ColaboradoresAdminQueryParams) {
     const user = useAuthStore.getState().user;
-    const isAdminMaster =
-      user?.profile === 'admin-master' ||
-      user?.perfis?.some((p) => p.tipoPerfil === 'admin-master' || p.tipoPerfil === 'ADMINISTRADOR_MATRIZ');
-    return isAdminMaster ? this.listAdmin(query) : this.listFilial(query);
+    const isFilialOnly =
+      user?.profile === 'admin-filial' ||
+      (user?.perfis?.some((p) => p.tipoPerfil === 'ADMINISTRADOR_FILIAL') &&
+        !user?.perfis?.some((p) => p.tipoPerfil === 'ADMINISTRADOR_MATRIZ' || p.tipoPerfil === 'admin-master'));
+    return isFilialOnly ? this.listFilial(query) : this.listAdmin(query);
   },
 
   getAdminBigNumbers(query?: { filialId?: number; centroCustoId?: number; perfil?: string }) {
@@ -111,19 +132,18 @@ export const collaboratorApi = {
   },
 
   turnSolicitante(id: number, data: VincularCentroCustoBody) {
-    return apiClient.put<void>(`/usuario/colaborador/${id}/perfis/solicitante`, {
+    return apiClient.put<ColaboradorResponse>(`/usuario/colaborador/${id}/perfis/solicitante`, {
       centroCustoId: data.centroCustoId,
     });
   },
 
   turnAprovador(id: number, data: VincularCentroCustoBody) {
-    return apiClient.put<void>(`/usuario/colaborador/${id}/perfis/aprovador`, {
+    return apiClient.put<ColaboradorResponse>(`/usuario/colaborador/${id}/perfis/aprovador`, {
       centroCustoId: data.centroCustoId,
     });
   },
 
   turnSolicitanteEmergencia(id: number, _data?: VincularCentroCustoBody) {
-    return apiClient.put<void>(`/usuario/colaborador/${id}/perfis/solicitante-emergencia`, {});
+    return apiClient.put<ColaboradorResponse>(`/usuario/colaborador/${id}/perfis/solicitante-emergencia`, {});
   },
 };
-

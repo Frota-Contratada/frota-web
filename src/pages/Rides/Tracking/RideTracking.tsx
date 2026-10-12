@@ -4,6 +4,7 @@ import { Button, LoadingState, StatCard, useToast } from '../../../components/co
 import { LiveTrackingMap, type CameraMode } from '../../../components/maps';
 import { AcompanhamentoEmbed } from '../../../components/tracking';
 import {
+  ridesApi,
   trackingApi,
   TrackingSocketClient,
   type TrackingSnapshot,
@@ -39,7 +40,26 @@ export const RideTracking = () => {
       else setIsRefreshing(true);
       setLoadError(null);
 
-      const res = await trackingApi.getSnapshot(rideId);
+      let res;
+      try {
+        res = await trackingApi.getSnapshot(rideId);
+      } catch (err: any) {
+        if (Number(rideId) > 0) {
+          try {
+            const solRes = await ridesApi.getById(Number(rideId));
+            const tripId = solRes.response?.corrida?.id ?? solRes.response?.Corrida?.[0]?.id;
+            if (tripId && String(tripId) !== String(rideId)) {
+              res = await trackingApi.getSnapshot(String(tripId));
+            } else {
+              throw err;
+            }
+          } catch {
+            throw err;
+          }
+        } else {
+          throw err;
+        }
+      }
       if (res && res.response) {
         setSnapshot(res.response);
         setLastUpdated(new Date());

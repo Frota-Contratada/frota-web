@@ -40,6 +40,7 @@ export interface ExecRideRow {
   email: string;
   destino: string;
   status: BadgeStatus;
+  statusLabel?: string;
   distanciaEstimada: string;
   distanciaPercorrida: string;
   preco: string;
@@ -66,7 +67,7 @@ const columns: ColumnDef<ExecRideRow>[] = [
     key: 'status',
     header: 'Status',
     sortable: true,
-    render: (_, row) => <StatusBadge status={row.status} />,
+    render: (_, row) => <StatusBadge status={row.status} label={row.statusLabel} />,
   },
   { key: 'distanciaEstimada', header: 'Distância estimada' },
   { key: 'distanciaPercorrida', header: 'Distância percorrida' },
@@ -124,10 +125,29 @@ export const ExecutiveView = () => {
   const tableData: ExecRideRow[] = useMemo(() => {
     return rides.map((r) => {
       const rawStatus = (r.status || '').toUpperCase();
+      const corridaStatus = (r.corrida?.status || '').toUpperCase();
       let badgeStatus: BadgeStatus = 'em_andamento';
-      if (rawStatus === 'CONCLUIDA' || rawStatus === 'FINALIZADA') badgeStatus = 'aprovado';
-      else if (rawStatus === 'CANCELADA' || rawStatus === 'RECUSADA') badgeStatus = 'cancelado';
-      else if (rawStatus === 'PENDENTE' || rawStatus === 'AGUARDANDO_APROVACAO') badgeStatus = 'pendente';
+      let statusLabel = 'Em andamento';
+
+      if (corridaStatus === 'F' || rawStatus === 'CONCLUIDA' || rawStatus === 'FINALIZADA') {
+        badgeStatus = 'aprovado';
+        statusLabel = 'Concluída';
+      } else if (rawStatus === 'C' || corridaStatus === 'C' || rawStatus.includes('CANCEL')) {
+        badgeStatus = 'cancelado';
+        statusLabel = 'Cancelada';
+      } else if (rawStatus === 'R' || rawStatus.includes('RECUS') || rawStatus.includes('REPROV')) {
+        badgeStatus = 'cancelado';
+        statusLabel = 'Recusada';
+      } else if (corridaStatus === 'I' || rawStatus.includes('ANDAMENTO')) {
+        badgeStatus = 'em_andamento';
+        statusLabel = 'Em andamento';
+      } else if (rawStatus === 'A' || rawStatus.includes('APROV') || corridaStatus === 'A') {
+        badgeStatus = 'aprovado';
+        statusLabel = 'Aprovada';
+      } else if (rawStatus === 'P' || rawStatus.includes('PEND') || rawStatus.includes('AGUARD')) {
+        badgeStatus = 'pendente';
+        statusLabel = 'Pendente';
+      }
 
       const valorCalculado = r.corrida?.valorFinal ?? r.valorEstimado;
       const precoFmt = valorCalculado != null && !isNaN(Number(valorCalculado))
@@ -141,6 +161,7 @@ export const ExecutiveView = () => {
         email: r.passageiros?.[0]?.cpf ? `CPF: ${r.passageiros[0].cpf}` : '—',
         destino: r.destino?.cidade ? `${r.destino.cidade} (${r.destino.logradouro || ''})` : (r.destino?.logradouro || '—'),
         status: badgeStatus,
+        statusLabel,
         distanciaEstimada: (r.distanciaEstimadaKm ?? r.distanciaKm) ? `${r.distanciaEstimadaKm ?? r.distanciaKm} km` : '—',
         distanciaPercorrida: r.corrida?.kmPercorrido ? `${r.corrida.kmPercorrido} km` : '—',
         preco: precoFmt,

@@ -27,14 +27,16 @@ export interface CriarFilialParams {
 }
 
 export interface AtualizarFilialParams {
-  nome?: string;
-  endereco?: EnderecoDto;
+  nome: string;
+  endereco: EnderecoDto;
 }
 
 export interface BuscarFiliaisQueryParams {
   nome?: string;
   cnpj?: string;
   endereco?: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface FilialResponse {

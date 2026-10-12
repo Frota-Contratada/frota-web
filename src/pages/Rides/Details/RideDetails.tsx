@@ -92,10 +92,13 @@ export const RideDetails = () => {
 
     if (solicitacao.paradas && Array.isArray(solicitacao.paradas)) {
       solicitacao.paradas.forEach((p, index) => {
-        if (p.latitude && p.longitude) {
+        const paradaObj = p as any;
+        const lat = paradaObj.endereco?.latitude ?? paradaObj.latitude;
+        const lng = paradaObj.endereco?.longitude ?? paradaObj.longitude;
+        if (lat && lng) {
           points.push({
-            lat: Number(p.latitude),
-            lng: Number(p.longitude),
+            lat: Number(lat),
+            lng: Number(lng),
             label: `Parada ${index + 1}`,
           });
         }
@@ -146,19 +149,28 @@ export const RideDetails = () => {
   const valorFinal = corrida?.valorFinal ?? solicitacao.valorEstimado ?? 0;
   const kmPercorrido = corrida?.kmPercorrido ?? solicitacao.distanciaEstimadaKm ?? solicitacao.distanciaKm ?? 0;
 
+  const corridaId = corrida?.id ?? solicitacao.corrida?.id ?? solicitacao.id;
+  const isInProgress = corrida?.status === 'I' || solicitacao.corrida?.status === 'I' || solicitacao.status === 'I' || solicitacao.status === 'EM_ANDAMENTO';
+
+  const effectiveStatus = corrida?.status ?? solicitacao.status;
+
   return (
     <div className={styles.page}>
       <section className={styles.detailHeader}>
         <div>
-          <h2>Corrida #{solicitacao.id}</h2>
+          <h2>
+            {corrida?.id
+              ? `Corrida #${corrida.id} (Solicitação #${solicitacao.id})`
+              : `Solicitação de Transporte #${solicitacao.id}`}
+          </h2>
           <p>
             {solicitacao.dataCorrida ? new Date(solicitacao.dataCorrida).toLocaleString('pt-BR') : '—'} •{' '}
             {solicitacao.tipoCorrida?.nome || 'Transporte Executivo'}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          {(solicitacao.status === 'I' || solicitacao.status === 'EM_ANDAMENTO') && (
-            <Button onClick={() => navigate(`/corridas/${solicitacao.id}/acompanhamento`)}>
+          {isInProgress && (
+            <Button onClick={() => navigate(`/corridas/${corridaId}/acompanhamento`)}>
               Acompanhar ao vivo
             </Button>
           )}
@@ -186,7 +198,7 @@ export const RideDetails = () => {
               <h3>Informações do Trajeto</h3>
               <p>Origem, destino e traçado do percurso da corrida.</p>
             </div>
-            <StatusBadge status={mapStatusToBadge(solicitacao.status)} />
+            <StatusBadge status={mapStatusToBadge(effectiveStatus)} />
           </div>
 
           <div className={styles.routeCard}>

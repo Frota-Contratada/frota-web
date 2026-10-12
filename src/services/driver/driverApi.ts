@@ -4,10 +4,10 @@ export interface MotoristaDto {
   id: number;
   nome: string;
   email: string;
-  cpf: string;
+  cpf?: string;
+  fornecedorId?: number;
   telefone?: string;
   cnh?: string;
-  fornecedorId: number;
   fornecedorNome?: string;
   dataAtivacao?: string;
   ativo?: boolean;
@@ -17,14 +17,16 @@ export interface CriarMotoristaParams {
   nome: string;
   email: string;
   cpf: string;
+  fornecedorId: number;
   telefone?: string;
   cnh?: string;
-  fornecedorId: number;
 }
 
 export interface BuscarMotoristasQueryParams {
   nome?: string;
   cpf?: string;
+  page?: number;
+  limit?: number;
   fornecedorId?: number;
 }
 
@@ -44,13 +46,12 @@ export interface MotoristasListResponse {
 
 export const driverApi = {
   create(data: CriarMotoristaParams) {
-    const cleanCpf = data.cpf.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const cleanCpf = data.cpf.replace(/\D/g, '');
     return apiClient.post<MotoristaResponse>('/usuario/motorista/motoristas', {
-      nome: data.nome,
-      email: data.email,
+      nome: data.nome.trim(),
+      email: data.email.trim(),
       cpf: cleanCpf,
-      telefone: data.telefone,
-      fornecedorId: data.fornecedorId,
+      fornecedorId: Number(data.fornecedorId),
     });
   },
 

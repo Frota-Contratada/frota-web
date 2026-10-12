@@ -77,8 +77,19 @@ export interface TrackingSnapshot {
   updatedAt: string;
 }
 
-export const trackingApi = {
+export interface CorridaFinalizadaDto {
+  tripStatus: 'finished';
+  finishedAt: string;
+  quilometragem?: number;
+  valorFinal?: number;
+}
 
+export interface ParadaConcluidaDto {
+  sequence: number;
+  completedAt: string;
+}
+
+export const trackingApi = {
   getSnapshot(rideId: number | string) {
     return apiClient.get<{ response: TrackingSnapshot }>(`/corridas/${rideId}/tracking`);
   },
@@ -114,8 +125,16 @@ export const trackingApi = {
   },
 
   finishTrip(rideId: number | string, idempotencyKey: string = crypto.randomUUID()) {
-    return apiClient.post<{ response: { tripStatus: 'finished'; finishedAt: string } }>(
+    return apiClient.post<{ response: CorridaFinalizadaDto }>(
       `/corridas/${rideId}/finish`,
+      {},
+      { headers: { 'idempotency-key': idempotencyKey } }
+    );
+  },
+
+  completeStop(rideId: number | string, sequence: number, idempotencyKey: string = crypto.randomUUID()) {
+    return apiClient.post<{ response: ParadaConcluidaDto }>(
+      `/corridas/${rideId}/stops/${sequence}/complete`,
       {},
       { headers: { 'idempotency-key': idempotencyKey } }
     );
@@ -129,4 +148,3 @@ export const trackingApi = {
     );
   },
 };
-

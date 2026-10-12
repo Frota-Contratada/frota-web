@@ -45,7 +45,7 @@ const columns: ColumnDef<ExpensesRow>[] = [
     key: 'ativo',
     header: 'Status',
     sortable: true,
-    render: (val) => <StatusBadge status={val ? 'aprovado' : 'cancelado'} />,
+    render: (val) => <StatusBadge status={val ? 'aprovado' : 'cancelado'} label={val ? 'Ativo' : 'Inativo'} />,
   },
 ];
 

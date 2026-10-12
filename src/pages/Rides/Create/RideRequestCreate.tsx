@@ -23,7 +23,7 @@ import { useAuthStore } from '../../../stores/authStore';
 import { cleanCpf, normalizeUf } from '../../../utils';
 import styles from '../Review/RideReview.module.css';
 
-type RequestStep = 1 | 2 | 3;
+type RequestStep = 1 | 2;
 
 type InfoItemProps = {
   label: string;
@@ -32,8 +32,7 @@ type InfoItemProps = {
 
 const steps: { id: RequestStep; title: string }[] = [
   { id: 1, title: 'Dados da corrida' },
-  { id: 2, title: 'Selecionar fornecedor' },
-  { id: 3, title: 'Revisar solicitação' },
+  { id: 2, title: 'Revisar solicitação' },
 ];
 
 const defaultRideTypeOptions = [
@@ -233,11 +232,6 @@ export const RideRequestCreate = () => {
     return [{ label: userName, value: userName }];
   }, [collaboratorsList, userName]);
 
-  const selectedSupplier = useMemo(
-    () => availableSuppliers.find((supplier) => supplier.id === selectedSupplierId),
-    [availableSuppliers, selectedSupplierId]
-  );
-
   const estimatedKm = calculatedDistanceKm > 0 ? `${calculatedDistanceKm.toLocaleString('pt-BR')} km` : 'A calcular';
   const estimatedValue = simulatedValue !== null
     ? `R$ ${simulatedValue.toLocaleString('pt-BR', {
@@ -280,7 +274,6 @@ export const RideRequestCreate = () => {
     });
   };
 
-  const selectedSupplierName = selectedSupplier?.nome ?? 'Fornecedor não selecionado';
   const requesterEmployee = collaboratorsList.find((c) => c.nome === form.requester);
   const selectedBeneficiary = collaboratorsList.find((c) => c.nome === form.beneficiaryName);
   const selectedBeneficiaryCpf = selectedBeneficiary?.cpf ?? currentUser?.cpf ?? '';
@@ -412,22 +405,13 @@ export const RideRequestCreate = () => {
       }
     }
 
-    if (currentStep === 2 && !selectedSupplier) {
-      showToast({
-        type: 'warning',
-        title: 'Fornecedor obrigatório',
-        description: 'Selecione um fornecedor antes de continuar.',
-      });
-      return false;
-    }
-
     return true;
   };
 
   const goNext = () => {
     if (!validateCurrentStep()) return;
     runSimulation();
-    setCurrentStep((step) => Math.min(step + 1, 3) as RequestStep);
+    setCurrentStep((step) => Math.min(step + 1, 2) as RequestStep);
   };
   const goBack = () => setCurrentStep((step) => Math.max(step - 1, 1) as RequestStep);
 
@@ -467,7 +451,6 @@ export const RideRequestCreate = () => {
         dataCorrida: new Date(form.rideAt).toISOString(),
         tipoCorridaId: selectedTipo?.id ?? 1,
         motivoSolicitacaoId: selectedMotivo?.id ?? 1,
-        fornecedorId: selectedSupplierId || undefined,
         origem: {
           logradouro: form.origin,
           cidade: origemCidade,
@@ -626,41 +609,6 @@ export const RideRequestCreate = () => {
             <>
               <div className={styles.cardHeader}>
                 <div>
-                  <h3>Selecionar fornecedor</h3>
-                  <p>Escolha o fornecedor responsável pela execução da corrida.</p>
-                </div>
-              </div>
-
-              <div className={styles.supplierGrid} role="radiogroup" aria-label="Selecionar fornecedor">
-                {availableSuppliers.map((supplier) => {
-                  const isSelected = supplier.id === selectedSupplierId;
-
-                  return (
-                    <button
-                      key={supplier.id}
-                      type="button"
-                      className={`${styles.supplierOption} ${isSelected ? styles.supplierSelected : ''}`}
-                      onClick={() => setSelectedSupplierId(supplier.id)}
-                      role="radio"
-                      aria-checked={isSelected}
-                    >
-                      <span className={styles.supplierOptionHeader}>
-                        <span className={styles.radioControl} aria-hidden="true" />
-                        <strong>{supplier.nome}</strong>
-                      </span>
-                      <span>{supplier.cnpjCpf ? `CNPJ: ${supplier.cnpjCpf}` : 'Fornecedor Credenciado'}</span>
-                      <span>{supplier.quantidadeVeiculosAtivos ? `${supplier.quantidadeVeiculosAtivos} veículos disponíveis` : 'Ativo para atendimento'}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
-
-          {currentStep === 3 && (
-            <>
-              <div className={styles.cardHeader}>
-                <div>
                   <h3>Revisar solicitação</h3>
                   <p>Confira os dados e o trajeto antes de confirmar a solicitação.</p>
                 </div>
@@ -670,7 +618,7 @@ export const RideRequestCreate = () => {
                 <InfoItem label="Solicitante" value={form.requester} />
                 <InfoItem label="Corrida para" value={form.rideFor} />
                 <InfoItem label="Quem vai usar" value={form.beneficiaryName} />
-                <InfoItem label="Fornecedor selecionado" value={selectedSupplierName} />
+                <InfoItem label="Atribuição de fornecedor" value="Automática (Menor tarifa contratada)" />
                 <InfoItem label="Centro de custo" value={costCenterSummaryLabel} />
                 <InfoItem label="Tipo de corrida" value={form.rideType} />
                 <InfoItem label="Data e horário" value={form.rideAt.replace('T', ' ')} />
@@ -733,7 +681,7 @@ export const RideRequestCreate = () => {
             <span className={styles.actionsTitle}>Ações da solicitação</span>
 
             <div className={styles.primaryActions}>
-              {currentStep < 3 ? (
+              {currentStep < 2 ? (
                 <Button onClick={goNext}>Próximo</Button>
               ) : (
                 <Button leftIcon={<CheckIcon width={16} height={16} />} onClick={submitRequest} isLoading={isSubmitting}>Confirmar solicitação</Button>

@@ -68,7 +68,7 @@ export const DriversList = () => {
       const matchesQuery =
         !q ||
         driver.nome.toLowerCase().includes(q) ||
-        driver.cpf.includes(q) ||
+        (driver.cpf && driver.cpf.includes(q)) ||
         (driver.fornecedorNome && driver.fornecedorNome.toLowerCase().includes(q));
 
       const statusFilter = selectedFilters
