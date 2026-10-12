@@ -10,13 +10,11 @@ import type { SugestaoEndereco } from '../../../services/maps/geoService';
 import {
   ridesApi,
   costCenterApi,
-  supplierApi,
   collaboratorApi,
   extractListData,
   type MotivoSolicitacaoDto,
   type TipoCorridaDto,
   type CentroCustoDto,
-  type FornecedorDto,
   type ColaboradorDto,
 } from '../../../services';
 import { useAuthStore } from '../../../stores/authStore';
@@ -70,11 +68,9 @@ export const RideRequestCreate = () => {
   const { user: currentUser } = useAuthStore();
 
   const [currentStep, setCurrentStep] = useState<RequestStep>(1);
-  const [selectedSupplierId, setSelectedSupplierId] = useState(0);
   const [backendMotivos, setBackendMotivos] = useState<MotivoSolicitacaoDto[]>([]);
   const [backendTiposCorrida, setBackendTiposCorrida] = useState<TipoCorridaDto[]>([]);
   const [backendCentrosCusto, setBackendCentrosCusto] = useState<CentroCustoDto[]>([]);
-  const [availableSuppliers, setAvailableSuppliers] = useState<FornecedorDto[]>([]);
   const [collaboratorsList, setCollaboratorsList] = useState<ColaboradorDto[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
