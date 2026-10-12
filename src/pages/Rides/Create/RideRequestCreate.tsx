@@ -138,9 +138,8 @@ export const RideRequestCreate = () => {
       ridesApi.getMotivos(),
       ridesApi.getTiposCorrida(),
       costCenterApi.list(),
-      supplierApi.list(),
       collaboratorApi.list(),
-    ]).then(([motivosRes, tiposRes, ccRes, suppRes, collabRes]) => {
+    ]).then(([motivosRes, tiposRes, ccRes, collabRes]) => {
       if (motivosRes.status === 'fulfilled') {
         const motivos = extractListData<MotivoSolicitacaoDto>(motivosRes.value);
         if (motivos.length > 0) setBackendMotivos(motivos);
@@ -157,13 +156,6 @@ export const RideRequestCreate = () => {
             ...prev,
             costCenterIds: prev.costCenterIds.length > 0 ? prev.costCenterIds : [String(ccs[0].numero)],
           }));
-        }
-      }
-      if (suppRes.status === 'fulfilled') {
-        const supps = extractListData<FornecedorDto>(suppRes.value);
-        if (supps.length > 0) {
-          setAvailableSuppliers(supps);
-          setSelectedSupplierId((prev) => prev || supps[0].id);
         }
       }
       if (collabRes.status === 'fulfilled') {
