@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction, type BadgeStatus } from '../../../components/common';
-import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
+import VisualizarIcon from '../../../assets/icons/visualizar.svg?react';
 import { supplierApi, extractListData, type FornecedorDto, type FornecedorBigNumbers } from '../../../services';
 import { exportToCsv } from '../../../utils/exportHelper';
 import styles from './SuppliersList.module.css';
@@ -88,8 +88,11 @@ export const SuppliersList = () => {
     let isMounted = true;
     setIsLoading(true);
 
+    const queryParams: Record<string, string | number> = {};
+    if (query.trim()) queryParams.nome = query.trim();
+
     Promise.allSettled([
-      supplierApi.list(),
+      supplierApi.list(queryParams),
       supplierApi.getAdminBigNumbers().catch(() => supplierApi.getFilialBigNumbers()),
     ])
       .then(([suppliersRes, numbersRes]) => {
@@ -151,7 +154,7 @@ export const SuppliersList = () => {
     return () => {
       isMounted = false;
     };
-  }, [showToast]);
+  }, [showToast, query]);
 
 
 
@@ -241,7 +244,7 @@ export const SuppliersList = () => {
 
   const actions: TableAction<Supplier>[] = [
     {
-      icon: <RedirecionarIcon width={18} height={18} />,
+      icon: <VisualizarIcon width={18} height={18} />,
       label: 'Visualizar fornecedor',
       onClick: (row) => navigate(`/terceiros/fornecedores/${row.id}`),
     },

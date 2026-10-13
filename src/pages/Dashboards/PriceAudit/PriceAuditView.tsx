@@ -8,10 +8,8 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  LineChart,
-  Line,
 } from 'recharts';
-import { StatCard, Table, TableToolbar, type ColumnDef, StatusBadge, type BadgeStatus } from '../../../components/common';
+import { StatCard, Table, TableToolbar, type ColumnDef, StatusBadge, type BadgeStatus, type DateRangeFilterValue } from '../../../components/common';
 import {
   supplierApi,
   ridesApi,
@@ -78,22 +76,26 @@ const columns: ColumnDef<AuditRideRow>[] = [
 ];
 
 export const PriceAuditView = () => {
-  const [query, setQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [auditoriaData, setAuditoriaData] = useState<DashboardAuditoriaDto | null>(null);
   const [suppliers, setSuppliers] = useState<FornecedorDto[]>([]);
   const [rides, setRides] = useState<SolicitacaoDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [dateRange, setDateRange] = useState<DateRangeFilterValue>({ from: '', to: '' });
 
   useEffect(() => {
     let isMounted = true;
     setIsLoading(true);
 
+    const backendQuery: Record<string, string | number> = {};
+    if (dateRange.from) backendQuery.startDate = dateRange.from;
+    if (dateRange.to) backendQuery.endDate = dateRange.to;
+
     Promise.allSettled([
-      dashboardApi.getAuditoria(),
+      dashboardApi.getAuditoria(backendQuery),
       supplierApi.list(),
-      ridesApi.list(),
+      ridesApi.list(backendQuery),
     ]).then(([auditRes, suppRes, ridesRes]) => {
       if (!isMounted) return;
 
@@ -113,7 +115,7 @@ export const PriceAuditView = () => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [dateRange]);
 
   const tableData: AuditRideRow[] = useMemo(() => {
     return rides.map((r) => {
@@ -277,24 +279,15 @@ export const PriceAuditView = () => {
   ];
 
   const filteredData = useMemo(() => {
-    const q = query.trim().toLowerCase();
     const statusFilters = selectedFilters
       .filter((f) => f.startsWith('status:'))
       .map((f) => f.replace('status:', ''));
 
     return tableData.filter((item) => {
-      const matchesQuery =
-        !q ||
-        item.solicitante.toLowerCase().includes(q) ||
-        item.email.toLowerCase().includes(q) ||
-        item.origem.toLowerCase().includes(q) ||
-        item.destino.toLowerCase().includes(q);
-
       const matchesStatus = statusFilters.length === 0 || statusFilters.includes(item.status);
-
-      return matchesQuery && matchesStatus;
+      return matchesStatus;
     });
-  }, [tableData, query, selectedFilters]);
+  }, [tableData, selectedFilters]);
 
   const PAGE_SIZE = 5;
   const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
@@ -303,19 +296,20 @@ export const PriceAuditView = () => {
   return (
     <div className={styles.page}>
       <TableToolbar
-        searchPlaceholder="Buscar por solicitante, email ou local..."
-        onSearch={(val) => {
-          setQuery(val);
-          setCurrentPage(1);
-        }}
         filterSections={priceAuditFilterSections}
         selectedFilters={selectedFilters}
         onFilterChange={(vals) => {
           setSelectedFilters(vals);
           setCurrentPage(1);
         }}
+        dateRange={dateRange}
+        onDateRangeChange={(range) => {
+          setDateRange(range);
+          setCurrentPage(1);
+        }}
         onFilterClear={() => {
           setSelectedFilters([]);
+          setDateRange({ from: '', to: '' });
           setCurrentPage(1);
         }}
       />
@@ -376,21 +370,21 @@ export const PriceAuditView = () => {
         <article className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <div>
-              <span className={styles.chartEyebrow}>Estatísticas</span>
-              <h3 className={styles.chartTitle}>Evolução de desvios médios (%)</h3>
+              <span className={styles.chartEyebrow}>Auditoria</span>
+              <h3 className={styles.chartTitle}>Desvio médio de quilometragem por fornecedor (%)</h3>
             </div>
           </div>
 
           <div className={styles.chartContainer}>
             {deviationTrendData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={deviationTrendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <BarChart data={deviationTrendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} tickFormatter={(val) => `${val}%`} />
                   <Tooltip formatter={(val: any) => [`${val}%`, 'Desvio médio']} contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
-                  <Line type="monotone" dataKey="desvio" stroke="#d97706" strokeWidth={3} dot={{ r: 5, fill: '#d97706' }} />
-                </LineChart>
+                  <Bar dataKey="desvio" name="Desvio médio (%)" fill="#d97706" radius={[4, 4, 0, 0]} barSize={40} />
+                </BarChart>
               </ResponsiveContainer>
             ) : (
               <div className={styles.emptyChart}>

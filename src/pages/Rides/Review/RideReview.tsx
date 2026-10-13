@@ -425,11 +425,11 @@ export const RideReview = () => {
             <span className={styles.actionsTitle}>Ações da revisão</span>
 
             <div className={styles.primaryActions}>
-              {solicitacao.status !== 'C' && solicitacao.status !== 'R' && solicitacao.status !== 'A' ? (
+              {solicitacao.status === 'P' ? (
                 <>
                   {currentStep < reviewSteps.length ? (
-                    <Button onClick={goNext}>Próximo</Button>
-                  ) : can('rides:approve') ? (
+                    <Button onClick={goNext}>Próximo passo</Button>
+                  ) : (
                     <Button
                       leftIcon={<CheckIcon width={16} height={16} />}
                       onClick={handleApprove}
@@ -437,10 +437,10 @@ export const RideReview = () => {
                     >
                       Aprovar solicitação
                     </Button>
-                  ) : null}
+                  )}
                   {currentStep > 1 && (
                     <Button variant="outline" onClick={goBack} disabled={isSubmitting}>
-                      Voltar
+                      Voltar passo
                     </Button>
                   )}
                 </>
@@ -451,33 +451,35 @@ export const RideReview = () => {
               )}
             </div>
 
-            <div className={styles.dangerZone}>
-              {solicitacao.status !== 'C' && solicitacao.status !== 'R' && solicitacao.status !== 'A' && can('rides:reject') && (
-                <Button
-                  className={styles.rejectButton}
-                  variant="outline"
-                  leftIcon={<ErroIcon width={14} height={14} />}
-                  onClick={() => setIsRejectModalOpen(true)}
-                  disabled={isSubmitting}
-                >
-                  Reprovar solicitação
+            {solicitacao.status === 'P' && (
+              <div className={styles.dangerZone}>
+                {can('rides:reject') && (
+                  <Button
+                    className={styles.rejectButton}
+                    variant="outline"
+                    leftIcon={<ErroIcon width={14} height={14} />}
+                    onClick={() => setIsRejectModalOpen(true)}
+                    disabled={isSubmitting}
+                  >
+                    Reprovar solicitação
+                  </Button>
+                )}
+                {(isRequester || isAdminMaster) && (
+                  <Button
+                    className={styles.modalCancelButton}
+                    variant="outline"
+                    leftIcon={<ErroIcon width={14} height={14} />}
+                    onClick={() => setIsCancelModalOpen(true)}
+                    disabled={isSubmitting}
+                  >
+                    Cancelar solicitação
+                  </Button>
+                )}
+                <Button variant="ghost" onClick={() => navigate('/corridas/solicitacoes')} disabled={isSubmitting}>
+                  Voltar à lista
                 </Button>
-              )}
-              {solicitacao.status !== 'C' && solicitacao.status !== 'R' && (isRequester || isAdminMaster) && (
-                <Button
-                  className={styles.modalCancelButton}
-                  variant="outline"
-                  leftIcon={<ErroIcon width={14} height={14} />}
-                  onClick={() => setIsCancelModalOpen(true)}
-                  disabled={isSubmitting}
-                >
-                  Cancelar solicitação
-                </Button>
-              )}
-              <Button variant="ghost" onClick={() => navigate('/corridas/solicitacoes')} disabled={isSubmitting}>
-                Voltar à lista
-              </Button>
-            </div>
+              </div>
+            )}
           </div>
         </aside>
       </section>

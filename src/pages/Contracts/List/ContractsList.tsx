@@ -381,7 +381,7 @@ export const ContractsList = () => {
                     isLoading={isExtractingIa}
                     disabled={isSubmitting}
                   >
-                    ✨ Preencher vigência com IA (frota-ia)
+                    Preencher vigência com IA (frota-ia)
                   </Button>
                 </div>
               )}

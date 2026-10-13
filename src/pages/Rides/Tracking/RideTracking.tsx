@@ -1,14 +1,12 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, LoadingState, StatCard, useToast } from '../../../components/common';
+import { Button, LoadingState, useToast } from '../../../components/common';
 import { LiveTrackingMap, type CameraMode } from '../../../components/maps';
-import { AcompanhamentoEmbed } from '../../../components/tracking';
 import {
   ridesApi,
   trackingApi,
   TrackingSocketClient,
   type TrackingSnapshot,
-  type TrackingEnvelope,
   type TrackingPosition,
   type CanonicalRoute,
   type TrackingWaiting,
@@ -27,8 +25,6 @@ export const RideTracking = () => {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [cameraMode, setCameraMode] = useState<CameraMode>('passenger');
-  const [viewMode, setViewMode] = useState<'embed' | 'internal'>('embed');
-  const [lastSocketEvent, setLastSocketEvent] = useState<TrackingEnvelope | null>(null);
   const [isConnectedWs, setIsConnectedWs] = useState(false);
 
   const socketClientRef = useRef<TrackingSocketClient | null>(null);
@@ -60,6 +56,7 @@ export const RideTracking = () => {
           throw err;
         }
       }
+
       if (res && res.response) {
         setSnapshot(res.response);
         setLastUpdated(new Date());
@@ -108,9 +105,6 @@ export const RideTracking = () => {
         setSnapshot((prev) => (prev ? { ...prev, tripStatus } : prev));
         setLastUpdated(new Date());
       },
-      onRawEvent: (envelope) => {
-        setLastSocketEvent(envelope);
-      },
     });
 
     socketClientRef.current = client;
@@ -121,31 +115,6 @@ export const RideTracking = () => {
       socketClientRef.current = null;
     };
   }, [rideId]);
-
-  const handleIframeCommand = async (commandType: string, payload: unknown) => {
-    if (!rideId) return;
-    try {
-      if (commandType === 'waiting.confirmed') {
-        await trackingApi.startWaiting(rideId);
-        showToast({ type: 'info', title: 'Espera iniciada', description: 'O tempo de espera foi acionado.' });
-      } else if (commandType === 'waiting.resumeRequested') {
-        await trackingApi.resumeWaiting(rideId);
-        showToast({ type: 'info', title: 'Espera finalizada', description: 'A viagem foi retomada.' });
-      } else if (commandType === 'trip.finishRequested') {
-        await trackingApi.finishTrip(rideId);
-        showToast({ type: 'success', title: 'Corrida finalizada', description: 'A corrida foi encerrada com sucesso.' });
-      } else if (commandType === 'route.rerouteRequested') {
-        const position = (payload as { position?: TrackingPosition })?.position;
-        if (position) {
-          await trackingApi.reroute(rideId, position);
-          showToast({ type: 'info', title: 'Rota recalculada', description: 'Novo traçado aplicado pelo servidor.' });
-        }
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Falha ao processar comando';
-      showToast({ type: 'error', title: 'Erro de comunicação', description: msg });
-    }
-  };
 
   const originPoint = useMemo(() => {
     if (snapshot?.route?.origin) {
@@ -202,8 +171,8 @@ export const RideTracking = () => {
       <div className={styles.page}>
         <LoadingState
           variant="details"
-          message="Carregando telemetria em tempo real"
-          submessage={`Conectando ao serviço de rastreamento da corrida #${rideId}...`}
+          message="Carregando acompanhamento"
+          submessage={`Consultando dados da corrida #${rideId}...`}
         />
       </div>
     );
@@ -212,15 +181,17 @@ export const RideTracking = () => {
   if (loadError && !snapshot) {
     return (
       <div className={styles.page}>
-        <div style={{ padding: '2rem', textAlign: 'center', background: '#fff', borderRadius: '12px' }}>
+        <div className={styles.errorCard}>
           <h3>Não foi possível carregar o rastreamento da corrida #{rideId}</h3>
-          <p style={{ color: '#64748b', margin: '1rem 0' }}>{loadError}</p>
-          <Button variant="primary" onClick={() => fetchTracking(true)} isLoading={isLoading}>
-            Tentar novamente
-          </Button>
-          <Button variant="ghost" onClick={() => navigate(-1)} style={{ marginLeft: '0.75rem' }} disabled={isLoading}>
-            Voltar
-          </Button>
+          <p>{loadError}</p>
+          <div className={styles.errorActions}>
+            <Button variant="primary" onClick={() => fetchTracking(true)} isLoading={isLoading}>
+              Tentar novamente
+            </Button>
+            <Button variant="ghost" onClick={() => navigate(-1)} disabled={isLoading}>
+              Voltar
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -228,70 +199,52 @@ export const RideTracking = () => {
 
   const distanceMeters = snapshot?.route?.distanceMeters ?? null;
   const durationSeconds = snapshot?.route?.durationSeconds ?? null;
-  const trafficDelaySeconds = snapshot?.route?.trafficDelaySeconds ?? 0;
-  const trafficMinutes = Math.round(trafficDelaySeconds / 60);
-
   const speedKmH =
     snapshot?.vehiclePosition?.speed != null ? Math.round(snapshot.vehiclePosition.speed * 3.6) : null;
 
-  const formatTripStatus = (status?: string, isWaiting?: boolean) => {
-    if (isWaiting) return 'Aguardando no local';
+  const getStatusBadge = (status?: string, isWaiting?: boolean) => {
+    if (isWaiting) {
+      return { label: 'Aguardando passageiro', className: styles.statusBadgeWarning };
+    }
     switch (status) {
       case 'in_progress':
-        return 'Em deslocamento';
+        return { label: 'Em andamento', className: styles.statusBadgeActive };
       case 'finished':
-        return 'Concluída';
+        return { label: 'Concluída', className: styles.statusBadgeNeutral };
       case 'canceled':
-        return 'Cancelada';
+        return { label: 'Cancelada', className: styles.statusBadgeDanger };
       case 'scheduled':
-        return 'Agendada';
+        return { label: 'Agendada', className: styles.statusBadgeInfo };
       default:
-        return status ? status.toUpperCase() : 'Não informada';
+        return { label: status ? status.toUpperCase() : 'Não informado', className: styles.statusBadgeNeutral };
     }
   };
 
-  const statusLabel = formatTripStatus(snapshot?.tripStatus, snapshot?.waiting?.active);
+  const statusInfo = getStatusBadge(snapshot?.tripStatus, snapshot?.waiting?.active);
 
   return (
     <div className={styles.page}>
+      {/* Header Corporativo Sóbrio */}
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <div className={styles.titleRow}>
-            <h2>Acompanhamento — Corrida #{rideId}</h2>
-            <span
-              className={styles.liveBadge}
-              role="status"
-              aria-label={isConnectedWs ? 'Conectado em tempo real' : 'Sincronização pontual'}
-              style={{ backgroundColor: isConnectedWs ? '#10b981' : '#f59e0b' }}
-            >
-              <span className={styles.liveDot} aria-hidden="true" />
-              {isConnectedWs ? 'WebSocket Ao Vivo' : 'Sincronizado'}
+            <h2>Acompanhamento da Corrida #{rideId}</h2>
+            <span className={statusInfo.className}>
+              {statusInfo.label}
             </span>
+            {isConnectedWs && (
+              <span className={styles.connectionBadge}>
+                <span className={styles.liveDot} aria-hidden="true" />
+                Tempo real
+              </span>
+            )}
           </div>
-          <p>
-            Telemetria da corrida com dados autoritativos do backend. Atualizado às{' '}
-            {lastUpdated.toLocaleTimeString('pt-BR')}.
+          <p className={styles.subtitle}>
+            Atualizado às {lastUpdated.toLocaleTimeString('pt-BR')}
           </p>
         </div>
 
         <div className={styles.headerActions}>
-          <div className={styles.cameraToggleGroup} role="group" aria-label="Modo de Visualização">
-            <button
-              type="button"
-              className={`${styles.cameraToggleBtn} ${viewMode === 'embed' ? styles.cameraToggleBtnActive : ''}`}
-              onClick={() => setViewMode('embed')}
-            >
-              Frota Acompanhamento (Oficial)
-            </button>
-            <button
-              type="button"
-              className={`${styles.cameraToggleBtn} ${viewMode === 'internal' ? styles.cameraToggleBtnActive : ''}`}
-              onClick={() => setViewMode('internal')}
-            >
-              Mapa Integrado
-            </button>
-          </div>
-
           <Button variant="outline" onClick={() => fetchTracking(false)} isLoading={isRefreshing}>
             Atualizar
           </Button>
@@ -301,68 +254,64 @@ export const RideTracking = () => {
         </div>
       </header>
 
-      {/* Card Flutuante de Telemetria / ETA */}
-      <section className={styles.passengerSummaryCard} aria-label="Previsão e métricas de rota">
-        <div className={styles.etaBlock}>
-          <strong>{durationSeconds != null ? formatETA(durationSeconds) : '—'}</strong>
-          <span>Chegada Estimada (ETA)</span>
+      {/* Grid de Métricas Principais da Viagem */}
+      <section className={styles.kpiGrid} aria-label="Indicadores operacionais da viagem">
+        <div className={styles.kpiCard}>
+          <span className={styles.kpiLabel}>Chegada Prevista</span>
+          <strong className={styles.kpiValue}>
+            {durationSeconds != null ? formatETA(durationSeconds) : '—'}
+          </strong>
+          <span className={styles.kpiSub}>
+            {durationSeconds != null ? `${formatDuration(durationSeconds)} restantes` : 'Sem estimativa'}
+          </span>
         </div>
 
-        <div className={styles.metricBlock}>
-          <strong>{durationSeconds != null ? formatDuration(durationSeconds) : '—'}</strong>
-          <span>Tempo Restante</span>
+        <div className={styles.kpiCard}>
+          <span className={styles.kpiLabel}>Distância Restante</span>
+          <strong className={styles.kpiValue}>
+            {distanceMeters != null ? formatDistance(distanceMeters) : '—'}
+          </strong>
+          <span className={styles.kpiSub}>Extensão total do trajeto</span>
         </div>
 
-        <div className={styles.metricBlock}>
-          <strong>{distanceMeters != null ? formatDistance(distanceMeters) : '—'}</strong>
-          <span>Distância Restante</span>
+        <div className={styles.kpiCard}>
+          <span className={styles.kpiLabel}>Velocidade do Veículo</span>
+          <strong className={styles.kpiValue}>
+            {speedKmH != null ? `${speedKmH} km/h` : '—'}
+          </strong>
+          <span className={styles.kpiSub}>
+            {speedKmH != null ? 'Telemetria ativa' : 'Veículo parado ou offline'}
+          </span>
         </div>
 
-        <div>
-          <div className={`${styles.trafficChip} ${trafficMinutes > 0 ? styles.trafficChipDelayed : ''}`}>
-            {trafficMinutes > 0 ? `+${trafficMinutes} min no trânsito` : 'Trânsito livre'}
-          </div>
+        <div className={styles.kpiCard}>
+          <span className={styles.kpiLabel}>Status da Condução</span>
+          <strong className={styles.kpiValue}>
+            {snapshot?.waiting?.active ? 'Em espera' : 'Em deslocamento'}
+          </strong>
+          <span className={styles.kpiSub}>
+            {snapshot?.startedAt ? `Iniciada às ${new Date(snapshot.startedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : 'Horário não disponível'}
+          </span>
         </div>
       </section>
 
-      <section className={styles.statsGrid} aria-label="Indicadores da corrida">
-        <StatCard title="Status do trajeto" value={statusLabel} />
-        <StatCard title="Distância estimada" value={distanceMeters != null ? formatDistance(distanceMeters) : '—'} />
-        <StatCard
-          title="Previsão de chegada"
-          value={durationSeconds != null ? `${Math.round(durationSeconds / 60)} min` : '—'}
-        />
-        <StatCard title="Velocidade aferida" value={speedKmH != null ? `${speedKmH} km/h` : 'Sem telemetria'} />
-      </section>
-
+      {/* Layout Principal: Mapa Interativo Direto + Painel Lateral de Dados */}
       <section className={styles.trackingLayout}>
         <article className={styles.mapCard}>
           <div className={styles.mapToolbar}>
-            <span className={styles.mapToolbarTitle}>
-              {viewMode === 'embed'
-                ? 'Visualização Oficial: frota-acompanhamento (WebParentTripBridge)'
-                : cameraMode === 'driver'
-                ? 'Perspectiva do Motorista (3D Tilt)'
-                : 'Mapa Geral 2D'}
-            </span>
+            <div className={styles.mapToolbarTitle}>
+              <span>Mapa da Rota</span>
+            </div>
             <div className={styles.mapToolbarActions}>
-              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+              <span className={styles.gpsLabel}>
                 {snapshot?.vehiclePosition
                   ? `GPS: ${snapshot.vehiclePosition.lat.toFixed(4)}, ${snapshot.vehiclePosition.lng.toFixed(4)}`
-                  : 'Aguardando telemetria do veículo'}
+                  : 'Aguardando sinal GPS'}
               </span>
             </div>
           </div>
 
-          {viewMode === 'embed' && rideId ? (
-            <AcompanhamentoEmbed
-              rideId={rideId}
-              role="passenger"
-              snapshot={snapshot}
-              lastEvent={lastSocketEvent}
-              onCommand={handleIframeCommand}
-            />
-          ) : (
+          <div className={styles.mapContainer}>
             <LiveTrackingMap
               origin={originPoint ?? undefined}
               destination={destPoint ?? undefined}
@@ -371,12 +320,13 @@ export const RideTracking = () => {
               vehiclePosition={vehiclePos}
               cameraMode={cameraMode}
               onCameraModeChange={setCameraMode}
-              height={520}
+              height={560}
             />
-          )}
+          </div>
         </article>
 
         <aside className={styles.sidePanel}>
+          {/* Card Motorista e Veículo */}
           <div className={styles.infoCard}>
             <h3 className={styles.cardTitle}>Motorista e Veículo</h3>
             <div className={styles.driverRow}>
@@ -384,48 +334,49 @@ export const RideTracking = () => {
                 {snapshot?.driver?.displayName ? snapshot.driver.displayName.charAt(0).toUpperCase() : 'M'}
               </div>
               <div className={styles.driverInfo}>
-                <strong>{snapshot?.driver?.displayName || 'Motorista não atribuído'}</strong>
-                <span>ID: {snapshot?.driver?.id || '—'}</span>
+                <strong>{snapshot?.driver?.displayName || 'Motorista em designação'}</strong>
+                <span>Identificador: #{snapshot?.driver?.id || '—'}</span>
               </div>
             </div>
 
             <div className={styles.metaList}>
               <div className={styles.metaItem}>
                 <span>Veículo</span>
-                <strong>{snapshot?.vehicle?.description || 'Veículo cadastrado'}</strong>
+                <strong>{snapshot?.vehicle?.description || 'Sedan Executivo'}</strong>
               </div>
               <div className={styles.metaItem}>
                 <span>Placa</span>
-                <strong>{snapshot?.vehicle?.plate || '—'}</strong>
+                <strong className={styles.plateBadge}>{snapshot?.vehicle?.plate || '—'}</strong>
               </div>
               <div className={styles.metaItem}>
-                <span>Aguardando passageiro?</span>
+                <span>Aguardando passageiro</span>
                 <strong>{snapshot?.waiting?.active ? 'Sim' : 'Não'}</strong>
               </div>
             </div>
           </div>
 
+          {/* Card Itinerário */}
           <div className={styles.infoCard}>
-            <h3 className={styles.cardTitle}>Itinerário da Corrida</h3>
+            <h3 className={styles.cardTitle}>Itinerário</h3>
             <div className={styles.routeTimeline}>
               <div className={styles.timelineItem}>
                 <span className={styles.timelineDotOrigin} aria-hidden="true" />
-                <small>Origem</small>
-                <strong>{originPoint?.address || '—'}</strong>
+                <span className={styles.timelineStage}>Origem</span>
+                <strong className={styles.timelineAddress}>{originPoint?.address || '—'}</strong>
               </div>
 
               {stopsList.map((stop, i) => (
                 <div key={stop.sequence || i} className={styles.timelineItem}>
                   <span className={styles.timelineDotStop} aria-hidden="true" />
-                  <small>Parada {i + 1}</small>
-                  <strong>{stop.address}</strong>
+                  <span className={styles.timelineStage}>Parada {i + 1}</span>
+                  <strong className={styles.timelineAddress}>{stop.address}</strong>
                 </div>
               ))}
 
               <div className={styles.timelineItem}>
                 <span className={styles.timelineDotDest} aria-hidden="true" />
-                <small>Destino</small>
-                <strong>{destPoint?.address || '—'}</strong>
+                <span className={styles.timelineStage}>Destino</span>
+                <strong className={styles.timelineAddress}>{destPoint?.address || '—'}</strong>
               </div>
             </div>
           </div>
@@ -434,3 +385,4 @@ export const RideTracking = () => {
     </div>
   );
 };
+

@@ -46,16 +46,18 @@ export function TableToolbar({
 
   return (
     <div className={styles.toolbar}>
-      <div className={styles.search}>
-        <Input
-          placeholder={searchPlaceholder}
-          leftIcon={<SearchIcon width={18} height={18} />}
-          onChange={(e) => onSearch?.(e.target.value)}
-          className={styles.searchInput}
-        />
-      </div>
+      {onSearch && (
+        <div className={styles.search}>
+          <Input
+            placeholder={searchPlaceholder}
+            leftIcon={<SearchIcon width={18} height={18} />}
+            onChange={(e) => onSearch?.(e.target.value)}
+            className={styles.searchInput}
+          />
+        </div>
+      )}
 
-      <div className={styles.actions}>
+      <div className={styles.actions} style={!onSearch ? { width: '100%', justifyContent: 'flex-end' } : undefined}>
         {rightActions}
         {onExport && (
           <Button variant="primary" rightIcon={<ExportarIcon width={18} height={18} />} onClick={onExport}>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../../components/common';
-import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
+import VisualizarIcon from '../../../assets/icons/visualizar.svg?react';
 import AlvoIcon from '../../../assets/icons/alvo.svg?react';
 import { ridesApi, extractListData, type CorridaDto } from '../../../services';
 import { exportToCsv } from '../../../utils/exportHelper';
@@ -261,7 +261,7 @@ export const RideHistoryList = () => {
 
   const actions: TableAction<RideHistory>[] = [
     {
-      icon: <RedirecionarIcon width={18} height={18} />,
+      icon: <VisualizarIcon width={18} height={18} />,
       label: 'Visualizar detalhes da corrida',
       onClick: (row) => navigate(`/corridas/historico/${row.id}`),
     },

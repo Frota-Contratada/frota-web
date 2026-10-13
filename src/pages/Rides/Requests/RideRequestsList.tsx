@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Select, StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction } from '../../../components/common';
-import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
+import VisualizarIcon from '../../../assets/icons/visualizar.svg?react';
 import ErroIcon from '../../../assets/icons/erro.svg?react';
 import CheckIcon from '../../../assets/icons/check.svg?react';
 import { ridesApi, extractListData, type SolicitacaoDto, type MotivoSolicitacaoDto } from '../../../services';
@@ -266,9 +266,8 @@ export const RideRequestsList = () => {
 
   const actions: TableAction<RideRequest>[] = [
     {
-      icon: <RedirecionarIcon width={18} height={18} />,
-      label: 'Revisar solicitação',
-      hidden: () => !can('rides:review'),
+      icon: <VisualizarIcon width={18} height={18} />,
+      label: 'Revisar / Visualizar solicitação',
       onClick: (row) => navigate(`/corridas/solicitacoes/${row.id}/revisar`),
     },
     {

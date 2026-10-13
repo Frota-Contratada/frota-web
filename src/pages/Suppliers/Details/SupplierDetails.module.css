@@ -74,17 +74,17 @@
 
 .avatarWrapper {
   position: relative;
-  width: 4.5rem;
-  height: 4.5rem;
+  width: 4rem;
+  height: 4rem;
   border-radius: 50%;
-  background: linear-gradient(135deg, #0052cc 0%, #00a3ff 100%);
+  background-color: var(--brand-primary, #0052cc);
+  border: 2px solid var(--border, #e2e8f0);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
-  font-size: 1.5rem;
-  font-weight: 800;
-  box-shadow: 0 4px 12px rgba(0, 82, 204, 0.2);
+  font-size: 1.35rem;
+  font-weight: 700;
   flex-shrink: 0;
   overflow: hidden;
   cursor: pointer;

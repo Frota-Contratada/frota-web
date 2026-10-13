@@ -10,7 +10,7 @@ import {
   AreaChart,
   Area,
 } from 'recharts';
-import { StatCard, Table, TableToolbar, type ColumnDef, StatusBadge } from '../../../components/common';
+import { StatCard, Table, TableToolbar, type ColumnDef, StatusBadge, type DateRangeFilterValue } from '../../../components/common';
 import {
   costCenterApi,
   ridesApi,
@@ -50,22 +50,26 @@ const columns: ColumnDef<ExpensesRow>[] = [
 ];
 
 export const ExpensesView = () => {
-  const [query, setQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [gastosData, setGastosData] = useState<DashboardGastosDto | null>(null);
   const [costCenters, setCostCenters] = useState<CentroCustoDto[]>([]);
   const [rides, setRides] = useState<SolicitacaoDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [dateRange, setDateRange] = useState<DateRangeFilterValue>({ from: '', to: '' });
 
   useEffect(() => {
     let isMounted = true;
     setIsLoading(true);
 
+    const backendQuery: Record<string, string | number> = {};
+    if (dateRange.from) backendQuery.startDate = dateRange.from;
+    if (dateRange.to) backendQuery.endDate = dateRange.to;
+
     Promise.allSettled([
-      dashboardApi.getGastos(),
+      dashboardApi.getGastos(backendQuery),
       costCenterApi.list(),
-      ridesApi.list(),
+      ridesApi.list(backendQuery),
     ]).then(([gastosRes, ccRes, ridesRes]) => {
       if (!isMounted) return;
 
@@ -85,7 +89,7 @@ export const ExpensesView = () => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [dateRange]);
 
   const tableData: ExpensesRow[] = useMemo(() => {
     return costCenters.map((cc) => ({
@@ -181,23 +185,16 @@ export const ExpensesView = () => {
   ];
 
   const filteredData = useMemo(() => {
-    const q = query.trim().toLowerCase();
     const statusFilters = selectedFilters.filter((f) => f.startsWith('status:')).map((f) => f.replace('status:', ''));
     const aprovadorFilters = selectedFilters.filter((f) => f.startsWith('aprovador:')).map((f) => f.replace('aprovador:', ''));
 
     return tableData.filter((item) => {
-      const matchesQuery =
-        !q ||
-        item.centroCusto.toLowerCase().includes(q) ||
-        item.nome.toLowerCase().includes(q) ||
-        item.aprovador.toLowerCase().includes(q);
-
       const matchesStatus = statusFilters.length === 0 || statusFilters.includes(item.ativo ? 'ativo' : 'inativo');
       const matchesAprovador = aprovadorFilters.length === 0 || aprovadorFilters.includes(item.aprovador);
 
-      return matchesQuery && matchesStatus && matchesAprovador;
+      return matchesStatus && matchesAprovador;
     });
-  }, [tableData, query, selectedFilters]);
+  }, [tableData, selectedFilters]);
 
   const PAGE_SIZE = 5;
   const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
@@ -213,19 +210,20 @@ export const ExpensesView = () => {
   return (
     <div className={styles.page}>
       <TableToolbar
-        searchPlaceholder="Buscar por código, nome ou aprovador..."
-        onSearch={(val) => {
-          setQuery(val);
-          setCurrentPage(1);
-        }}
         filterSections={expensesFilterSections}
         selectedFilters={selectedFilters}
         onFilterChange={(vals) => {
           setSelectedFilters(vals);
           setCurrentPage(1);
         }}
+        dateRange={dateRange}
+        onDateRangeChange={(range) => {
+          setDateRange(range);
+          setCurrentPage(1);
+        }}
         onFilterClear={() => {
           setSelectedFilters([]);
+          setDateRange({ from: '', to: '' });
           setCurrentPage(1);
         }}
       />

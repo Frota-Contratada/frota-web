@@ -1,9 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, LoadingState, StatusBadge, useToast } from '../../../components/common';
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
 import CheckIcon from '../../../assets/icons/check.svg?react';
-import { supplierApi, driverApi, extractListData, type FornecedorDto, type MotoristaDto } from '../../../services';
+import {
+  supplierApi,
+  driverApi,
+  contractApi,
+  extractListData,
+  type FornecedorDto,
+  type MotoristaDto,
+  type ContratoDto,
+} from '../../../services';
 import { formatDocument } from '../List';
 import { formatCpf } from '../../../utils';
 import { usePermissions } from '../../../hooks/usePermissions';
@@ -28,6 +36,7 @@ export const SupplierDetails = () => {
   const [supplier, setSupplier] = useState<FornecedorDto | null>(null);
   const [supplierSummary, setSupplierSummary] = useState<FornecedorDto | null>(null);
   const [driversList, setDriversList] = useState<MotoristaDto[]>([]);
+  const [contractsList, setContractsList] = useState<ContratoDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -41,10 +50,11 @@ export const SupplierDetails = () => {
 
     try {
       setIsLoading(true);
-      const [byIdRes, listRes, driversRes] = await Promise.allSettled([
+      const [byIdRes, listRes, driversRes, contractsRes] = await Promise.allSettled([
         supplierApi.getById(numId),
         supplierApi.list(),
         driverApi.list({ fornecedorId: numId }).catch(() => driverApi.list()),
+        contractApi.list().catch(() => ({ response: [] })),
       ]);
 
       if (byIdRes.status === 'fulfilled' && byIdRes.value.response) {
@@ -66,6 +76,14 @@ export const SupplierDetails = () => {
         const allDrivers = extractListData<MotoristaDto>(driversRes.value);
         const filtered = allDrivers.filter((d) => d.fornecedorId === numId);
         setDriversList(filtered);
+      }
+
+      if (contractsRes.status === 'fulfilled') {
+        const allContracts = extractListData<ContratoDto>(contractsRes.value);
+        const filteredContracts = allContracts.filter((c) =>
+          c.vinculos?.some((v) => v.fornecedorId === numId)
+        );
+        setContractsList(filteredContracts);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar fornecedor';
@@ -129,7 +147,30 @@ export const SupplierDetails = () => {
     return null;
   }
 
-  const contratosVigentes = supplierSummary?.contratosVigentes || [];
+  interface ContratoVigenteView {
+    contratoId: number;
+    filialId: number;
+    filialNome: string;
+    dataVigenciaInicio: string;
+    dataVigenciaFim?: string;
+  }
+
+  const contratosVigentes = useMemo<ContratoVigenteView[]>(() => {
+    if (supplierSummary?.contratosVigentes && supplierSummary.contratosVigentes.length > 0) {
+      return supplierSummary.contratosVigentes;
+    }
+    if (contractsList.length > 0) {
+      return contractsList.map((c) => ({
+        contratoId: c.id,
+        filialId: c.vinculos?.[0]?.filialId ?? 1,
+        filialNome: c.vinculos?.[0]?.filialNome ?? 'Matriz / Filiais Vinculadas',
+        dataVigenciaInicio: c.dataVigenciaInicio,
+        dataVigenciaFim: c.dataVigenciaFim,
+      }));
+    }
+    return [];
+  }, [supplierSummary?.contratosVigentes, contractsList]);
+
   const isAtivo = supplierSummary?.ativo !== false;
   const dataAtivacao = supplierSummary?.dataAtivacao
     ? new Date(supplierSummary.dataAtivacao).toLocaleDateString('pt-BR')
@@ -189,11 +230,6 @@ export const SupplierDetails = () => {
         </div>
 
         <div className={styles.heroActions}>
-          {can('contracts:manage') && (
-            <Button onClick={() => navigate('/terceiros/contratos/novo')}>
-              Novo Contrato
-            </Button>
-          )}
           <Button variant="outline" onClick={() => navigate('/terceiros/fornecedores')}>
             Voltar para Fornecedores
           </Button>
@@ -255,7 +291,7 @@ export const SupplierDetails = () => {
                 variant="outline"
                 onClick={() => navigate('/terceiros/contratos/novo')}
               >
-                + Anexar Contrato
+                Anexar Contrato
               </Button>
             )}
           </div>
@@ -311,12 +347,6 @@ export const SupplierDetails = () => {
           ) : (
             <div className={styles.emptyBox}>
               <p>Nenhum contrato cadastrado ou vinculado diretamente a este parceiro.</p>
-              <Button
-                variant="outline"
-                onClick={() => navigate('/terceiros/contratos/novo')}
-              >
-                Cadastrar Primeiro Contrato
-              </Button>
             </div>
           )}
         </article>

@@ -194,7 +194,7 @@ export const LocationPickerMap = ({
       <div ref={containerRef} className={styles.map} />
       <div className={styles.hintOverlay}>
         <span>
-          💡 <strong>{label}:</strong> {hasValidCoords ? 'Clique no mapa para alterar a localização.' : 'Pesquise pelo CEP/endereço ou clique no mapa para selecionar a localização.'}
+          <strong>{label}:</strong> {hasValidCoords ? 'Clique no mapa para alterar a localização.' : 'Pesquise pelo CEP/endereço ou clique no mapa para selecionar a localização.'}
         </span>
         {hasValidCoords && (
           <span className={styles.coordinates}>

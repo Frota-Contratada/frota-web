@@ -19,6 +19,7 @@ import {
   StatusBadge,
   type ColumnDef,
   type BadgeStatus,
+  type DateRangeFilterValue,
 } from '../../../components/common';
 import {
   ridesApi,
@@ -80,7 +81,6 @@ const columns: ColumnDef<ExecRideRow>[] = [
 ];
 
 export const ExecutiveView = () => {
-  const [query, setQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [dashboardData, setDashboardData] = useState<DashboardExecutivoDto | null>(null);
@@ -88,14 +88,19 @@ export const ExecutiveView = () => {
   const [supplierBigNumbers, setSupplierBigNumbers] = useState<FornecedorBigNumbers | null>(null);
   const [contractBigNumbers, setContractBigNumbers] = useState<ContratoBigNumbers | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [dateRange, setDateRange] = useState<DateRangeFilterValue>({ from: '', to: '' });
 
   useEffect(() => {
     let isMounted = true;
     setIsLoading(true);
 
+    const backendQuery: Record<string, string | number> = {};
+    if (dateRange.from) backendQuery.startDate = dateRange.from;
+    if (dateRange.to) backendQuery.endDate = dateRange.to;
+
     Promise.allSettled([
-      dashboardApi.getExecutivo(),
-      ridesApi.list(),
+      dashboardApi.getExecutivo(backendQuery),
+      ridesApi.list(backendQuery),
       supplierApi.getAdminBigNumbers().catch(() => supplierApi.getFilialBigNumbers()),
       contractApi.getAdminBigNumbers().catch(() => contractApi.getFilialBigNumbers()),
     ]).then(([dashRes, ridesRes, suppRes, contRes]) => {
@@ -120,7 +125,7 @@ export const ExecutiveView = () => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [dateRange]);
 
   const tableData: ExecRideRow[] = useMemo(() => {
     return rides.map((r) => {
@@ -230,23 +235,15 @@ export const ExecutiveView = () => {
   ];
 
   const filteredTableData = useMemo(() => {
-    const q = query.trim().toLowerCase();
     const statusFilters = selectedFilters
       .filter((f) => f.startsWith('status:'))
       .map((f) => f.replace('status:', ''));
 
     return tableData.filter((item) => {
-      const matchesQuery =
-        !q ||
-        item.solicitante.toLowerCase().includes(q) ||
-        item.email.toLowerCase().includes(q) ||
-        item.destino.toLowerCase().includes(q);
-
       const matchesStatus = statusFilters.length === 0 || statusFilters.includes(item.status);
-
-      return matchesQuery && matchesStatus;
+      return matchesStatus;
     });
-  }, [tableData, query, selectedFilters]);
+  }, [tableData, selectedFilters]);
 
   const PAGE_SIZE = 5;
   const totalPages = Math.max(1, Math.ceil(filteredTableData.length / PAGE_SIZE));
@@ -262,18 +259,20 @@ export const ExecutiveView = () => {
   return (
     <div className={styles.page}>
       <TableToolbar
-        onSearch={(val) => {
-          setQuery(val);
-          setCurrentPage(1);
-        }}
         filterSections={executiveFilterSections}
         selectedFilters={selectedFilters}
         onFilterChange={(vals) => {
           setSelectedFilters(vals);
           setCurrentPage(1);
         }}
+        dateRange={dateRange}
+        onDateRangeChange={(range) => {
+          setDateRange(range);
+          setCurrentPage(1);
+        }}
         onFilterClear={() => {
           setSelectedFilters([]);
+          setDateRange({ from: '', to: '' });
           setCurrentPage(1);
         }}
       />

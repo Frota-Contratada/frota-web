@@ -188,7 +188,7 @@ export const ContractCreate = () => {
                 isLoading={isExtractingIa}
                 disabled={isLoading}
               >
-                ✨ Analisar e Extrair Dados com IA (frota-ia)
+                Analisar e Extrair Dados com IA (frota-ia)
               </Button>
               <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
                 Preenche automaticamente vigência e regras identificadas.

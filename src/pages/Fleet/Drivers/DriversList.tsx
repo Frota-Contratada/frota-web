@@ -45,7 +45,9 @@ export const DriversList = () => {
   const fetchDrivers = async () => {
     try {
       setIsLoading(true);
-      const res = await driverApi.list();
+      const queryParams: Record<string, string | number> = {};
+      if (query.trim()) queryParams.nome = query.trim();
+      const res = await driverApi.list(queryParams);
       if (Array.isArray(res.response)) {
         setDrivers(res.response);
       } else if (res.response && Array.isArray(res.response.data)) {
@@ -60,7 +62,7 @@ export const DriversList = () => {
 
   useEffect(() => {
     fetchDrivers();
-  }, []);
+  }, [query]);
 
   const filteredDrivers = useMemo(() => {
     return drivers.filter((driver) => {
