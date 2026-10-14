@@ -33,18 +33,13 @@ export class NotificationSocketClient {
 
     const authToken = token || localStorage.getItem('token') || localStorage.getItem('access_token');
     const baseUrl = getWsUrl();
-    const isNgrok = baseUrl.includes('ngrok');
-
     this.socket = io(`${baseUrl}/notificacoes`, {
       transports: ['websocket', 'polling'],
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
-      extraHeaders: {
-        ...(isNgrok ? { 'ngrok-skip-browser-warning': 'true' } : {}),
-        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-      },
+      extraHeaders: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
     });
 
     this.socket.on('connect', () => {
