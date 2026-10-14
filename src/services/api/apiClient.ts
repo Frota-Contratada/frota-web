@@ -76,6 +76,7 @@ async function refreshAccessToken(): Promise<string | null> {
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
       },
       body: JSON.stringify({ refreshToken }),
     });
@@ -113,6 +114,7 @@ async function request<T>(path: string, options: ApiRequestOptions = {}): Promis
       ...fetchOptions,
       headers: {
         Accept: 'application/json',
+        'ngrok-skip-browser-warning': 'true',
         ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
         ...getAuthHeaders(skipAuth),
         ...headers,
@@ -183,6 +185,7 @@ export const apiClient = {
       ...fetchOptions,
       method: 'GET',
       headers: {
+        'ngrok-skip-browser-warning': 'true',
         ...getAuthHeaders(skipAuth),
         ...headers,
       },

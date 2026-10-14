@@ -64,7 +64,10 @@ export class TrackingSocketClient {
 
     this.socket = io(wsUrl, {
       transports: ['websocket', 'polling'],
-      extraHeaders: token ? { Authorization: `Bearer ${token}` } : undefined,
+      extraHeaders: {
+        'ngrok-skip-browser-warning': 'true',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       auth: token ? { token } : undefined,
     });
 
