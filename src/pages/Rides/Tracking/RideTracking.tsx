@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, LoadingState, useToast } from '../../../components/common';
-import { LiveTrackingMap, type CameraMode } from '../../../components/maps';
+import { AcompanhamentoEmbed } from '../../../components/tracking/AcompanhamentoEmbed';
 import {
   ridesApi,
   trackingApi,
@@ -24,8 +24,8 @@ export const RideTracking = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [cameraMode, setCameraMode] = useState<CameraMode>('passenger');
   const [isConnectedWs, setIsConnectedWs] = useState(false);
+  const [trackingRole, setTrackingRole] = useState<'driver' | 'passenger'>('driver');
 
   const socketClientRef = useRef<TrackingSocketClient | null>(null);
 
@@ -147,25 +147,6 @@ export const RideTracking = () => {
     }));
   }, [snapshot?.route?.stops]);
 
-  const routeCoordinates = useMemo<Array<[number, number]>>(() => {
-    if (snapshot?.route?.coordinates && snapshot.route.coordinates.length > 0) {
-      return snapshot.route.coordinates.map((c) => [c.lat, c.lng]);
-    }
-    return [];
-  }, [snapshot?.route?.coordinates]);
-
-  const vehiclePos = useMemo(() => {
-    if (snapshot?.vehiclePosition) {
-      return {
-        lat: snapshot.vehiclePosition.lat,
-        lng: snapshot.vehiclePosition.lng,
-        heading: snapshot.vehiclePosition.heading ?? 0,
-        speed: snapshot.vehiclePosition.speed ?? 0,
-      };
-    }
-    return undefined;
-  }, [snapshot?.vehiclePosition]);
-
   if (isLoading) {
     return (
       <div className={styles.page}>
@@ -224,7 +205,6 @@ export const RideTracking = () => {
 
   return (
     <div className={styles.page}>
-      {/* Header Corporativo Sóbrio */}
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <div className={styles.titleRow}>
@@ -254,7 +234,6 @@ export const RideTracking = () => {
         </div>
       </header>
 
-      {/* Grid de Métricas Principais da Viagem */}
       <section className={styles.kpiGrid} aria-label="Indicadores operacionais da viagem">
         <div className={styles.kpiCard}>
           <span className={styles.kpiLabel}>Chegada Prevista</span>
@@ -295,32 +274,58 @@ export const RideTracking = () => {
         </div>
       </section>
 
-      {/* Layout Principal: Mapa Interativo Direto + Painel Lateral de Dados */}
+      {/* Layout Principal: Micro-frontend frota-acompanhamento + Painel Lateral */}
       <section className={styles.trackingLayout}>
         <article className={styles.mapCard}>
           <div className={styles.mapToolbar}>
             <div className={styles.mapToolbarTitle}>
-              <span>Mapa da Rota</span>
+              <span>frota-acompanhamento (Micro-frontend ao vivo)</span>
             </div>
-            <div className={styles.mapToolbarActions}>
+            <div className={styles.mapToolbarActions} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <div style={{ display: 'inline-flex', border: '1px solid #cbd5e1', borderRadius: '6px', overflow: 'hidden' }}>
+                <button
+                  type="button"
+                  style={{
+                    padding: '0.3rem 0.75rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    border: 'none',
+                    backgroundColor: trackingRole === 'driver' ? 'var(--brand-primary, #2c2c9e)' : '#f8fafc',
+                    color: trackingRole === 'driver' ? '#ffffff' : '#475569',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => setTrackingRole('driver')}
+                >
+                  ▶ Visão Motorista (Simulador Play)
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    padding: '0.3rem 0.75rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    border: 'none',
+                    backgroundColor: trackingRole === 'passenger' ? 'var(--brand-primary, #2c2c9e)' : '#f8fafc',
+                    color: trackingRole === 'passenger' ? '#ffffff' : '#475569',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => setTrackingRole('passenger')}
+                >
+                  Visão Passageiro
+                </button>
+              </div>
+
               <span className={styles.gpsLabel}>
-                {snapshot?.vehiclePosition
-                  ? `GPS: ${snapshot.vehiclePosition.lat.toFixed(4)}, ${snapshot.vehiclePosition.lng.toFixed(4)}`
-                  : 'Aguardando sinal GPS'}
+                Porta: 3001
               </span>
             </div>
           </div>
 
-          <div className={styles.mapContainer}>
-            <LiveTrackingMap
-              origin={originPoint ?? undefined}
-              destination={destPoint ?? undefined}
-              stops={stopsList}
-              routeCoordinates={routeCoordinates}
-              vehiclePosition={vehiclePos}
-              cameraMode={cameraMode}
-              onCameraModeChange={setCameraMode}
-              height={560}
+          <div className={styles.mapContainer} style={{ minHeight: '620px', height: '620px' }}>
+            <AcompanhamentoEmbed
+              rideId={rideId || ''}
+              role={trackingRole}
+              snapshot={snapshot}
             />
           </div>
         </article>
@@ -385,4 +390,3 @@ export const RideTracking = () => {
     </div>
   );
 };
-

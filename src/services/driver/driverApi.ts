@@ -64,4 +64,26 @@ export const driverApi = {
   getById(id: number) {
     return apiClient.get<MotoristaResponse>(`/usuario/motorista/${id}`);
   },
+
+  getViagens(query?: { inicio: string; fim: string }) {
+    return apiClient.get<{ response: any[] }>('/motorista/viagens', {
+      query: query as Record<string, string | number | boolean | null | undefined>,
+    });
+  },
+
+  getCorrida(id: number) {
+    return apiClient.get<{ response: any }>(`/motorista/corridas/${id}`);
+  },
+
+  iniciarCorrida(id: number) {
+    return apiClient.post<{ response: any }>(`/motorista/corridas/${id}/iniciar`, {});
+  },
+
+  recusarCorrida(id: number, motivo: string) {
+    return apiClient.post<{ response: any }>(`/motorista/corridas/${id}/recusar`, { motivo });
+  },
+
+  getMeusDados() {
+    return apiClient.get<{ response: any }>('/motorista/meus-dados');
+  },
 };

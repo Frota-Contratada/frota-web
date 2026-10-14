@@ -85,6 +85,6 @@ export const driverRideApi = {
   },
 
   getPerfil() {
-    return apiClient.get<{ response: MotoristaPerfilDto }>('/motorista/perfil');
+    return apiClient.get<{ response: MotoristaPerfilDto }>('/motorista/meus-dados');
   },
 };

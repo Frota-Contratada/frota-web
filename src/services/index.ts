@@ -20,7 +20,7 @@ export { contractApi } from './contract/contractApi';
 export type { ContratoDto, CriarContratoParams, BuscarContratosAdminQueryParams, BuscarContratosFilialQueryParams, ContratoBigNumbers, ContratoResponse, ContratosListResponse, ContratoBigNumbersResponse } from './contract/contractApi';
 export { costCenterApi } from './costCenter/costCenterApi';
 export type { CentroCustoDto, CentroCustoAdminDto, CentrosCustoListResponse, VincularAprovadorParams, AprovadorCentroCustoDto, VincularAprovadorResponse } from './costCenter/costCenterApi';
-export { ridesApi } from './rides/ridesApi';
+export { ridesApi, mapCorridaToSolicitacao } from './rides/ridesApi';
 export type { EnderecoSolicitacaoDto, MotivoSolicitacaoDto, TipoCorridaDto, TipoVeiculoDto, SimularSolicitacaoParams, SimulacaoSolicitacaoDto, CriarSolicitacaoParams, SolicitacaoDto, CancelarSolicitacaoParams, CorridaDto, CorridaPessoaDto, CorridaVeiculoDto } from './rides/ridesApi';
 export { geoService } from './maps/geoService';
 export type { EnderecoDetalhado, SugestaoEndereco } from './maps/geoService';

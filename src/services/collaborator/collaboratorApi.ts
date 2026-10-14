@@ -1,5 +1,6 @@
 import { apiClient } from '../api/apiClient';
 import { useAuthStore } from '../../stores/authStore';
+import { getUserNormalizedProfiles } from '../../types/profile.types';
 
 export interface ColaboradorSummaryDto {
   id: number;
@@ -108,11 +109,14 @@ export const collaboratorApi = {
 
   list(query?: ColaboradoresAdminQueryParams) {
     const user = useAuthStore.getState().user;
-    const isFilialOnly =
-      user?.profile === 'admin-filial' ||
-      (user?.perfis?.some((p) => p.tipoPerfil === 'ADMINISTRADOR_FILIAL') &&
-        !user?.perfis?.some((p) => p.tipoPerfil === 'ADMINISTRADOR_MATRIZ' || p.tipoPerfil === 'admin-master'));
-    return isFilialOnly ? this.listFilial(query) : this.listAdmin(query);
+    const profiles = getUserNormalizedProfiles(user);
+    if (profiles.includes('admin-master')) {
+      return this.listAdmin(query);
+    }
+    if (profiles.includes('admin-filial')) {
+      return this.listFilial(query);
+    }
+    return Promise.resolve({ response: [] });
   },
 
   getAdminBigNumbers(query?: { filialId?: number; centroCustoId?: number; perfil?: string }) {
@@ -125,6 +129,13 @@ export const collaboratorApi = {
     return apiClient.get<ColaboradorBigNumbersResponse>('/usuario/colaborador/filial/big-numbers', {
       query: query as Record<string, string | number | boolean | null | undefined>,
     });
+  },
+
+  getBigNumbers(query?: { filialId?: number; centroCustoId?: number; perfil?: string }) {
+    const user = useAuthStore.getState().user;
+    const profiles = getUserNormalizedProfiles(user);
+    const isFilialOnly = profiles.includes('admin-filial') && !profiles.includes('admin-master');
+    return isFilialOnly ? this.getFilialBigNumbers(query) : this.getAdminBigNumbers(query);
   },
 
   getProfiles(id: number) {

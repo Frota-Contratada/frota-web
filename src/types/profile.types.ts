@@ -135,6 +135,26 @@ export const hasAnyPermission = (profiles: (UserProfile | string)[] | undefined,
   return profiles.some((p) => hasPermission(p as UserProfile, permission));
 };
 
+export const getUserNormalizedProfiles = (
+  user?: { profile?: string | null; perfis?: Array<{ tipoPerfil: string }> } | null
+): UserProfile[] => {
+  if (!user) return [];
+  const profiles = new Set<UserProfile>();
+  if (user.profile) {
+    const norm = normalizeProfile(user.profile);
+    if (norm) profiles.add(norm);
+  }
+  if (user.perfis && Array.isArray(user.perfis)) {
+    user.perfis.forEach((p) => {
+      if (p.tipoPerfil) {
+        const norm = normalizeProfile(p.tipoPerfil);
+        if (norm) profiles.add(norm);
+      }
+    });
+  }
+  return Array.from(profiles);
+};
+
 export const isAdminProfile = (profile: UserProfile | undefined): boolean => {
   const norm = normalizeProfile(profile);
   return norm === 'admin-master' || norm === 'admin-filial';

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, LoadingState, StatusBadge, useToast } from '../../../components/common';
+import { Button, LoadingState, StatCard, StatusBadge, useToast } from '../../../components/common';
 import { RouteMap } from '../../../components/maps';
 import type { RoutePoint } from '../../../services/maps/routingService';
 import SetaSmIcon from '../../../assets/icons/seta-sm.svg?react';
-import { ridesApi, type SolicitacaoDto } from '../../../services';
+import CheckIcon from '../../../assets/icons/check.svg?react';
+import { ridesApi, mapCorridaToSolicitacao, type SolicitacaoDto } from '../../../services';
 import styles from './RideDetails.module.css';
 
 const mapStatusToBadge = (status?: string): 'em_andamento' | 'aprovado' | 'cancelado' | 'pendente' => {
@@ -13,6 +14,17 @@ const mapStatusToBadge = (status?: string): 'em_andamento' | 'aprovado' | 'cance
   if (s === 'APROVADA' || s === 'FINALIZADA' || s === 'F') return 'aprovado';
   if (s === 'CANCELADA' || s === 'REJEITADA' || s === 'C') return 'cancelado';
   return 'pendente';
+};
+
+const getInitials = (name?: string) => {
+  if (!name) return 'MO';
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toLocaleUpperCase('pt-BR');
 };
 
 export const RideDetails = () => {
@@ -38,16 +50,24 @@ export const RideDetails = () => {
         .catch(async () => {
           try {
             const corridaRes = await ridesApi.getCorridaById(id);
-            if (corridaRes.response?.solicitacaoId) {
-              const solRes = await ridesApi.getById(corridaRes.response.solicitacaoId);
-              if (!isMounted) return;
-              if (solRes.response) {
-                setSolicitacao(solRes.response);
-                return;
+            if (corridaRes?.response) {
+              if (corridaRes.response.solicitacaoId) {
+                try {
+                  const solRes = await ridesApi.getById(corridaRes.response.solicitacaoId);
+                  if (!isMounted) return;
+                  if (solRes.response) {
+                    setSolicitacao(solRes.response);
+                    return;
+                  }
+                } catch {
+
+                }
               }
+              if (!isMounted) return;
+              setSolicitacao(mapCorridaToSolicitacao(corridaRes.response));
+              return;
             }
           } catch {
-
           }
           if (!isMounted) return;
           showToast({ type: 'error', title: 'Erro ao buscar detalhes da corrida' });
@@ -76,6 +96,17 @@ export const RideDetails = () => {
     if (!solicitacao?.destino) return '—';
     const { logradouro, numero, bairro, cidade, uf } = solicitacao.destino;
     return `${logradouro || ''}, ${numero || 'S/N'} - ${bairro || ''}, ${cidade || ''} - ${uf || ''}`;
+  }, [solicitacao]);
+
+  const intermediateStops = useMemo(() => {
+    if (!solicitacao?.paradas || !Array.isArray(solicitacao.paradas)) return [];
+    return solicitacao.paradas.map((p: any, idx: number) => {
+      const end = p.endereco || p;
+      const text = end.logradouro
+        ? `${end.logradouro}, ${end.numero || 'S/N'} - ${end.bairro || ''}, ${end.cidade || ''}`
+        : `Parada #${idx + 1}`;
+      return { index: idx + 1, text };
+    });
   }, [solicitacao]);
 
   const routePoints = useMemo<RoutePoint[]>(() => {
@@ -116,10 +147,6 @@ export const RideDetails = () => {
     return points;
   }, [solicitacao]);
 
-  const handlePrintReceipt = () => {
-    window.print();
-  };
-
   if (isLoading) {
     return (
       <div className={styles.page}>
@@ -150,32 +177,53 @@ export const RideDetails = () => {
   const kmPercorrido = corrida?.kmPercorrido ?? solicitacao.distanciaEstimadaKm ?? solicitacao.distanciaKm ?? 0;
 
   const corridaId = corrida?.id ?? solicitacao.corrida?.id ?? solicitacao.id;
-  const isInProgress = corrida?.status === 'I' || solicitacao.corrida?.status === 'I' || solicitacao.status === 'I' || solicitacao.status === 'EM_ANDAMENTO';
+  const isInProgress =
+    corrida?.status === 'I' ||
+    solicitacao.corrida?.status === 'I' ||
+    solicitacao.status === 'I' ||
+    solicitacao.status === 'EM_ANDAMENTO';
 
   const effectiveStatus = corrida?.status ?? solicitacao.status;
 
+  const passengersList = solicitacao.Passageiros && solicitacao.Passageiros.length > 0
+    ? solicitacao.Passageiros
+    : [{ nome: solicitacao.solicitanteNome || 'Passageiro Principal', solicitante: true }];
+
   return (
     <div className={styles.page}>
-      <section className={styles.detailHeader}>
-        <div>
-          <h2>
-            {corrida?.id
-              ? `Corrida #${corrida.id} (Solicitação #${solicitacao.id})`
-              : `Solicitação de Transporte #${solicitacao.id}`}
-          </h2>
-          <p>
-            {solicitacao.dataCorrida ? new Date(solicitacao.dataCorrida).toLocaleString('pt-BR') : '—'} •{' '}
-            {solicitacao.tipoCorrida?.nome || 'Transporte Executivo'}
-          </p>
+      {/* Hero Header Card */}
+      <section className={styles.heroCard} aria-label="Identificação da corrida">
+        <div className={styles.heroLeft}>
+          <div className={styles.heroInfo}>
+            <div className={styles.heroTitleRow}>
+              <h2>
+                {corrida?.id
+                  ? `Corrida #${corrida.id}`
+                  : `Solicitação de Transporte #${solicitacao.id}`}
+              </h2>
+              <StatusBadge status={mapStatusToBadge(effectiveStatus)} />
+            </div>
+
+            <div className={styles.heroMetaRow}>
+              <span className={styles.metaItem}>
+                <strong>Data:</strong>{' '}
+                {solicitacao.dataCorrida ? new Date(solicitacao.dataCorrida).toLocaleString('pt-BR') : '—'}
+              </span>
+              <span className={styles.metaDot}>•</span>
+              <span className={styles.metaItem}>
+                <strong>Categoria:</strong> {solicitacao.tipoVeiculo?.nome || solicitacao.tipoCorrida?.nome || 'Transporte Executivo'}
+              </span>
+              <span className={styles.metaDot}>•</span>
+              <span className={styles.metaItem}>
+                <strong>Solicitante:</strong> {solicitacao.solicitanteNome || 'Colaborador Solicitante'}
+              </span>
+            </div>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          {isInProgress && (
-            <Button onClick={() => navigate(`/corridas/${corridaId}/acompanhamento`)}>
-              Acompanhar ao vivo
-            </Button>
-          )}
-          <Button variant="outline" onClick={handlePrintReceipt}>
-            Imprimir Recibo
+
+        <div className={styles.heroActions}>
+          <Button onClick={() => navigate(`/corridas/${corridaId || rideId}/acompanhamento`)}>
+            {isInProgress ? 'Acompanhar ao vivo' : 'Ver Acompanhamento / Simulação'}
           </Button>
           <Button variant="outline" onClick={() => navigate('/corridas/historico')}>
             Voltar ao histórico
@@ -183,152 +231,218 @@ export const RideDetails = () => {
         </div>
       </section>
 
-      {corrida?.valorFinal && solicitacao.valorEstimado && Number(corrida.valorFinal) !== Number(solicitacao.valorEstimado) && (
-        <div className={styles.priceNoticeBanner} role="status">
-          <div>
-            <strong>Aviso de Atualização Tarifária:</strong> O valor final realizado desta corrida foi de R$ {Number(corrida.valorFinal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}, com ajuste em relação à estimativa inicial de R$ {Number(solicitacao.valorEstimado).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.
-          </div>
-        </div>
-      )}
+      {/* KPI Stats Grid */}
+      <section className={styles.statsGrid} aria-label="Indicadores da corrida">
+        <StatCard
+          title="Total Faturado"
+          value={`R$ ${Number(valorFinal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+        />
+        <StatCard
+          title="Distância Total"
+          value={`${kmPercorrido > 0 ? Number(kmPercorrido).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '—'} km`}
+        />
+        <StatCard
+          title="Passageiros"
+          value={`${passengersList.length} ${passengersList.length === 1 ? 'pessoa' : 'pessoas'}`}
+        />
+        <StatCard
+          title="Veículo / Categoria"
+          value={solicitacao.tipoVeiculo?.nome || solicitacao.tipoCorrida?.nome || 'Executiva'}
+        />
+      </section>
 
-      <div className={styles.reviewLayout}>
-        <article className={styles.mainCard}>
-          <div className={styles.cardHeader}>
-            <div>
-              <h3>Informações do Trajeto</h3>
-              <p>Origem, destino e traçado do percurso da corrida.</p>
-            </div>
-            <StatusBadge status={mapStatusToBadge(effectiveStatus)} />
-          </div>
-
-          <div className={styles.routeCard}>
-            <div className={styles.routePoint}>
-              <span className={styles.routeLabel}>
-                <i className={styles.originDot} aria-hidden="true" />
-                Origem
-              </span>
-              <strong>{originText}</strong>
-            </div>
-
-            <span className={styles.routeArrowWrapper} aria-hidden="true">
-              <SetaSmIcon width={10} height={10} className={styles.routeArrow} />
-            </span>
-
-            <div className={styles.routePoint}>
-              <span className={styles.routeLabel}>
-                <i className={styles.destinationDot} aria-hidden="true" />
-                Destino
-              </span>
-              <strong>{destinationText}</strong>
-            </div>
-          </div>
-
-          <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
-            <RouteMap points={routePoints} height={340} allowPlayback={true} />
-          </div>
-
-          <div className={styles.cardHeader} style={{ marginTop: '2rem' }}>
-            <div>
-              <h3>Execução da Corrida</h3>
-              <p>Horários e medição de distância do trajeto.</p>
-            </div>
-          </div>
-
-          <div className={styles.infoGrid}>
-            <div className={styles.infoItem}>
-              <span>Data da Corrida</span>
-              <strong>
-                {solicitacao.dataCorrida ? new Date(solicitacao.dataCorrida).toLocaleDateString('pt-BR') : '—'}
-              </strong>
-            </div>
-
-            <div className={styles.infoItem}>
-              <span>Horário Agendado</span>
-              <strong>
-                {solicitacao.dataCorrida
-                  ? new Date(solicitacao.dataCorrida).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                  : '—'}
-              </strong>
-            </div>
-
-            <div className={styles.infoItem}>
-              <span>Distância Percorrida</span>
-              <strong>{kmPercorrido > 0 ? `${Number(kmPercorrido).toLocaleString('pt-BR')} km` : 'A calcular'}</strong>
-            </div>
-
-            <div className={styles.infoItem}>
-              <span>Categoria do Veículo</span>
-              <strong>{solicitacao.tipoVeiculo?.nome || solicitacao.tipoCorrida?.nome || 'Executiva'}</strong>
-            </div>
-          </div>
-
-          <div className={styles.cardHeader} style={{ marginTop: '2rem' }}>
-            <div>
-              <h3>Motorista e Veículo</h3>
-              <p>Identificação do condutor e placa associada.</p>
-            </div>
-          </div>
-
-          <div className={styles.infoGrid}>
-            <div className={styles.infoItem}>
-              <span>Motorista</span>
-              <strong>{corrida?.motoristaNome || 'A definir pelo fornecedor'}</strong>
-            </div>
-
-            <div className={styles.infoItem}>
-              <span>Placa do Veículo</span>
-              <strong>{corrida?.placaVeiculo || '—'}</strong>
-            </div>
-
-            <div className={styles.infoItem}>
-              <span>Fornecedor Credenciado</span>
-              <strong>{solicitacao.fornecedorNome || (solicitacao.fornecedorId ? `Fornecedor #${solicitacao.fornecedorId}` : 'Transportes Aurora')}</strong>
-            </div>
-
-            <div className={styles.infoItem}>
-              <span>Motivo / Finalidade</span>
-              <strong>{solicitacao.motivo?.nome || 'Viagem Corporativa'}</strong>
-            </div>
-          </div>
-        </article>
-
-        <aside className={styles.sidePanel}>
-          <div className={styles.actionsCard}>
-            <span className={styles.actionsTitle}>Demonstrativo de Valores</span>
-
-            <div className={styles.summaryList}>
+      {/* Main Content Layout */}
+      <div className={styles.contentLayout}>
+        {/* Left Column: Itinerário, Execução, Motorista */}
+        <div className={styles.mainColumn}>
+          {/* Card: Trajeto e Itinerário */}
+          <article className={styles.detailCard}>
+            <div className={styles.cardHeaderTitle}>
               <div>
-                <span>Valor estimado</span>
+                <h3>Informações do Trajeto</h3>
+                <p>Origem, destino e traçado georreferenciado do percurso.</p>
+              </div>
+            </div>
+
+            <div className={styles.routeCard}>
+              <div className={styles.routePoint}>
+                <span className={styles.routeLabel}>
+                  <i className={styles.originDot} aria-hidden="true" />
+                  Origem
+                </span>
+                <strong>{originText}</strong>
+              </div>
+
+              <span className={styles.routeArrowWrapper} aria-hidden="true">
+                <SetaSmIcon width={12} height={12} className={styles.routeArrow} />
+              </span>
+
+              <div className={styles.routePoint}>
+                <span className={styles.routeLabel}>
+                  <i className={styles.destinationDot} aria-hidden="true" />
+                  Destino
+                </span>
+                <strong>{destinationText}</strong>
+              </div>
+            </div>
+
+            {intermediateStops.length > 0 && (
+              <div className={styles.stopsContainer}>
+                <span className={styles.stopsTitle}>Paradas Intermediárias ({intermediateStops.length})</span>
+                {intermediateStops.map((stop) => (
+                  <div key={stop.index} className={styles.stopItem}>
+                    <i className={styles.stopDot} aria-hidden="true" />
+                    <span><strong>Parada {stop.index}:</strong> {stop.text}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className={styles.mapContainer}>
+              <RouteMap points={routePoints} height={340} allowPlayback={false} />
+            </div>
+          </article>
+
+          {/* Card: Execução da Corrida */}
+          <article className={styles.detailCard}>
+            <div className={styles.cardHeaderTitle}>
+              <div>
+                <h3>Execução da Corrida</h3>
+                <p>Horários, quilometragem aferida e finalidade do deslocamento.</p>
+              </div>
+            </div>
+
+            <div className={styles.infoGrid}>
+              <div className={styles.infoItem}>
+                <span>Data da Viagem</span>
+                <strong>
+                  {solicitacao.dataCorrida ? new Date(solicitacao.dataCorrida).toLocaleDateString('pt-BR') : '—'}
+                </strong>
+              </div>
+
+              <div className={styles.infoItem}>
+                <span>Horário Agendado</span>
+                <strong>
+                  {solicitacao.dataCorrida
+                    ? new Date(solicitacao.dataCorrida).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                    : '—'}
+                </strong>
+              </div>
+
+              <div className={styles.infoItem}>
+                <span>Distância Percorrida</span>
+                <strong>{kmPercorrido > 0 ? `${Number(kmPercorrido).toLocaleString('pt-BR')} km` : 'A calcular'}</strong>
+              </div>
+
+              <div className={styles.infoItem}>
+                <span>Categoria Solicitada</span>
+                <strong>{solicitacao.tipoVeiculo?.nome || solicitacao.tipoCorrida?.nome || 'Executiva'}</strong>
+              </div>
+
+              <div className={styles.infoItem}>
+                <span>Finalidade / Motivo</span>
+                <strong>{solicitacao.motivo?.nome || 'Viagem Corporativa'}</strong>
+              </div>
+
+              <div className={styles.infoItem}>
+                <span>Fornecedor Credenciado</span>
+                <strong>
+                  {solicitacao.fornecedorNome || (solicitacao.fornecedorId ? `Fornecedor #${solicitacao.fornecedorId}` : 'Transportes Aurora')}
+                </strong>
+              </div>
+            </div>
+          </article>
+
+          {/* Card: Motorista e Veículo */}
+          <article className={styles.detailCard}>
+            <div className={styles.cardHeaderTitle}>
+              <div>
+                <h3>Motorista e Veículo Designado</h3>
+                <p>Identificação do condutor parceiro e placa oficial do veículo.</p>
+              </div>
+            </div>
+
+            <div className={styles.driverCard}>
+              <div className={styles.driverProfile}>
+                <div className={styles.driverAvatar}>
+                  {getInitials(corrida?.motoristaNome)}
+                </div>
+                <div className={styles.driverDetails}>
+                  <strong className={styles.driverName}>
+                    {corrida?.motoristaNome || 'Motorista a definir pelo fornecedor'}
+                  </strong>
+                  <span className={styles.driverCompany}>
+                    {solicitacao.fornecedorNome || 'Fornecedor credenciado'} • {solicitacao.tipoVeiculo?.nome || 'Veículo Executivo'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <span className={styles.plateBadge}>
+                  {corrida?.placaVeiculo ? corrida.placaVeiculo.toUpperCase() : 'PLACA N/D'}
+                </span>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        {/* Right Column: Demonstrativo de Valores & Dados da Solicitação */}
+        <aside className={styles.sideColumn} aria-label="Demonstrativo e dados administrativos">
+          {/* Card: Demonstrativo Financeiro */}
+          <section className={styles.receiptCard}>
+            <div className={styles.receiptTitle}>
+              <span>Demonstrativo de Valores</span>
+            </div>
+
+            <div className={styles.receiptList}>
+              <div className={styles.receiptRow}>
+                <span>Valor base estimado</span>
                 <strong>
                   R$ {Number(solicitacao.valorEstimado || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </strong>
               </div>
 
-              <div>
-                <span>Despesas extras / Pedágio</span>
+              <div className={styles.receiptRow}>
+                <span>Taxas extras / Pedágio</span>
                 <strong>R$ 0,00</strong>
               </div>
 
-              <div>
-                <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>Total Faturado</span>
-                <strong style={{ color: 'var(--brand-primary)', fontSize: '1.125rem' }}>
+              <div className={styles.receiptTotalRow}>
+                <span>Total Faturado</span>
+                <strong>
                   R$ {Number(valorFinal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </strong>
               </div>
             </div>
-          </div>
 
-          <div className={styles.actionsCard}>
-            <span className={styles.actionsTitle}>Dados da Solicitação</span>
+            <div className={styles.auditBadge}>
+              <CheckIcon width={16} height={16} />
+              <span>Tarifa validada e em conformidade</span>
+            </div>
 
-            <div className={styles.summaryList}>
-              <div>
-                <span>Solicitante</span>
+            {corrida?.valorFinal && solicitacao.valorEstimado && Number(corrida.valorFinal) !== Number(solicitacao.valorEstimado) && (
+              <div className={styles.priceNoticeBanner} role="status">
+                <div>
+                  <strong>Aviso Tarifário:</strong> O valor final realizado foi de R$ {Number(corrida.valorFinal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}, com ajuste sobre a estimativa de R$ {Number(solicitacao.valorEstimado).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* Card: Dados Administrativos e Passageiros */}
+          <section className={styles.metaCard}>
+            <div className={styles.receiptTitle}>
+              <span>Dados da Solicitação</span>
+            </div>
+
+            <div className={styles.metaList}>
+              <div className={styles.metaRow}>
+                <label>Solicitante</label>
                 <strong>{solicitacao.solicitanteNome || 'Colaborador Solicitante'}</strong>
               </div>
 
-              <div>
-                <span>Centros de Custo</span>
+              <div className={styles.metaRow}>
+                <label>Centro de Custo</label>
                 <strong>
                   {solicitacao.CentrosCusto && solicitacao.CentrosCusto.length > 0
                     ? solicitacao.CentrosCusto.map((cc) => cc.centroCustoNome || `CC #${cc.centroCustoId}`).join(', ')
@@ -336,16 +450,24 @@ export const RideDetails = () => {
                 </strong>
               </div>
 
-              <div>
-                <span>Passageiros</span>
-                <strong>
-                  {solicitacao.Passageiros && solicitacao.Passageiros.length > 0
-                    ? `${solicitacao.Passageiros.length} pessoa(s)`
-                    : '1 pessoa'}
-                </strong>
+              <div className={styles.metaRow}>
+                <label>Passageiros Registrados ({passengersList.length})</label>
+                <div className={styles.passengerTags}>
+                  {passengersList.map((pass, idx) => (
+                    <span key={idx} className={styles.passengerTag}>
+                      {pass.nome || `Passageiro ${idx + 1}`}
+                      {pass.solicitante ? ' (Titular)' : ''}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.metaRow}>
+                <label>Protocolo Geral</label>
+                <strong>SOL-{String(solicitacao.id).padStart(5, '0')}</strong>
               </div>
             </div>
-          </div>
+          </section>
         </aside>
       </div>
     </div>

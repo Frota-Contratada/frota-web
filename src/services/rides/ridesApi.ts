@@ -1,6 +1,7 @@
 import { apiClient, type ApiQueryParams } from '../api/apiClient';
 import { normalizeUf } from '../../utils/brazilianStates';
 import { useAuthStore } from '../../stores/authStore';
+import { getUserNormalizedProfiles } from '../../types/profile.types';
 import { routingService } from '../maps/routingService';
 import type { PaginatedResponse } from '../../utils/apiHelpers';
 
@@ -240,12 +241,45 @@ function sanitizeEndereco(endereco: EnderecoSolicitacaoDto): EnderecoSolicitacao
   return sanitized;
 }
 
+export function mapCorridaToSolicitacao(c: CorridaDto): SolicitacaoDto {
+  return {
+    id: c.solicitacaoId || c.id,
+    status: c.status,
+    dataCorrida: c.dataAgendada || c.inicio || new Date().toISOString(),
+    dataCriacao: c.inicio,
+    valorEstimado: Number(c.valorFinal || 0),
+    distanciaEstimadaKm: Number(c.quilometragem || 0),
+    tipoCorrida: { id: 1, nome: 'Padrão' },
+    solicitanteId: c.solicitante?.id,
+    solicitanteNome: c.solicitante?.nome,
+    fornecedorId: c.fornecedor?.id,
+    fornecedorNome: c.fornecedor?.nome,
+    origem: {
+      logradouro: 'Origem da Corrida',
+      cidade: 'São Paulo',
+      uf: 'SP',
+      latitude: 0,
+      longitude: 0,
+    },
+    destino: {
+      logradouro: 'Destino da Corrida',
+      cidade: 'São Paulo',
+      uf: 'SP',
+      latitude: 0,
+      longitude: 0,
+    },
+    corrida: c,
+    emAndamento: c.status === 'I',
+    cancelavel: c.status === 'A' || c.status === 'P',
+  };
+}
+
 export const ridesApi = {
   async getMotivos(tipo?: 'solicitacao' | 'cancelamento' | 'recusa'): Promise<{ response: CatalogoItemDto[] }> {
     const user = useAuthStore.getState().user;
-    const isAdminMaster = user?.profile === 'admin-master' || user?.perfis?.some((p) => p.tipoPerfil === 'admin-master');
+    const profiles = getUserNormalizedProfiles(user);
 
-    if (isAdminMaster) {
+    if (profiles.includes('admin-master')) {
       try {
         const adminRes = await apiClient.get<{ response: { data: CatalogoItemDto[] } | CatalogoItemDto[] }>('/motivo/admin', {
           query: tipo ? { tipo } : undefined,
@@ -257,7 +291,22 @@ export const ridesApi = {
           return { response: list };
         }
       } catch {
+      }
+      return { response: FALLBACK_MOTIVOS[tipo || 'cancelamento'] || FALLBACK_MOTIVOS.cancelamento };
+    }
 
+    if (profiles.includes('admin-filial')) {
+      try {
+        const filialRes = await apiClient.get<{ response: { data: CatalogoItemDto[] } | CatalogoItemDto[] }>('/motivo/filial', {
+          query: tipo ? { tipo } : undefined,
+        });
+        const list = Array.isArray(filialRes?.response)
+          ? filialRes.response
+          : (filialRes?.response as { data?: CatalogoItemDto[] })?.data || [];
+        if (list.length > 0) {
+          return { response: list };
+        }
+      } catch {
       }
       return { response: FALLBACK_MOTIVOS[tipo || 'cancelamento'] || FALLBACK_MOTIVOS.cancelamento };
     }
@@ -287,19 +336,69 @@ export const ridesApi = {
     return apiClient.get<{ response: CatalogoItemDto[] }>('/solicitacoes/tipos-veiculo');
   },
 
-  getViagens(query?: { inicio?: string; fim?: string; dataInicio?: string; dataFim?: string }) {
-    const mappedQuery: Record<string, string | number | boolean | null | undefined> = {};
+  async getViagens(query?: { inicio?: string; fim?: string; dataInicio?: string; dataFim?: string }) {
+    const user = useAuthStore.getState().user;
+    const profiles = getUserNormalizedProfiles(user);
+
     const now = new Date();
     const firstDay = new Date(now.setDate(now.getDate() - now.getDay()));
     const lastDay = new Date(now.setDate(now.getDate() - now.getDay() + 6));
     const inicio = query?.inicio || query?.dataInicio || firstDay.toISOString();
     const fim = query?.fim || query?.dataFim || lastDay.toISOString();
-    mappedQuery.inicio = inicio;
-    mappedQuery.fim = fim;
 
-    return apiClient.get<{ response: ViagemAgendadaDto[] }>('/solicitacoes/viagens', {
-      query: mappedQuery,
+    if (profiles.includes('motorista')) {
+      try {
+        const motRes = await apiClient.get<{ response: any[] }>('/motorista/viagens', {
+          query: { inicio, fim },
+        });
+        const list = Array.isArray(motRes?.response) ? motRes.response : [];
+        return {
+          response: list.map((v: any) => ({
+            solicitacaoId: v.solicitacaoId || v.id,
+            corridaId: String(v.id),
+            dataHoraPartida: v.dataAgendada || v.inicio || inicio,
+            origem: v.origem || 'Origem',
+            destino: v.destino || 'Destino',
+            status: v.status || 'AGENDADA',
+            tipoCorrida: v.tipoCorrida || 'Padrão',
+            valorEstimado: v.valorFinal || 0,
+            motoristaNome: v.motoristaNome,
+            placaVeiculo: v.placaVeiculo,
+          })),
+        };
+      } catch {
+
+      }
+    }
+
+    if (profiles.includes('solicitante') || profiles.includes('solicitante-emergencia')) {
+      try {
+        return await apiClient.get<{ response: ViagemAgendadaDto[] }>('/solicitacoes/viagens', {
+          query: { inicio, fim },
+        });
+      } catch {
+
+      }
+    }
+
+    const corridaRes = await apiClient.get<{ response: CorridaDto[] }>('/corridas/minhas', {
+      query: { dataInicio: inicio, dataFim: fim },
     });
+    const corridas = Array.isArray(corridaRes?.response) ? corridaRes.response : [];
+    return {
+      response: corridas.map((c) => ({
+        solicitacaoId: c.solicitacaoId || c.id,
+        corridaId: String(c.id),
+        dataHoraPartida: c.dataAgendada || c.inicio || inicio,
+        origem: 'Origem',
+        destino: 'Destino',
+        status: c.status,
+        tipoCorrida: 'Padrão',
+        valorEstimado: c.valorFinal || 0,
+        motoristaNome: c.motorista?.nome,
+        placaVeiculo: c.veiculo?.placa,
+      })),
+    };
   },
 
   async simular(data: SimularSolicitacaoParams): Promise<{ response: SimulacaoSolicitacaoDto }> {
@@ -372,16 +471,64 @@ export const ridesApi = {
     return apiClient.post<{ response: SolicitacaoDto }>('/solicitacoes', payload);
   },
 
-  list(query?: ApiQueryParams) {
-    return apiClient.get<{ response: PaginatedResponse<SolicitacaoDto> | SolicitacaoDto[] }>('/solicitacoes', { query });
+  async list(query?: ApiQueryParams): Promise<{ response: PaginatedResponse<SolicitacaoDto> | SolicitacaoDto[] }> {
+    const user = useAuthStore.getState().user;
+    const profiles = getUserNormalizedProfiles(user);
+
+    if (profiles.includes('solicitante') || profiles.includes('solicitante-emergencia')) {
+      try {
+        return await apiClient.get<{ response: PaginatedResponse<SolicitacaoDto> | SolicitacaoDto[] }>('/solicitacoes', { query });
+      } catch (err: any) {
+        if (err?.status !== 403 && err?.statusCode !== 403) {
+          throw err;
+        }
+      }
+    }
+
+    if (profiles.includes('aprovador') && !profiles.includes('admin-master') && !profiles.includes('admin-filial')) {
+      try {
+        return await apiClient.get<{ response: PaginatedResponse<SolicitacaoDto> | SolicitacaoDto[] }>('/solicitacoes/aprovador/pendentes', { query });
+      } catch (err: any) {
+        if (err?.status !== 403 && err?.statusCode !== 403) {
+          throw err;
+        }
+      }
+    }
+
+    const corridaRes = await this.getMinhasCorridas(query as any);
+    const corridas = Array.isArray(corridaRes?.response) ? corridaRes.response : [];
+    const mapped = corridas.map(mapCorridaToSolicitacao);
+    return {
+      response: {
+        totalCount: mapped.length,
+        hasNextPage: false,
+        data: mapped,
+      },
+    };
   },
 
   listAprovadorPendentes(query?: ApiQueryParams) {
     return apiClient.get<{ response: PaginatedResponse<SolicitacaoDto> | SolicitacaoDto[] }>('/solicitacoes/aprovador/pendentes', { query });
   },
 
-  getById(id: number) {
-    return apiClient.get<{ response: SolicitacaoDto }>(`/solicitacoes/${id}`);
+  async getById(id: number): Promise<{ response: SolicitacaoDto }> {
+    const user = useAuthStore.getState().user;
+    const profiles = getUserNormalizedProfiles(user);
+    const canCallSolicitacao = profiles.some((p) => p === 'solicitante' || p === 'solicitante-emergencia' || p === 'aprovador');
+
+    if (canCallSolicitacao) {
+      try {
+        return await apiClient.get<{ response: SolicitacaoDto }>(`/solicitacoes/${id}`);
+      } catch {
+
+      }
+    }
+
+    const corridaRes = await this.getCorridaById(id);
+    if (corridaRes?.response) {
+      return { response: mapCorridaToSolicitacao(corridaRes.response) };
+    }
+    throw new Error('Solicitação ou corrida não encontrada');
   },
 
   getMinhasCorridas(query?: { status?: string; dataInicio?: string; dataFim?: string }) {
@@ -416,9 +563,23 @@ export const ridesApi = {
     return this.rejeitar(requestId, motivoRecusaId);
   },
 
-  cancelar(id: number, data?: CancelarSolicitacaoParams | number) {
+  async cancelar(id: number, data?: CancelarSolicitacaoParams | number) {
     const body = typeof data === 'number' ? { motivoCancelamentoId: data } : (data ?? { motivoCancelamentoId: 1 });
-    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/cancelamento`, body);
+    const user = useAuthStore.getState().user;
+    const profiles = getUserNormalizedProfiles(user);
+
+    if (profiles.includes('motorista')) {
+      return apiClient.patch<{ response: any }>(`/corridas/${id}/cancelamento`, body);
+    }
+
+    try {
+      return await apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/cancelamento`, body);
+    } catch (err: any) {
+      if (err?.status === 403 || err?.statusCode === 403 || err?.status === 404) {
+        return apiClient.patch<{ response: any }>(`/corridas/${id}/cancelamento`, body);
+      }
+      throw err;
+    }
   },
 
   listRequests(query?: ApiQueryParams) {

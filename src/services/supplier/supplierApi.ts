@@ -1,5 +1,6 @@
 import { apiClient } from '../api/apiClient';
 import { useAuthStore } from '../../stores/authStore';
+import { getUserNormalizedProfiles } from '../../types/profile.types';
 
 export interface FornecedorDto {
   id: number;
@@ -85,10 +86,14 @@ export const supplierApi = {
 
   list(query?: BuscarFornecedoresQueryParams) {
     const user = useAuthStore.getState().user;
-    const isAdminMaster =
-      user?.profile === 'admin-master' ||
-      user?.perfis?.some((p) => p.tipoPerfil === 'admin-master' || p.tipoPerfil === 'ADMINISTRADOR_MATRIZ');
-    return isAdminMaster ? this.listAdmin(query) : this.listFilial(query);
+    const profiles = getUserNormalizedProfiles(user);
+    if (profiles.includes('admin-master')) {
+      return this.listAdmin(query);
+    }
+    if (profiles.includes('admin-filial')) {
+      return this.listFilial(query);
+    }
+    return this.listFilial(query).catch(() => ({ response: [] }));
   },
 
   getAdminBigNumbers(query?: { filialId?: number }) {
@@ -99,6 +104,15 @@ export const supplierApi = {
 
   getFilialBigNumbers() {
     return apiClient.get<FornecedorBigNumbersResponse>('/fornecedor/filial/big-numbers');
+  },
+
+  getBigNumbers(query?: { filialId?: number }) {
+    const user = useAuthStore.getState().user;
+    const profiles = getUserNormalizedProfiles(user);
+    if (profiles.includes('admin-filial') && !profiles.includes('admin-master')) {
+      return this.getFilialBigNumbers();
+    }
+    return this.getAdminBigNumbers(query);
   },
 
   getById(id: number) {
@@ -113,11 +127,14 @@ export const supplierApi = {
 
   update(id: number, data: AtualizarFornecedorParams) {
     const user = useAuthStore.getState().user;
-    const isAdminMaster =
-      user?.profile === 'admin-master' ||
-      user?.perfis?.some((p) => p.tipoPerfil === 'admin-master' || p.tipoPerfil === 'ADMINISTRADOR_MATRIZ');
-    const url = isAdminMaster ? `/fornecedor/admin/${id}` : `/fornecedor/filial/${id}`;
-    return apiClient.patch<FornecedorResponse>(url, data);
+    const profiles = getUserNormalizedProfiles(user);
+    if (profiles.includes('admin-master')) {
+      return apiClient.patch<FornecedorResponse>(`/fornecedor/admin/${id}`, data);
+    }
+    if (profiles.includes('admin-fornecedor')) {
+      return apiClient.patch<FornecedorResponse>('/fornecedor/me', data);
+    }
+    return apiClient.patch<FornecedorResponse>(`/fornecedor/filial/${id}`, data);
   },
 };
 

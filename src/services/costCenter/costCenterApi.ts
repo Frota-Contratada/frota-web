@@ -1,5 +1,6 @@
 import { apiClient } from '../api/apiClient';
 import { useAuthStore } from '../../stores/authStore';
+import { getUserNormalizedProfiles } from '../../types/profile.types';
 
 export interface VincularAprovadorParams {
   usuarioId: number;
@@ -70,16 +71,35 @@ function listFilial(query?: CentroCustoQueryParams) {
   });
 }
 
-function list(query?: CentroCustoQueryParams) {
+async function list(query?: CentroCustoQueryParams) {
   const user = useAuthStore.getState().user;
-  const isAdminMaster =
-    user?.profile === 'admin-master' ||
-    user?.perfis?.some((p) => p.tipoPerfil === 'admin-master' || p.tipoPerfil === 'ADMINISTRADOR_MATRIZ');
+  const profiles = getUserNormalizedProfiles(user);
 
-  if (isAdminMaster) {
-    return listAdmin(query);
+  if (profiles.includes('admin-master')) {
+    try {
+      return await listAdmin(query);
+    } catch {
+      return listMinhas();
+    }
   }
-  return listFilial(query);
+
+  const isOrdinaryRequester =
+    profiles.length > 0 &&
+    (profiles.includes('solicitante') ||
+      profiles.includes('solicitante-emergencia') ||
+      profiles.includes('aprovador') ||
+      profiles.includes('motorista')) &&
+    !profiles.includes('admin-filial');
+
+  if (isOrdinaryRequester) {
+    return listMinhas();
+  }
+
+  try {
+    return await listFilial(query);
+  } catch {
+    return listMinhas();
+  }
 }
 
 function listMinhas() {

@@ -425,7 +425,7 @@ export const RideReview = () => {
             <span className={styles.actionsTitle}>Ações da revisão</span>
 
             <div className={styles.primaryActions}>
-              {solicitacao.status === 'P' ? (
+              {(solicitacao.status === 'P' || String(solicitacao.status).toUpperCase().startsWith('P')) ? (
                 <>
                   {currentStep < reviewSteps.length ? (
                     <Button onClick={goNext}>Próximo passo</Button>
@@ -451,7 +451,7 @@ export const RideReview = () => {
               )}
             </div>
 
-            {solicitacao.status === 'P' && (
+            {(solicitacao.status === 'P' || String(solicitacao.status).toUpperCase().startsWith('P')) && (
               <div className={styles.dangerZone}>
                 {can('rides:reject') && (
                   <Button

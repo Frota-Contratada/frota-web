@@ -91,33 +91,28 @@ describe('RideReview Functional Logic & Business Rules', () => {
 
     await waitFor(() => expect(ridesApi.getById).toHaveBeenCalledWith(101));
 
-    // Passo 1: Informações da corrida
     expect(screen.getByRole('heading', { name: 'Informações da corrida' })).toBeInTheDocument();
 
-    // Avançar para o Passo 2: Selecionar Fornecedor
     fireEvent.click(screen.getByRole('button', { name: /próximo/i }));
 
-    // Passo 2: Seleção de fornecedor disponível para o aprovador primário
     await waitFor(() => expect(screen.getByText('Viação Alpha')).toBeInTheDocument());
     fireEvent.click(screen.getByText('Viação Alpha'));
 
-    // Avançar para o Passo 3: Revisão geral
     fireEvent.click(screen.getByRole('button', { name: /próximo/i }));
 
-    // Passo 3: Aprovação final
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Revisar tudo' })).toBeInTheDocument());
     const approveBtn = screen.getByRole('button', { name: /aprovar solicitação/i });
     fireEvent.click(approveBtn);
 
     await waitFor(() => {
-      // Como é aprovador primário, envia o fornecedor selecionado
+
       expect(ridesApi.aprovar).toHaveBeenCalledWith(101, 201);
       expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ type: 'success' }));
     });
   });
 
   it('does not require or send supplier when secondary cost center approver (rateio) approves', async () => {
-    // Definir usuário como aprovador do CC-2 (secundário/rateio)
+
     useAuthStore.setState({
       user: {
         id: '20',
@@ -150,29 +145,25 @@ describe('RideReview Functional Logic & Business Rules', () => {
 
     await waitFor(() => expect(ridesApi.getById).toHaveBeenCalledWith(101));
 
-    // Passo 1: Informações da corrida
     expect(screen.getByRole('heading', { name: 'Informações da corrida' })).toBeInTheDocument();
 
-    // Avançar: Para aprovador de rateio, vai direto do Passo 1 para Revisão geral (Passo 2)
     fireEvent.click(screen.getByRole('button', { name: /próximo/i }));
 
-    // Não exibe a tela de selecionar fornecedor
     expect(screen.queryByText('Viação Alpha')).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Revisar tudo' })).toBeInTheDocument());
 
-    // Clicar em Aprovar solicitação
     const approveBtn = screen.getByRole('button', { name: /aprovar solicitação/i });
     fireEvent.click(approveBtn);
 
     await waitFor(() => {
-      // Backend rejeitaria com 403 se fornecedorId fosse enviado pelo rateio secundário
+
       expect(ridesApi.aprovar).toHaveBeenCalledWith(101, undefined);
       expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ type: 'success' }));
     });
   });
 
   it('does not arbitrarily block self-approval if user is the requester and has approver rights', async () => {
-    // Solicitante é o mesmo usuário autenticado
+
     useAuthStore.setState({
       user: {
         id: '10',
@@ -187,7 +178,7 @@ describe('RideReview Functional Logic & Business Rules', () => {
       response: {
         id: 101,
         status: 'PENDENTE',
-        solicitanteId: 10, // mesmo ID
+        solicitanteId: 10,
         solicitanteNome: 'Solicitante e Aprovador',
         dataCorrida: '2026-10-20T10:00:00Z',
         origem: { logradouro: 'Rua A', numero: '100' },
@@ -200,7 +191,6 @@ describe('RideReview Functional Logic & Business Rules', () => {
 
     await waitFor(() => expect(ridesApi.getById).toHaveBeenCalledWith(101));
 
-    // Ações de aprovação e avanço continuam plenamente acessíveis
     expect(screen.getByRole('button', { name: /próximo/i })).not.toBeDisabled();
     expect(screen.getByRole('button', { name: /reprovar solicitação/i })).not.toBeDisabled();
   });

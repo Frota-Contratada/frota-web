@@ -1,5 +1,6 @@
 import { apiClient } from '../api/apiClient';
 import { useAuthStore } from '../../stores/authStore';
+import { getUserNormalizedProfiles } from '../../types/profile.types';
 
 export interface ContratoVinculoDto {
   filialId: number;
@@ -96,11 +97,9 @@ export const contractApi = {
 
   list(query?: BuscarContratosAdminQueryParams) {
     const user = useAuthStore.getState().user;
-    const isAdmin =
-      user?.profile === 'admin-master' ||
-      user?.perfis?.some((p) => p.tipoPerfil === 'admin-master');
+    const profiles = getUserNormalizedProfiles(user);
 
-    if (isAdmin) {
+    if (profiles.includes('admin-master')) {
       return this.listAdmin(query);
     }
     return this.listFilial(query);
@@ -114,6 +113,15 @@ export const contractApi = {
 
   getFilialBigNumbers() {
     return apiClient.get<ContratoBigNumbersResponse>('/contrato/filial/big-numbers');
+  },
+
+  getBigNumbers(query?: { filialId?: number }) {
+    const user = useAuthStore.getState().user;
+    const profiles = getUserNormalizedProfiles(user);
+    if (profiles.includes('admin-filial') && !profiles.includes('admin-master')) {
+      return this.getFilialBigNumbers();
+    }
+    return this.getAdminBigNumbers(query);
   },
 
   getPdfBlob(id: number) {

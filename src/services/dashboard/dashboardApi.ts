@@ -1,5 +1,6 @@
 import { apiClient, type ApiQueryParams } from '../api/apiClient';
 import { useAuthStore } from '../../stores/authStore';
+import { getUserNormalizedProfiles } from '../../types/profile.types';
 
 export interface DashboardBigNumber {
   valor: number;
@@ -117,21 +118,10 @@ export interface DashboardQueryParams extends ApiQueryParams {
 
 function resolveDashboardPerfil(): 'admin' | 'filial' | 'aprovador' {
   const user = useAuthStore.getState().user;
-  const perfis = user?.perfis?.map((p) => p.tipoPerfil.toLowerCase()) ?? [];
-  const profile = (user?.profile ?? '').toLowerCase();
+  const profiles = getUserNormalizedProfiles(user);
 
-  const isAdminMaster =
-    profile === 'admin-master' ||
-    perfis.some((p) => p.includes('master') || p.includes('matriz'));
-
-  if (isAdminMaster) return 'admin';
-
-  const isAdminFilial =
-    profile === 'admin-filial' ||
-    perfis.some((p) => p.includes('admin') || p.includes('filial'));
-
-  if (isAdminFilial) return 'filial';
-
+  if (profiles.includes('admin-master')) return 'admin';
+  if (profiles.includes('admin-filial')) return 'filial';
   return 'aprovador';
 }
 

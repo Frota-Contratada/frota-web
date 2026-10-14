@@ -74,7 +74,7 @@ const columns: ColumnDef<RideRequest>[] = [
 export const RideRequestsList = () => {
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const { isApprover, isAdminMaster, can, isRequester } = usePermissions();
+  const { isApprover, isAdminMaster, isAdminFilial, can, isRequester } = usePermissions();
   const [currentPage, setCurrentPage] = useState(1);
   const [query, setQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
@@ -92,7 +92,7 @@ export const RideRequestsList = () => {
     let isMounted = true;
     setIsLoading(true);
 
-    const listPromise = isApprover && !isAdminMaster
+    const listPromise = isApprover && !isAdminMaster && !isAdminFilial
       ? ridesApi.listAprovadorPendentes()
       : ridesApi.list();
 
