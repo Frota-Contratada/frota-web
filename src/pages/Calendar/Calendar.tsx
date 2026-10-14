@@ -111,8 +111,8 @@ export const Calendar = () => {
             date: toIsoDate(rideDate),
             time: rideDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
             requester: s.solicitanteNome || 'Solicitante',
-            origin: s.origem?.logradouro || 'Origem',
-            destination: s.destino?.logradouro || 'Destino',
+            origin: s.localPartida || s.origem?.descricao || s.origem?.logradouro || 'Origem',
+            destination: s.localDestino || s.destino?.descricao || s.destino?.logradouro || 'Destino',
             status,
           };
         });

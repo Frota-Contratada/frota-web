@@ -87,15 +87,19 @@ export const RideDetails = () => {
   }, [rideId, navigate, showToast]);
 
   const originText = useMemo(() => {
+    if (solicitacao?.localPartida) return solicitacao.localPartida;
+    if (solicitacao?.origem?.descricao) return solicitacao.origem.descricao;
     if (!solicitacao?.origem) return '—';
     const { logradouro, numero, bairro, cidade, uf } = solicitacao.origem;
-    return `${logradouro || ''}, ${numero || 'S/N'} - ${bairro || ''}, ${cidade || ''} - ${uf || ''}`;
+    return `${logradouro || ''}${numero ? `, ${numero}` : ''}${bairro ? ` - ${bairro}` : ''}${cidade ? `, ${cidade}` : ''}${uf ? ` - ${uf}` : ''}`.trim() || '—';
   }, [solicitacao]);
 
   const destinationText = useMemo(() => {
+    if (solicitacao?.localDestino) return solicitacao.localDestino;
+    if (solicitacao?.destino?.descricao) return solicitacao.destino.descricao;
     if (!solicitacao?.destino) return '—';
     const { logradouro, numero, bairro, cidade, uf } = solicitacao.destino;
-    return `${logradouro || ''}, ${numero || 'S/N'} - ${bairro || ''}, ${cidade || ''} - ${uf || ''}`;
+    return `${logradouro || ''}${numero ? `, ${numero}` : ''}${bairro ? ` - ${bairro}` : ''}${cidade ? `, ${cidade}` : ''}${uf ? ` - ${uf}` : ''}`.trim() || '—';
   }, [solicitacao]);
 
   const intermediateStops = useMemo(() => {

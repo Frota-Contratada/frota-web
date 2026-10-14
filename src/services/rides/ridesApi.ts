@@ -14,7 +14,9 @@ export interface EnderecoSolicitacaoDto {
   cidade: string;
   uf: string;
   latitude: number;
+  id?: number;
   longitude: number;
+  descricao?: string;
   numero?: string;
   bairro?: string;
   cep?: string;
@@ -143,6 +145,10 @@ export interface CorridaDto {
   motorista?: CorridaPessoaDto;
   fornecedor?: CorridaPessoaDto;
   veiculo?: CorridaVeiculoDto;
+  origem?: EnderecoSolicitacaoDto | string;
+  destino?: EnderecoSolicitacaoDto | string;
+  localPartida?: string;
+  localDestino?: string;
 }
 
 export interface ViagemAgendadaDto {
@@ -177,6 +183,8 @@ export interface SolicitacaoDto {
   fornecedorNome?: string;
   origem: EnderecoSolicitacaoDto;
   destino: EnderecoSolicitacaoDto;
+  localPartida?: string;
+  localDestino?: string;
   paradas?: Array<ParadaDto | EnderecoSolicitacaoDto>;
   motivoSolicitacao?: CatalogoItemDto;
   motivo?: CatalogoItemDto;
@@ -254,20 +262,24 @@ export function mapCorridaToSolicitacao(c: CorridaDto): SolicitacaoDto {
     solicitanteNome: c.solicitante?.nome,
     fornecedorId: c.fornecedor?.id,
     fornecedorNome: c.fornecedor?.nome,
-    origem: {
-      logradouro: 'Origem da Corrida',
+    origem: (typeof c.origem === 'object' && c.origem !== null) ? c.origem : {
+      logradouro: (typeof c.origem === 'string' && c.origem) || c.localPartida || 'Origem da Corrida',
       cidade: 'São Paulo',
       uf: 'SP',
       latitude: 0,
       longitude: 0,
+      descricao: (typeof c.origem === 'string' && c.origem) || c.localPartida,
     },
-    destino: {
-      logradouro: 'Destino da Corrida',
+    destino: (typeof c.destino === 'object' && c.destino !== null) ? c.destino : {
+      logradouro: (typeof c.destino === 'string' && c.destino) || c.localDestino || 'Destino da Corrida',
       cidade: 'São Paulo',
       uf: 'SP',
       latitude: 0,
       longitude: 0,
+      descricao: (typeof c.destino === 'string' && c.destino) || c.localDestino,
     },
+    localPartida: c.localPartida || (typeof c.origem === 'string' ? c.origem : c.origem?.descricao || c.origem?.logradouro),
+    localDestino: c.localDestino || (typeof c.destino === 'string' ? c.destino : c.destino?.descricao || c.destino?.logradouro),
     corrida: c,
     emAndamento: c.status === 'I',
     cancelavel: c.status === 'A' || c.status === 'P',
@@ -390,8 +402,8 @@ export const ridesApi = {
         solicitacaoId: c.solicitacaoId || c.id,
         corridaId: String(c.id),
         dataHoraPartida: c.dataAgendada || c.inicio || inicio,
-        origem: 'Origem',
-        destino: 'Destino',
+        origem: c.localPartida || (typeof c.origem === 'string' ? c.origem : c.origem?.descricao || c.origem?.logradouro || 'Origem'),
+        destino: c.localDestino || (typeof c.destino === 'string' ? c.destino : c.destino?.descricao || c.destino?.logradouro || 'Destino'),
         status: c.status,
         tipoCorrida: 'Padrão',
         valorEstimado: c.valorFinal || 0,

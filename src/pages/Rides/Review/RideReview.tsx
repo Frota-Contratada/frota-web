@@ -128,13 +128,17 @@ export const RideReview = () => {
 
   const selectedSupplierName = selectedSupplier?.nome || 'Fornecedor Selecionado';
 
-  const originText = solicitacao?.origem
-    ? `${solicitacao.origem.logradouro}, ${solicitacao.origem.cidade} - ${solicitacao.origem.uf}`
-    : 'Origem da Corrida';
+  const originText = solicitacao?.localPartida
+    || solicitacao?.origem?.descricao
+    || (solicitacao?.origem
+      ? `${solicitacao.origem.logradouro}${solicitacao.origem.numero ? `, ${solicitacao.origem.numero}` : ''}, ${solicitacao.origem.cidade} - ${solicitacao.origem.uf}`
+      : 'Origem da Corrida');
 
-  const destinationText = solicitacao?.destino
-    ? `${solicitacao.destino.logradouro}, ${solicitacao.destino.cidade} - ${solicitacao.destino.uf}`
-    : 'Destino da Corrida';
+  const destinationText = solicitacao?.localDestino
+    || solicitacao?.destino?.descricao
+    || (solicitacao?.destino
+      ? `${solicitacao.destino.logradouro}${solicitacao.destino.numero ? `, ${solicitacao.destino.numero}` : ''}, ${solicitacao.destino.cidade} - ${solicitacao.destino.uf}`
+      : 'Destino da Corrida');
 
   const costCentersText = (solicitacao?.centrosCusto || solicitacao?.CentrosCusto) && (solicitacao?.centrosCusto || solicitacao?.CentrosCusto)!.length > 0
     ? (solicitacao?.centrosCusto || solicitacao?.CentrosCusto)!.map((cc) => cc.centroCustoNome || `CC #${cc.centroCustoId}`).join(', ')
