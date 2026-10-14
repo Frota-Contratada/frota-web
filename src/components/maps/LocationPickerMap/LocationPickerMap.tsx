@@ -9,8 +9,8 @@ import '../styles/mapStyles.css';
 import styles from './LocationPickerMap.module.css';
 
 export interface LocationPickerMapProps {
-  latitude?: number | null;
-  longitude?: number | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
   label?: string;
   height?: string | number;
   onChange?: (coords: { latitude: number; longitude: number }) => void;
@@ -31,17 +31,27 @@ export const LocationPickerMap = ({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
+  const numLat = latitude != null && !isNaN(Number(latitude)) ? Number(latitude) : null;
+  const numLng = longitude != null && !isNaN(Number(longitude)) ? Number(longitude) : null;
+
   const hasValidCoords =
-    typeof latitude === 'number' &&
-    typeof longitude === 'number' &&
-    !isNaN(latitude) &&
-    !isNaN(longitude) &&
-    (latitude !== 0 || longitude !== 0);
+    numLat !== null &&
+    numLng !== null &&
+    (numLat !== 0 || numLng !== 0);
 
   const initialCenter: [number, number] = hasValidCoords
-    ? [longitude, latitude]
+    ? [numLng, numLat]
     : [-48.6619, -26.9078];
   const initialZoom = hasValidCoords ? 14 : 4.5;
+
+  const buildPinElement = (title: string) => {
+    return createHtmlElement(
+      'map-location-picker-pin',
+      `<div class="map-location-picker-pin-inner" title="${title}">
+        <span class="map-location-picker-dot"></span>
+      </div>`
+    );
+  };
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -68,6 +78,18 @@ export const LocationPickerMap = ({
 
     map.on('load', () => {
       map.resize();
+      if (hasValidCoords && !markerRef.current) {
+        const pinEl = buildPinElement(label);
+        const marker = new maplibregl.Marker({
+          element: pinEl,
+          draggable: false,
+          anchor: 'bottom',
+        })
+          .setLngLat([numLng!, numLat!])
+          .addTo(map);
+
+        markerRef.current = marker;
+      }
     });
 
     map.addControl(
@@ -77,15 +99,7 @@ export const LocationPickerMap = ({
 
     const updateOrCreateMarker = (lng: number, lat: number) => {
       if (!markerRef.current) {
-        const pinEl = createHtmlElement(
-          'map-location-picker-pin',
-          `<div class="map-location-picker-pin-inner" title="${label}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-              <circle cx="12" cy="10" r="3"></circle>
-            </svg>
-          </div>`
-        );
+        const pinEl = buildPinElement(label);
 
         const marker = new maplibregl.Marker({
           element: pinEl,
@@ -102,7 +116,7 @@ export const LocationPickerMap = ({
     };
 
     if (hasValidCoords) {
-      updateOrCreateMarker(longitude!, latitude!);
+      updateOrCreateMarker(numLng!, numLat!);
     }
 
     map.on('click', (e: maplibregl.MapMouseEvent) => {
@@ -146,45 +160,37 @@ export const LocationPickerMap = ({
 
     const map = mapRef.current;
     if (!markerRef.current) {
-      const pinEl = createHtmlElement(
-        'map-location-picker-pin',
-        `<div class="map-location-picker-pin-inner" title="${label}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-            <circle cx="12" cy="10" r="3"></circle>
-          </svg>
-        </div>`
-      );
+      const pinEl = buildPinElement(label);
 
       const marker = new maplibregl.Marker({
         element: pinEl,
         draggable: false,
         anchor: 'bottom',
       })
-        .setLngLat([longitude!, latitude!])
+        .setLngLat([numLng!, numLat!])
         .addTo(map);
 
       markerRef.current = marker;
       map.easeTo({
-        center: [longitude!, latitude!],
+        center: [numLng!, numLat!],
         zoom: Math.max(map.getZoom(), 14),
         duration: 500,
       });
     } else {
       const currentPos = markerRef.current.getLngLat();
       const diff =
-        Math.abs(currentPos.lat - latitude!) + Math.abs(currentPos.lng - longitude!);
+        Math.abs(currentPos.lat - numLat!) + Math.abs(currentPos.lng - numLng!);
 
       if (diff > 0.0001) {
-        markerRef.current.setLngLat([longitude!, latitude!]);
+        markerRef.current.setLngLat([numLng!, numLat!]);
         map.easeTo({
-          center: [longitude!, latitude!],
+          center: [numLng!, numLat!],
           zoom: Math.max(map.getZoom(), 14),
           duration: 500,
         });
       }
     }
-  }, [hasValidCoords, latitude, longitude, label]);
+  }, [hasValidCoords, numLat, numLng, label]);
 
   return (
     <div
@@ -194,11 +200,14 @@ export const LocationPickerMap = ({
       <div ref={containerRef} className={styles.map} />
       <div className={styles.hintOverlay}>
         <span>
-          <strong>{label}:</strong> {hasValidCoords ? 'Clique no mapa para alterar a localização.' : 'Pesquise pelo CEP/endereço ou clique no mapa para selecionar a localização.'}
+          <strong>{label}:</strong>{' '}
+          {hasValidCoords
+            ? 'Clique no mapa para alterar a localização.'
+            : 'Pesquise pelo CEP/endereço ou clique no mapa para selecionar a localização.'}
         </span>
         {hasValidCoords && (
           <span className={styles.coordinates}>
-            {latitude!.toFixed(5)}, {longitude!.toFixed(5)}
+            {numLat!.toFixed(5)}, {numLng!.toFixed(5)}
           </span>
         )}
       </div>

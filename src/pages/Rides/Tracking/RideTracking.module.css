@@ -48,7 +48,6 @@
   gap: 0.75rem;
 }
 
-/* Status Badges */
 .statusBadgeActive {
   display: inline-flex;
   align-items: center;
@@ -125,7 +124,6 @@
   background-color: #10b981;
 }
 
-/* KPI Grid */
 .kpiGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -162,7 +160,6 @@
   color: var(--text-secondary, #64748b);
 }
 
-/* Main Layout */
 .trackingLayout {
   display: grid;
   grid-template-columns: 1fr 360px;
@@ -210,7 +207,6 @@
   width: 100%;
 }
 
-/* Side Panel */
 .sidePanel {
   display: flex;
   flex-direction: column;
@@ -309,7 +305,6 @@
   border: 1px solid #cbd5e1;
 }
 
-/* Timeline */
 .routeTimeline {
   display: flex;
   flex-direction: column;
@@ -386,7 +381,6 @@
   font-weight: 500;
 }
 
-/* Error state */
 .errorCard {
   padding: 2.5rem 1.5rem;
   text-align: center;
@@ -415,7 +409,6 @@
   gap: 0.75rem;
 }
 
-/* Responsiveness */
 @media (max-width: 1080px) {
   .trackingLayout {
     grid-template-columns: 1fr;

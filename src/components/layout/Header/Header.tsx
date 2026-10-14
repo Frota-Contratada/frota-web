@@ -423,7 +423,15 @@ export const Header = () => {
                           type="button"
                           className={styles.notificationItem}
                           key={notification.id}
-                          onClick={() => isUnread && handleMarkAsRead(notification.id)}
+                          onClick={() => {
+                            if (isUnread) {
+                              handleMarkAsRead(notification.id);
+                            }
+                            if (notification.acao?.rota) {
+                              navigate(notification.acao.rota);
+                              setIsNotificationsOpen(false);
+                            }
+                          }}
                         >
                           <span className={`${styles.notificationDot} ${isUnread ? styles.notificationUnread : ''}`} />
                           <span className={styles.notificationContent}>

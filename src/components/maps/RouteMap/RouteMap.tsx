@@ -273,7 +273,7 @@ export const RouteMap = ({
           `<div class="map-destination-pin-wrapper" title="${point.label || 'Destino'}">
             <svg viewBox="0 0 32 42" fill="none">
               <path d="M16 41C16 41 30 26.5 30 16C30 7.71573 23.732 1 16 1C8.26801 1 2 7.71573 2 16C2 26.5 16 41 16 41Z" fill="#1e224f" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/>
-              <circle cx="16" cy="15" r="5" fill="#38bdf8"/>
+              <circle cx="16" cy="15" r="5" fill="#ffffff"/>
             </svg>
           </div>`
         );
