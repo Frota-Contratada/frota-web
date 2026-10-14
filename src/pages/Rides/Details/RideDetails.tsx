@@ -113,10 +113,14 @@ export const RideDetails = () => {
     if (!solicitacao) return [];
     const points: RoutePoint[] = [];
 
-    if (solicitacao.origem?.latitude && solicitacao.origem?.longitude) {
+    const origObj = (solicitacao as any).origem || (solicitacao as any).enderecoOrigem;
+    const origLat = origObj?.latitude ?? origObj?.lat ?? (solicitacao as any).origemLatitude ?? (solicitacao as any).latitudeOrigem;
+    const origLng = origObj?.longitude ?? origObj?.lng ?? (solicitacao as any).origemLongitude ?? (solicitacao as any).longitudeOrigem;
+
+    if (origLat != null && origLng != null && !isNaN(Number(origLat)) && !isNaN(Number(origLng))) {
       points.push({
-        lat: Number(solicitacao.origem.latitude),
-        lng: Number(solicitacao.origem.longitude),
+        lat: Number(origLat),
+        lng: Number(origLng),
         label: 'Origem',
       });
     }
@@ -126,7 +130,7 @@ export const RideDetails = () => {
         const paradaObj = p as any;
         const lat = paradaObj.endereco?.latitude ?? paradaObj.latitude;
         const lng = paradaObj.endereco?.longitude ?? paradaObj.longitude;
-        if (lat && lng) {
+        if (lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
           points.push({
             lat: Number(lat),
             lng: Number(lng),
@@ -136,10 +140,14 @@ export const RideDetails = () => {
       });
     }
 
-    if (solicitacao.destino?.latitude && solicitacao.destino?.longitude) {
+    const destObj = (solicitacao as any).destino || (solicitacao as any).enderecoDestino;
+    const destLat = destObj?.latitude ?? destObj?.lat ?? (solicitacao as any).destinoLatitude ?? (solicitacao as any).latitudeDestino;
+    const destLng = destObj?.longitude ?? destObj?.lng ?? (solicitacao as any).destinoLongitude ?? (solicitacao as any).longitudeDestino;
+
+    if (destLat != null && destLng != null && !isNaN(Number(destLat)) && !isNaN(Number(destLng))) {
       points.push({
-        lat: Number(solicitacao.destino.latitude),
-        lng: Number(solicitacao.destino.longitude),
+        lat: Number(destLat),
+        lng: Number(destLng),
         label: 'Destino Final',
       });
     }

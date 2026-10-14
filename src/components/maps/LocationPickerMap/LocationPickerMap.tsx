@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   maplibregl,
   OPEN_FREE_MAP_STYLE,
@@ -28,6 +28,7 @@ export const LocationPickerMap = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
+  const [mapReady, setMapReady] = useState(false);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
@@ -48,7 +49,7 @@ export const LocationPickerMap = ({
     return createHtmlElement(
       'map-location-picker-pin',
       `<div class="map-location-picker-pin-inner" title="${title}">
-        <span class="map-location-picker-dot"></span>
+        <span class="map-pin-dot"></span>
       </div>`
     );
   };
@@ -78,6 +79,7 @@ export const LocationPickerMap = ({
 
     map.on('load', () => {
       map.resize();
+      setMapReady(true);
       if (hasValidCoords && !markerRef.current) {
         const pinEl = buildPinElement(label);
         const marker = new maplibregl.Marker({
@@ -144,11 +146,12 @@ export const LocationPickerMap = ({
       map.remove();
       mapRef.current = null;
       markerRef.current = null;
+      setMapReady(false);
     };
   }, []);
 
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !mapReady) return;
 
     if (!hasValidCoords) {
       if (markerRef.current) {
@@ -190,7 +193,7 @@ export const LocationPickerMap = ({
         });
       }
     }
-  }, [hasValidCoords, numLat, numLng, label]);
+  }, [mapReady, hasValidCoords, numLat, numLng, label]);
 
   return (
     <div

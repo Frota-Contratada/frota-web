@@ -52,15 +52,31 @@ export const RouteMap = ({
   const playbackMarkerRef = useRef<maplibregl.Marker | null>(null);
   const playbackArrowRef = useRef<HTMLElement | null>(null);
   const isMapLoadedRef = useRef(false);
+  const [mapReady, setMapReady] = useState(false);
 
-  const validPoints = points.filter(
-    (p) =>
-      typeof p.lat === 'number' &&
-      typeof p.lng === 'number' &&
-      !isNaN(p.lat) &&
-      !isNaN(p.lng) &&
-      (p.lat !== 0 || p.lng !== 0)
-  );
+  const validPoints = useMemo(() => {
+    return (points || [])
+      .map((p) => {
+        const anyP = p as any;
+        const rawLat = p.lat ?? anyP.latitude;
+        const rawLng = p.lng ?? anyP.longitude;
+        const lat = rawLat != null && rawLat !== '' ? Number(rawLat) : NaN;
+        const lng = rawLng != null && rawLng !== '' ? Number(rawLng) : NaN;
+        return {
+          ...p,
+          lat,
+          lng,
+        };
+      })
+      .filter(
+        (p) =>
+          typeof p.lat === 'number' &&
+          typeof p.lng === 'number' &&
+          !isNaN(p.lat) &&
+          !isNaN(p.lng) &&
+          (p.lat !== 0 || p.lng !== 0)
+      );
+  }, [points]);
 
   const defaultCenter: [number, number] =
     validPoints.length > 0
@@ -218,9 +234,13 @@ export const RouteMap = ({
     };
 
     map.on('styledata', initLayers);
-    map.on('load', initLayers);
+    map.on('load', () => {
+      initLayers();
+      setMapReady(true);
+    });
 
     mapRef.current = map;
+    setMapReady(true);
 
     const resizeObserver = new ResizeObserver(() => {
       map.resize();
@@ -236,6 +256,7 @@ export const RouteMap = ({
       map.remove();
       mapRef.current = null;
       isMapLoadedRef.current = false;
+      setMapReady(false);
     };
   }, []);
 
@@ -247,7 +268,7 @@ export const RouteMap = ({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapReady) return;
 
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
@@ -262,27 +283,20 @@ export const RouteMap = ({
       if (isOrigin) {
         el = createHtmlElement(
           'custom-map-pin',
-          `<div class="map-origin-pin-wrapper" title="${point.label || 'Origem'}">
-            <span class="map-origin-pin-circle"></span>
-          </div>`
+          `<span class="map-origin-pin" title="${point.label || 'Origem'}"></span>`
         );
       } else if (isDest) {
         anchor = 'bottom';
         el = createHtmlElement(
           'custom-map-pin',
-          `<div class="map-destination-pin-wrapper" title="${point.label || 'Destino'}">
-            <svg viewBox="0 0 32 42" fill="none">
-              <path d="M16 41C16 41 30 26.5 30 16C30 7.71573 23.732 1 16 1C8.26801 1 2 7.71573 2 16C2 26.5 16 41 16 41Z" fill="#1e224f" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/>
-              <circle cx="16" cy="15" r="5" fill="#ffffff"/>
-            </svg>
-          </div>`
+          `<span class="map-destination-pin" title="${point.label || 'Destino'}">
+            <span class="map-pin-dot"></span>
+          </span>`
         );
       } else {
         el = createHtmlElement(
           'custom-map-pin',
-          `<div class="map-stop-pin-wrapper" title="${point.label || `Parada ${index}`}">
-            <span class="map-stop-pin" aria-label="Parada ${index}">${index}</span>
-          </div>`
+          `<span class="map-stop-pin" aria-label="${point.label || `Parada ${index}`}">${index}</span>`
         );
       }
 
@@ -315,6 +329,16 @@ export const RouteMap = ({
           duration: 600,
         });
       }
+    } else if (validPoints.length >= 2) {
+      const coords: [number, number][] = validPoints.map((p) => [p.lat, p.lng]);
+      const bounds = boundsFromCoordinates(coords);
+      if (bounds) {
+        map.fitBounds(bounds, {
+          padding: { top: 75, right: 35, bottom: 35, left: 35 },
+          maxZoom: 16,
+          duration: 600,
+        });
+      }
     } else if (validPoints.length === 1) {
       map.flyTo({
         center: [validPoints[0].lng, validPoints[0].lat],
@@ -322,7 +346,7 @@ export const RouteMap = ({
         duration: 600,
       });
     }
-  }, [route, JSON.stringify(validPoints)]);
+  }, [mapReady, route, JSON.stringify(validPoints)]);
 
   useEffect(() => {
     if (!isPlaying || !allowPlayback || activeRouteCoords.length < 2) return;

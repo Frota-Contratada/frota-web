@@ -40,12 +40,12 @@
 
 .map-origin-pin {
   display: block;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border: 3.5px solid #ffffff;
   border-radius: 50%;
-  background: #2563eb;
-  box-shadow: 0 3px 12px rgba(37, 99, 235, 0.45);
+  background: #10b981;
+  box-shadow: 0 3px 12px rgba(16, 185, 129, 0.45);
   position: relative;
 }
 
@@ -54,27 +54,30 @@
   position: absolute;
   inset: -6px;
   border-radius: 50%;
-  border: 2px solid rgba(37, 99, 235, 0.35);
+  border: 2px solid rgba(16, 185, 129, 0.4);
   animation: map-pulse 2.2s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
 }
 
 .map-destination-pin {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   display: grid;
   place-items: center;
-  border: 3px solid #ffffff;
-  border-radius: 50% 50% 50% 6px;
+  border: 2.5px solid #ffffff;
+  border-radius: 50% 50% 50% 4px;
   background: linear-gradient(135deg, #1e224f 0%, #0f172a 100%);
   color: #ffffff;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.35);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.4);
   transform: rotate(-45deg);
 }
 
-.map-destination-pin svg {
-  width: 18px;
-  height: 18px;
-  transform: rotate(45deg);
+.map-pin-dot {
+  display: block;
+  width: 9px;
+  height: 9px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
 .map-stop-pin {
@@ -91,8 +94,8 @@
 }
 
 .map-location-picker-pin {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -102,23 +105,17 @@
 }
 
 .map-location-picker-pin-inner {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
-  border: 3px solid #ffffff;
-  border-radius: 50% 50% 50% 6px;
+  border: 2.5px solid #ffffff;
+  border-radius: 50% 50% 50% 4px;
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   color: #ffffff;
-  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.45);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.45);
   transform: rotate(-45deg);
   transition: transform 0.15s ease;
-}
-
-.map-location-picker-pin-inner svg {
-  width: 17px;
-  height: 17px;
-  transform: rotate(45deg);
 }
 
 .map-location-picker-pin:hover .map-location-picker-pin-inner {

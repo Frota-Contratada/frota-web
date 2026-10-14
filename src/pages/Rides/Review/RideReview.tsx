@@ -150,18 +150,27 @@ export const RideReview = () => {
 
   const routePoints: RoutePoint[] = useMemo(() => {
     const pts: RoutePoint[] = [];
-    if (solicitacao?.origem?.latitude && solicitacao?.origem?.longitude) {
+    const orig = (solicitacao as any)?.origem || (solicitacao as any)?.enderecoOrigem;
+    const origLat = orig?.latitude ?? orig?.lat ?? (solicitacao as any)?.origemLatitude;
+    const origLng = orig?.longitude ?? orig?.lng ?? (solicitacao as any)?.origemLongitude;
+
+    if (origLat != null && origLng != null && !isNaN(Number(origLat)) && !isNaN(Number(origLng))) {
       pts.push({
-        lat: solicitacao.origem.latitude,
-        lng: solicitacao.origem.longitude,
+        lat: Number(origLat),
+        lng: Number(origLng),
         label: `Origem: ${originText}`,
         type: 'origin',
       });
     }
-    if (solicitacao?.destino?.latitude && solicitacao?.destino?.longitude) {
+
+    const dest = (solicitacao as any)?.destino || (solicitacao as any)?.enderecoDestino;
+    const destLat = dest?.latitude ?? dest?.lat ?? (solicitacao as any)?.destinoLatitude;
+    const destLng = dest?.longitude ?? dest?.lng ?? (solicitacao as any)?.destinoLongitude;
+
+    if (destLat != null && destLng != null && !isNaN(Number(destLat)) && !isNaN(Number(destLng))) {
       pts.push({
-        lat: solicitacao.destino.latitude,
-        lng: solicitacao.destino.longitude,
+        lat: Number(destLat),
+        lng: Number(destLng),
         label: `Destino: ${destinationText}`,
         type: 'destination',
       });
