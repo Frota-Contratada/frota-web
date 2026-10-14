@@ -34,6 +34,8 @@ export { vehicleApi } from './vehicle/vehicleApi';
 export type { VeiculoDto, CriarVeiculoParams, BuscarVeiculosQueryParams, VeiculoResponse, VeiculosListResponse } from './vehicle/vehicleApi';
 export { notificationApi } from './notification/notificationApi';
 export type { NotificacaoDto, QuantidadeNotificacoesNaoLidasResponse, NotificacoesListResponse, NotificacaoResponse } from './notification/notificationApi';
+export { notificationSocket, NotificationSocketClient } from './notification/notificationSocket';
+export type { NotificationSocketCallbacks } from './notification/notificationSocket';
 export { contractIaApi, normalizarDataIa } from './ia/contractIaApi';
 export type { ExtracaoResultadoIa, RegraExtracaoIa } from './ia/contractIaApi';
 export { dashboardApi } from './dashboard/dashboardApi';

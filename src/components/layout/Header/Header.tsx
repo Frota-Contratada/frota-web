@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button } from '../../common';
+import { Button, useToast } from '../../common';
 import { useAuthStore } from '../../../stores/authStore';
 import dashboardsIcon from '../../../assets/icons/dashboards.svg';
 import alvoIcon from '../../../assets/icons/alvo.svg';
@@ -113,11 +113,31 @@ const breadcrumbMap: Record<string, BreadcrumbItem[]> = {
   ],
 };
 
-import { notificationApi, type NotificacaoDto } from '../../../services';
+import { notificationApi, notificationSocket, type NotificacaoDto } from '../../../services';
+
+const resolveNotificationRoute = (rota?: string, dados?: Record<string, unknown>) => {
+  if (!rota && !dados) return null;
+  let target = rota || '/corridas/solicitacoes';
+  if (target === '/solicitacoes') {
+    target = '/corridas/solicitacoes';
+  } else if (target.startsWith('/solicitacoes/')) {
+    target = target.replace('/solicitacoes/', '/corridas/solicitacoes/');
+  }
+  const corridaId = dados?.corridaId;
+  const solicitacaoId = dados?.solicitacaoId || dados?.id;
+  if (corridaId) {
+    return `/corridas/historico/${corridaId}`;
+  }
+  if (solicitacaoId) {
+    return `/corridas/solicitacoes`;
+  }
+  return target;
+};
 
 export const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
 
@@ -168,7 +188,29 @@ export const Header = () => {
   useEffect(() => {
     fetchNotificationCount();
     const interval = setInterval(fetchNotificationCount, 30000);
-    return () => clearInterval(interval);
+
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+    notificationSocket.setCallbacks({
+      onNotificationCreated: (notificacao) => {
+        setUnreadCount((c) => c + 1);
+        setNotificationsList((prev) => [notificacao, ...prev]);
+        showToast({
+          type: 'info',
+          title: notificacao.titulo || 'Nova notificação',
+          description: notificacao.mensagem,
+        });
+      },
+      onNotificationRemoved: (notificacaoId) => {
+        setNotificationsList((prev) => prev.filter((n) => n.id !== notificacaoId));
+        setUnreadCount((c) => Math.max(0, c - 1));
+      },
+    });
+    notificationSocket.connect(token);
+
+    return () => {
+      clearInterval(interval);
+      notificationSocket.disconnect();
+    };
   }, []);
 
   useEffect(() => {
@@ -427,8 +469,9 @@ export const Header = () => {
                             if (isUnread) {
                               handleMarkAsRead(notification.id);
                             }
-                            if (notification.acao?.rota) {
-                              navigate(notification.acao.rota);
+                            const targetRoute = resolveNotificationRoute(notification.acao?.rota, notification.dados);
+                            if (targetRoute) {
+                              navigate(targetRoute);
                               setIsNotificationsOpen(false);
                             }
                           }}
