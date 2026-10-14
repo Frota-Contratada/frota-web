@@ -17,14 +17,24 @@ import { formatCpf } from '../../../utils';
 import { usePermissions } from '../../../hooks/usePermissions';
 import styles from './SupplierDetails.module.css';
 
-const getInitials = (name: string) =>
-  name
+interface ContratoVigenteView {
+  contratoId: number;
+  filialId: number;
+  filialNome: string;
+  dataVigenciaInicio: string;
+  dataVigenciaFim?: string;
+}
+
+const getInitials = (name?: string | null) => {
+  if (!name) return 'FO';
+  return name
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
     .map((part) => part[0])
     .join('')
     .toLocaleUpperCase('pt-BR');
+};
 
 export const SupplierDetails = () => {
   const navigate = useNavigate();
@@ -40,6 +50,28 @@ export const SupplierDetails = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const contratosVigentes = useMemo<ContratoVigenteView[]>(() => {
+    if (supplierSummary?.contratosVigentes && supplierSummary.contratosVigentes.length > 0) {
+      return supplierSummary.contratosVigentes;
+    }
+    if (contractsList.length > 0) {
+      return contractsList.map((c) => ({
+        contratoId: c.id,
+        filialId: c.vinculos?.[0]?.filialId ?? 1,
+        filialNome: c.vinculos?.[0]?.filialNome ?? 'Matriz / Filiais Vinculadas',
+        dataVigenciaInicio: c.dataVigenciaInicio,
+        dataVigenciaFim: c.dataVigenciaFim,
+      }));
+    }
+    return [];
+  }, [supplierSummary?.contratosVigentes, contractsList]);
+
+  const isAtivo = supplierSummary?.ativo ?? supplier?.ativo ?? true;
+  const rawDataAtivacao = supplierSummary?.dataAtivacao || supplier?.dataAtivacao;
+  const dataAtivacao = rawDataAtivacao
+    ? new Date(rawDataAtivacao).toLocaleDateString('pt-BR')
+    : 'Homologação recente';
 
   const fetchSupplierData = async () => {
     const numId = Number(supplierId);
@@ -57,38 +89,44 @@ export const SupplierDetails = () => {
         contractApi.list().catch(() => ({ response: [] })),
       ]);
 
-      if (byIdRes.status === 'fulfilled' && byIdRes.value.response) {
-        setSupplier(byIdRes.value.response);
+      let foundSupplier: FornecedorDto | null = null;
+
+      if (byIdRes.status === 'fulfilled' && byIdRes.value) {
+        const val = byIdRes.value as any;
+        foundSupplier = val.response || val;
       }
 
       if (listRes.status === 'fulfilled') {
         const list = extractListData<FornecedorDto>(listRes.value);
-        const found = list.find((s) => s.id === numId);
-        if (found) {
-          setSupplierSummary(found);
-          if (byIdRes.status !== 'fulfilled') {
-            setSupplier(found);
+        const summary = list.find((s) => Number(s.id) === numId);
+        if (summary) {
+          setSupplierSummary(summary);
+          if (!foundSupplier) {
+            foundSupplier = summary;
           }
         }
       }
 
+      if (foundSupplier) {
+        setSupplier(foundSupplier);
+      }
+
       if (driversRes.status === 'fulfilled') {
         const allDrivers = extractListData<MotoristaDto>(driversRes.value);
-        const filtered = allDrivers.filter((d) => d.fornecedorId === numId);
+        const filtered = allDrivers.filter((d) => Number(d.fornecedorId) === numId);
         setDriversList(filtered);
       }
 
       if (contractsRes.status === 'fulfilled') {
         const allContracts = extractListData<ContratoDto>(contractsRes.value);
         const filteredContracts = allContracts.filter((c) =>
-          c.vinculos?.some((v) => v.fornecedorId === numId)
+          c.vinculos?.some((v) => Number(v.fornecedorId) === numId)
         );
         setContractsList(filteredContracts);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar fornecedor';
       showToast({ type: 'error', title: message });
-      navigate('/terceiros/fornecedores');
     } finally {
       setIsLoading(false);
     }
@@ -144,37 +182,20 @@ export const SupplierDetails = () => {
   }
 
   if (!supplier) {
-    return null;
+    return (
+      <div className={styles.page}>
+        <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: 'var(--surface)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)' }}>
+          <h2>Fornecedor não encontrado</h2>
+          <p style={{ marginTop: '0.5rem', color: 'var(--color-gray-600)' }}>
+            O fornecedor solicitado não foi localizado ou não está disponível.
+          </p>
+          <Button variant="outline" style={{ marginTop: '1.5rem' }} onClick={() => navigate('/terceiros/fornecedores')}>
+            Voltar para Fornecedores
+          </Button>
+        </div>
+      </div>
+    );
   }
-
-  interface ContratoVigenteView {
-    contratoId: number;
-    filialId: number;
-    filialNome: string;
-    dataVigenciaInicio: string;
-    dataVigenciaFim?: string;
-  }
-
-  const contratosVigentes = useMemo<ContratoVigenteView[]>(() => {
-    if (supplierSummary?.contratosVigentes && supplierSummary.contratosVigentes.length > 0) {
-      return supplierSummary.contratosVigentes;
-    }
-    if (contractsList.length > 0) {
-      return contractsList.map((c) => ({
-        contratoId: c.id,
-        filialId: c.vinculos?.[0]?.filialId ?? 1,
-        filialNome: c.vinculos?.[0]?.filialNome ?? 'Matriz / Filiais Vinculadas',
-        dataVigenciaInicio: c.dataVigenciaInicio,
-        dataVigenciaFim: c.dataVigenciaFim,
-      }));
-    }
-    return [];
-  }, [supplierSummary?.contratosVigentes, contractsList]);
-
-  const isAtivo = supplierSummary?.ativo !== false;
-  const dataAtivacao = supplierSummary?.dataAtivacao
-    ? new Date(supplierSummary.dataAtivacao).toLocaleDateString('pt-BR')
-    : 'Homologação recente';
 
   return (
     <div className={styles.page}>

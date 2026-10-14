@@ -118,7 +118,44 @@ export const PriceAuditView = () => {
   }, [dateRange]);
 
   const tableData: AuditRideRow[] = useMemo(() => {
-    return rides.map((r) => {
+    if (auditoriaData?.corridas && auditoriaData.corridas.length > 0) {
+      return auditoriaData.corridas.map((c, idx) => {
+        const precoNum = Number(c.preco ?? 0);
+        const precoFmt = precoNum > 0
+          ? `R$ ${precoNum.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+          : '—';
+        const distEst = Number(c.distanciaEstimada ?? 0);
+        const distReal = Number(c.distanciaPercorrida ?? 0);
+        const desvio = Number(c.desvioPercentual ?? 0);
+
+        let badgeStatus: BadgeStatus = 'aprovado';
+        let statusLabel = 'Conforme';
+        if (desvio > 20) {
+          badgeStatus = 'cancelado';
+          statusLabel = 'Desvio Alto';
+        } else if (desvio > 5) {
+          badgeStatus = 'pendente';
+          statusLabel = 'Atenção';
+        }
+
+        return {
+          id: (c as any).id ?? idx + 1,
+          data: c.data ? new Date(c.data).toLocaleDateString('pt-BR') : '—',
+          solicitante: c.solicitanteNome || 'Colaborador',
+          email: c.solicitanteEmail || '—',
+          origem: c.fornecedor ? `Fornecedor: ${c.fornecedor}` : 'Matriz',
+          destino: (c as any).destino || 'Destino Corporativo',
+          distanciaEstimada: distEst > 0 ? `${distEst} km` : '—',
+          distanciaPercorrida: distReal > 0 ? `${distReal} km` : '—',
+          desvio: `${desvio >= 0 ? '+' : ''}${desvio.toFixed(1)}%`,
+          status: badgeStatus,
+          statusLabel,
+          preco: precoFmt,
+        };
+      });
+    }
+
+    return rides.map((r, idx) => {
       const rawStatus = (r.status || '').toUpperCase();
       const corridaStatus = (r.corrida?.status || '').toUpperCase();
       let badgeStatus: BadgeStatus = 'em_andamento';
@@ -160,7 +197,7 @@ export const PriceAuditView = () => {
       }
 
       return {
-        id: r.id,
+        id: r.id ?? idx + 1,
         data: r.dataCorrida ? new Date(r.dataCorrida).toLocaleDateString('pt-BR') : '—',
         solicitante: r.solicitanteNome || (r.passageiros?.[0]?.nome ?? 'Colaborador'),
         email: r.passageiros?.[0]?.cpf ? `CPF: ${r.passageiros[0].cpf}` : '—',
@@ -174,7 +211,7 @@ export const PriceAuditView = () => {
         preco: precoFmt,
       };
     });
-  }, [rides]);
+  }, [auditoriaData?.corridas, rides]);
 
   const kmComparisonData = useMemo(() => {
     if (auditoriaData?.conformidadeQuilometragem && auditoriaData.conformidadeQuilometragem.length > 0) {

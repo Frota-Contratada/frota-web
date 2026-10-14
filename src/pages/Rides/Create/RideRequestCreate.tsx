@@ -44,7 +44,6 @@ const defaultRideTypeOptions = [
 const rideForOptions = [
   { label: 'Para mim', value: 'Para mim' },
   { label: 'Para outro colaborador', value: 'Para outro colaborador' },
-  { label: 'Para visitante/terceiro', value: 'Para visitante/terceiro' },
 ];
 
 const defaultReasonOptions = [

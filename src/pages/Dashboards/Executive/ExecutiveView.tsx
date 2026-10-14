@@ -101,8 +101,8 @@ export const ExecutiveView = () => {
     Promise.allSettled([
       dashboardApi.getExecutivo(backendQuery),
       ridesApi.list(backendQuery),
-      supplierApi.getAdminBigNumbers().catch(() => supplierApi.getFilialBigNumbers()),
-      contractApi.getAdminBigNumbers().catch(() => contractApi.getFilialBigNumbers()),
+      supplierApi.getBigNumbers(),
+      contractApi.getBigNumbers(),
     ]).then(([dashRes, ridesRes, suppRes, contRes]) => {
       if (!isMounted) return;
 
@@ -128,7 +128,53 @@ export const ExecutiveView = () => {
   }, [dateRange]);
 
   const tableData: ExecRideRow[] = useMemo(() => {
-    return rides.map((r) => {
+    if (dashboardData?.corridas && dashboardData.corridas.length > 0) {
+      return dashboardData.corridas.map((c, idx) => {
+        const rawStatus = (c.status || '').toUpperCase();
+        let badgeStatus: BadgeStatus = 'em_andamento';
+        let statusLabel = c.status || 'Em andamento';
+
+        if (rawStatus === 'F' || rawStatus === 'CONCLUIDA' || rawStatus === 'FINALIZADA' || rawStatus.includes('CONCLU')) {
+          badgeStatus = 'aprovado';
+          statusLabel = 'Concluída';
+        } else if (rawStatus === 'C' || rawStatus.includes('CANCEL')) {
+          badgeStatus = 'cancelado';
+          statusLabel = 'Cancelada';
+        } else if (rawStatus === 'R' || rawStatus.includes('RECUS') || rawStatus.includes('REPROV')) {
+          badgeStatus = 'cancelado';
+          statusLabel = 'Recusada';
+        } else if (rawStatus === 'I' || rawStatus.includes('ANDAMENTO')) {
+          badgeStatus = 'em_andamento';
+          statusLabel = 'Em andamento';
+        } else if (rawStatus === 'A' || rawStatus.includes('APROV')) {
+          badgeStatus = 'aprovado';
+          statusLabel = 'Aprovada';
+        } else if (rawStatus === 'P' || rawStatus.includes('PEND') || rawStatus.includes('AGUARD')) {
+          badgeStatus = 'pendente';
+          statusLabel = 'Pendente';
+        }
+
+        const precoNum = Number(c.preco ?? 0);
+        const precoFmt = precoNum > 0 ? `R$ ${precoNum.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—';
+        const distEst = Number(c.distanciaEstimada ?? 0);
+        const distReal = Number(c.distanciaPercorrida ?? 0);
+
+        return {
+          id: (c as any).id ?? idx + 1,
+          data: c.data ? new Date(c.data).toLocaleDateString('pt-BR') : '—',
+          solicitante: c.solicitanteNome || 'Colaborador',
+          email: c.solicitanteEmail || '—',
+          destino: c.destino || '—',
+          status: badgeStatus,
+          statusLabel,
+          distanciaEstimada: distEst > 0 ? `${distEst} km` : '—',
+          distanciaPercorrida: distReal > 0 ? `${distReal} km` : '—',
+          preco: precoFmt,
+        };
+      });
+    }
+
+    return rides.map((r, idx) => {
       const rawStatus = (r.status || '').toUpperCase();
       const corridaStatus = (r.corrida?.status || '').toUpperCase();
       let badgeStatus: BadgeStatus = 'em_andamento';
@@ -160,7 +206,7 @@ export const ExecutiveView = () => {
         : '—';
 
       return {
-        id: r.id,
+        id: r.id ?? idx + 1,
         data: r.dataCorrida ? new Date(r.dataCorrida).toLocaleDateString('pt-BR') : '—',
         solicitante: r.solicitanteNome || (r.passageiros?.[0]?.nome ?? 'Colaborador'),
         email: r.passageiros?.[0]?.cpf ? `CPF: ${r.passageiros[0].cpf}` : '—',
@@ -172,7 +218,7 @@ export const ExecutiveView = () => {
         preco: precoFmt,
       };
     });
-  }, [rides]);
+  }, [dashboardData?.corridas, rides]);
 
   const monthlyChartData = useMemo(() => {
     if (dashboardData?.gastoMensal && dashboardData.gastoMensal.length > 0) {

@@ -27,6 +27,7 @@ export interface ExpensesRow {
   centroCusto: string;
   nome: string;
   aprovador: string;
+  valor?: string;
   ativo: boolean;
 }
 
@@ -41,6 +42,12 @@ const columns: ColumnDef<ExpensesRow>[] = [
   },
   { key: 'nome', header: 'Nome do Centro', sortable: true },
   { key: 'aprovador', header: 'Aprovador Vinculado', sortable: true },
+  {
+    key: 'valor',
+    header: 'Gasto Consolidado',
+    sortable: true,
+    render: (val) => (val && val !== '—' ? <strong>{String(val)}</strong> : '—'),
+  },
   {
     key: 'ativo',
     header: 'Status',
@@ -92,14 +99,34 @@ export const ExpensesView = () => {
   }, [dateRange]);
 
   const tableData: ExpensesRow[] = useMemo(() => {
-    return costCenters.map((cc) => ({
-      id: cc.numero,
-      centroCusto: `CC-${cc.numero}`,
-      nome: cc.nome,
-      aprovador: cc.temAprovador ? 'Vinculado' : 'Pendente',
-      ativo: cc.ativo !== false,
-    }));
-  }, [costCenters]);
+    if (gastosData?.centrosCusto && gastosData.centrosCusto.length > 0) {
+      return gastosData.centrosCusto.map((c, idx) => {
+        const idNum = Number(c.centroCustoId ?? idx + 1);
+        const valorNum = Number(c.valor ?? 0);
+        return {
+          id: idNum > 0 ? idNum : idx + 1,
+          centroCusto: idNum > 0 ? `CC-${idNum}` : `CC-${idx + 1}`,
+          nome: c.centroCusto || 'Centro de Custo',
+          aprovador: c.responsavel || 'Vinculado',
+          valor: valorNum > 0 ? `R$ ${valorNum.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00',
+          ativo: true,
+        };
+      });
+    }
+
+    return costCenters.map((cc, idx) => {
+      const num = cc.numero ?? cc.id ?? (cc as any).nCdCentroCusto;
+      const idNum = Number(num ?? idx + 1);
+      return {
+        id: idNum > 0 ? idNum : idx + 1,
+        centroCusto: idNum > 0 ? `CC-${idNum}` : `CC-${idx + 1}`,
+        nome: cc.nome || 'Centro de Custo',
+        aprovador: cc.temAprovador ? 'Vinculado' : 'Pendente',
+        valor: '—',
+        ativo: cc.ativo !== false,
+      };
+    });
+  }, [gastosData?.centrosCusto, costCenters]);
 
   const costCenterChartData = useMemo(() => {
     if (gastosData?.maioresGastosCentroCusto && gastosData.maioresGastosCentroCusto.length > 0) {
@@ -112,7 +139,10 @@ export const ExpensesView = () => {
     const map: Record<string, number> = {};
 
     costCenters.forEach((cc) => {
-      const label = cc.nome ? (cc.nome.length > 15 ? `${cc.nome.slice(0, 13)}...` : cc.nome) : `CC-${cc.numero}`;
+      const num = cc.numero ?? cc.id ?? (cc as any).nCdCentroCusto;
+      const idNum = Number(num ?? 0);
+      const code = idNum > 0 ? `CC-${idNum}` : 'CC-Geral';
+      const label = cc.nome ? (cc.nome.length > 15 ? `${cc.nome.slice(0, 13)}...` : cc.nome) : code;
       map[label] = 0;
     });
 
@@ -125,10 +155,11 @@ export const ExpensesView = () => {
       }
       const share = (isNaN(val) ? 0 : val) / ccs.length;
       ccs.forEach((c) => {
-        const found = costCenters.find((x) => x.numero === c.filialId || (x as any).id === c.filialId);
+        const ccId = Number(c.centroCustoId ?? c.filialId);
+        const found = costCenters.find((x) => Number(x.numero ?? x.id ?? (x as any).nCdCentroCusto) === ccId);
         const name = found?.nome
           ? (found.nome.length > 15 ? `${found.nome.slice(0, 13)}...` : found.nome)
-          : `CC-${c.filialId}`;
+          : (ccId > 0 ? `CC-${ccId}` : 'CC-Geral');
         map[name] = (map[name] || 0) + share;
       });
     });
