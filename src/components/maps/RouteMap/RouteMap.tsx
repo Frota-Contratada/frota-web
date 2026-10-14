@@ -60,8 +60,8 @@ export const RouteMap = ({
         const anyP = p as any;
         const rawLat = p.lat ?? anyP.latitude;
         const rawLng = p.lng ?? anyP.longitude;
-        const lat = rawLat != null && rawLat !== '' ? Number(rawLat) : NaN;
-        const lng = rawLng != null && rawLng !== '' ? Number(rawLng) : NaN;
+        const lat = typeof rawLat === 'number' ? rawLat : (rawLat ? Number(rawLat) : NaN);
+        const lng = typeof rawLng === 'number' ? rawLng : (rawLng ? Number(rawLng) : NaN);
         return {
           ...p,
           lat,
