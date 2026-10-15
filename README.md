@@ -160,6 +160,12 @@ Configure a URL da API:
 VITE_API_URL=http://localhost:3000/api
 ```
 
+Para o bundle HML, o workflow `Build Web Image` fixa os endereços oficiais:
+`VITE_API_URL` e `VITE_WS_URL` em `https://api-frota-contratada-hml.seara.com.br`,
+`VITE_ACOMPANHAMENTO_URL` em `https://frota-contratada-hml.seara.com.br/acompanhamento`
+e `VITE_IA_API_URL` em `https://api-frota-contratada-hml.seara.com.br/ia`.
+Os valores locais acima continuam exclusivos do desenvolvimento.
+
 ## 📦 Scripts
 
 ```bash

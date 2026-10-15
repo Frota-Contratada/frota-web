@@ -58,8 +58,8 @@ jobs:
 
           openssl req \
             -x509 -newkey rsa:2048 -nodes -sha256 -days 1 \
-            -subj "/CN=frota-contratada.hml.seara.com.br" \
-            -addext "subjectAltName=DNS:frota-contratada.hml.seara.com.br,DNS:api.frota-contratada.hml.seara.com.br,IP:127.0.0.1" \
+            -subj "/CN=frota-contratada-hml.seara.com.br" \
+            -addext "subjectAltName=DNS:frota-contratada-hml.seara.com.br,DNS:api-frota-contratada-hml.seara.com.br,IP:127.0.0.1" \
             -keyout .ci-tls/server.key \
             -out .ci-tls/server.crt
 

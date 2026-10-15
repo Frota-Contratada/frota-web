@@ -40,6 +40,10 @@ RUN test -n "$LOCAL_VITE_API_URL" \
     && test -n "$HML_VITE_WS_URL" \
     && test -n "$HML_VITE_ACOMPANHAMENTO_URL" \
     && test -n "$HML_VITE_IA_API_URL" \
+    && test "$HML_VITE_API_URL" = 'https://api-frota-contratada-hml.seara.com.br' \
+    && test "$HML_VITE_WS_URL" = 'https://api-frota-contratada-hml.seara.com.br' \
+    && test "$HML_VITE_ACOMPANHAMENTO_URL" = 'https://frota-contratada-hml.seara.com.br/acompanhamento' \
+    && test "$HML_VITE_IA_API_URL" = 'https://api-frota-contratada-hml.seara.com.br/ia' \
     && VITE_API_URL="$LOCAL_VITE_API_URL" \
        VITE_WS_URL="$LOCAL_VITE_WS_URL" \
        VITE_ACOMPANHAMENTO_URL="$LOCAL_VITE_ACOMPANHAMENTO_URL" \

@@ -35,10 +35,10 @@ jobs:
           LOCAL_VITE_WS_URL: ${{ vars.PROD_VITE_WS_URL }}
           LOCAL_VITE_ACOMPANHAMENTO_URL: ${{ vars.PROD_VITE_ACOMPANHAMENTO_URL }}
           LOCAL_VITE_IA_API_URL: ${{ vars.PROD_VITE_IA_API_URL }}
-          HML_VITE_API_URL: ${{ vars.HML_VITE_API_URL }}
-          HML_VITE_WS_URL: ${{ vars.HML_VITE_WS_URL }}
-          HML_VITE_ACOMPANHAMENTO_URL: ${{ vars.HML_VITE_ACOMPANHAMENTO_URL }}
-          HML_VITE_IA_API_URL: ${{ vars.HML_VITE_IA_API_URL }}
+          HML_VITE_API_URL: https://api-frota-contratada-hml.seara.com.br
+          HML_VITE_WS_URL: https://api-frota-contratada-hml.seara.com.br
+          HML_VITE_ACOMPANHAMENTO_URL: https://frota-contratada-hml.seara.com.br/acompanhamento
+          HML_VITE_IA_API_URL: https://api-frota-contratada-hml.seara.com.br/ia
           VITE_TOMTOM_API_KEY: ${{ secrets.PROD_VITE_TOMTOM_API_KEY }}
         run: |
           set -euo pipefail
@@ -52,6 +52,10 @@ jobs:
           test -n "$HML_VITE_ACOMPANHAMENTO_URL"
           test -n "$HML_VITE_IA_API_URL"
           test -n "$VITE_TOMTOM_API_KEY"
+          test "$HML_VITE_API_URL" = 'https://api-frota-contratada-hml.seara.com.br'
+          test "$HML_VITE_WS_URL" = 'https://api-frota-contratada-hml.seara.com.br'
+          test "$HML_VITE_ACOMPANHAMENTO_URL" = 'https://frota-contratada-hml.seara.com.br/acompanhamento'
+          test "$HML_VITE_IA_API_URL" = 'https://api-frota-contratada-hml.seara.com.br/ia'
 
       - name: Define image metadata
         id: meta
@@ -70,10 +74,10 @@ jobs:
           LOCAL_VITE_WS_URL: ${{ vars.PROD_VITE_WS_URL }}
           LOCAL_VITE_ACOMPANHAMENTO_URL: ${{ vars.PROD_VITE_ACOMPANHAMENTO_URL }}
           LOCAL_VITE_IA_API_URL: ${{ vars.PROD_VITE_IA_API_URL }}
-          HML_VITE_API_URL: ${{ vars.HML_VITE_API_URL }}
-          HML_VITE_WS_URL: ${{ vars.HML_VITE_WS_URL }}
-          HML_VITE_ACOMPANHAMENTO_URL: ${{ vars.HML_VITE_ACOMPANHAMENTO_URL }}
-          HML_VITE_IA_API_URL: ${{ vars.HML_VITE_IA_API_URL }}
+          HML_VITE_API_URL: https://api-frota-contratada-hml.seara.com.br
+          HML_VITE_WS_URL: https://api-frota-contratada-hml.seara.com.br
+          HML_VITE_ACOMPANHAMENTO_URL: https://frota-contratada-hml.seara.com.br/acompanhamento
+          HML_VITE_IA_API_URL: https://api-frota-contratada-hml.seara.com.br/ia
           VITE_TOMTOM_API_KEY: ${{ secrets.PROD_VITE_TOMTOM_API_KEY }}
         run: |
           set -euo pipefail

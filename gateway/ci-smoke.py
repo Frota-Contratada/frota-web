@@ -10,8 +10,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 
-WEB_HOST = "frota-contratada.hml.seara.com.br"
-API_HOST = "api.frota-contratada.hml.seara.com.br"
+WEB_HOST = "frota-contratada-hml.seara.com.br"
+API_HOST = "api-frota-contratada-hml.seara.com.br"
 
 
 def mock_server(port, marker):
