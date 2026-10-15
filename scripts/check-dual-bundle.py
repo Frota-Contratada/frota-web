@@ -11,16 +11,16 @@ from pathlib import Path
 
 
 LOCAL_HOST = "frota.local"
-HML_HOST = "frota-contratada.hml.seara.com.br"
+HML_HOST = "frota-contratada-hml.seara.com.br"
 LOCAL_URLS = (
     "http://api.frota.local",
     "http://ia.frota.local",
     "http://acompanhamento.frota.local",
 )
 HML_URLS = (
-    "https://api.frota-contratada.hml.seara.com.br",
-    "https://api.frota-contratada.hml.seara.com.br/ia",
-    "https://frota-contratada.hml.seara.com.br/acompanhamento",
+    "https://api-frota-contratada-hml.seara.com.br",
+    "https://api-frota-contratada-hml.seara.com.br/ia",
+    "https://frota-contratada-hml.seara.com.br/acompanhamento",
 )
 
 
@@ -81,6 +81,7 @@ def main():
             assert not any(url in local_text for url in HML_URLS), "HML URL leaked into LOCAL"
             assert "frota.local" not in hml_text, "LOCAL URL leaked into HML"
             assert "ngrok" not in hml_text.lower(), "ngrok fallback leaked into HML"
+            assert "frota-contratada.hml.seara.com.br" not in hml_text.lower(), "Old HML host leaked into bundle"
 
             local_entry = next(path for path in local_root.rglob("*.js") if LOCAL_URLS[0] in path.read_text(errors="replace"))
             hml_entry = next(path for path in hml_root.rglob("*.js") if HML_URLS[0] in path.read_text(errors="replace"))

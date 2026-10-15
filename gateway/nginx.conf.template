@@ -106,7 +106,7 @@ server {
 
 server {
     listen 443 ssl;
-    server_name frota-contratada.hml.seara.com.br;
+    server_name frota-contratada-hml.seara.com.br;
 
     ssl_certificate /etc/nginx/tls/server.crt;
     ssl_certificate_key /etc/nginx/tls/server.key;
@@ -144,7 +144,7 @@ server {
 
 server {
     listen 443 ssl;
-    server_name api.frota-contratada.hml.seara.com.br;
+    server_name api-frota-contratada-hml.seara.com.br;
 
     ssl_certificate /etc/nginx/tls/server.crt;
     ssl_certificate_key /etc/nginx/tls/server.key;
