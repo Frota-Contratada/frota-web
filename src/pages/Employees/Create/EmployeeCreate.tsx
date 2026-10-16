@@ -66,23 +66,53 @@ export const EmployeeCreate = () => {
 
   const selectedBranchId = Number(form.branch) || 1;
   const filteredCostCenters = useMemo(() => {
-    const branchSpecific = costCentersList.filter((c) => Number(c.filialId) === selectedBranchId);
-    return branchSpecific.length > 0 ? branchSpecific : costCentersList;
+    return costCentersList.filter((c) => Number(c.filialId) === selectedBranchId);
   }, [costCentersList, selectedBranchId]);
 
   const costCenterOptions = useMemo(() => {
-    return filteredCostCenters.map((c) => ({
-      label: `${c.nome} (Nº ${c.numero})${c.temAprovador ? ' — Com Aprovador' : ' — Sem Aprovador'}`,
-      value: String(c.numero),
-    }));
-  }, [filteredCostCenters]);
+    const options = filteredCostCenters.map((c) => {
+      const ccId = c.id ?? c.numero;
+      const displayNum = c.numero ?? c.id;
+      return {
+        label: `${c.nome} (Nº ${displayNum})${c.temAprovador ? ' — Com Aprovador' : ' — Sem Aprovador'}`,
+        value: String(ccId),
+      };
+    });
+
+    if (form.costCenterId && !options.some((o) => o.value === String(form.costCenterId))) {
+      options.unshift({
+        label: `Centro de Custo Nº ${form.costCenterId}`,
+        value: String(form.costCenterId),
+      });
+    }
+
+    return options;
+  }, [filteredCostCenters, form.costCenterId]);
 
   const updateField = (field: keyof typeof form, value: unknown) => {
     if (field === 'branch') {
       const newBranchId = Number(value);
       const branchCcs = costCentersList.filter((c) => Number(c.filialId) === newBranchId);
-      const nextCc = branchCcs[0]?.numero ? String(branchCcs[0].numero) : '';
+      const nextCc = branchCcs[0] ? String(branchCcs[0].id ?? branchCcs[0].numero) : '';
       setForm((current) => ({ ...current, branch: String(value), costCenterId: nextCc }));
+      if (branchCcs.length === 0 && !isNaN(newBranchId)) {
+        costCenterApi.list({ filialId: newBranchId }).then((res) => {
+          const list = extractListData<CentroCustoDto>(res);
+          if (list.length > 0) {
+            setCostCentersList((prev) => {
+              const existingKeys = new Set(prev.map((c) => `${c.filialId}-${c.id ?? c.numero}`));
+              const toAdd = list.filter((c) => !existingKeys.has(`${c.filialId}-${c.id ?? c.numero}`));
+              return [...prev, ...toAdd];
+            });
+            setForm((current) => {
+              if (current.branch === String(value) && !current.costCenterId) {
+                return { ...current, costCenterId: String(list[0].id ?? list[0].numero) };
+              }
+              return current;
+            });
+          }
+        }).catch(() => {});
+      }
     } else {
       setForm((current) => ({ ...current, [field]: value }));
     }
