@@ -25,7 +25,9 @@ const getApiBaseUrl = () => {
   if (!envUrl && import.meta.env.PROD) {
     throw new Error('VITE_API_URL is required for a production build.');
   }
-  return (envUrl || 'http://localhost:3000').replace(/\/+$/, '');
+  return new URL(envUrl || 'http://localhost:3000', window.location.origin)
+    .toString()
+    .replace(/\/+$/, '');
 };
 
 const buildUrl = (path: string, query?: ApiQueryParams) => {

@@ -34,7 +34,9 @@ const getWsUrl = (): string => {
   if (!wsUrl && import.meta.env.PROD) {
     throw new Error('VITE_WS_URL is required for a production build.');
   }
-  return (wsUrl || 'http://localhost:3000').replace(/\/+$/, '');
+  return new URL(wsUrl || 'http://localhost:3000', window.location.origin)
+    .toString()
+    .replace(/\/+$/, '');
 };
 
 export class TrackingSocketClient {

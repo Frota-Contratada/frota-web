@@ -11,7 +11,9 @@ export interface NotificationSocketCallbacks {
 
 const getWsUrl = (): string => {
   const wsUrl = import.meta.env.VITE_WS_URL || import.meta.env.VITE_API_URL;
-  return (wsUrl || 'http://localhost:3000').replace(/\/+$/, '');
+  return new URL(wsUrl || 'http://localhost:3000', window.location.origin)
+    .toString()
+    .replace(/\/+$/, '');
 };
 
 export class NotificationSocketClient {

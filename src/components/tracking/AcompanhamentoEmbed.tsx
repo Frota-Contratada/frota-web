@@ -17,7 +17,9 @@ const getAcompanhamentoUrl = (): string => {
   if (!url && import.meta.env.PROD) {
     throw new Error('VITE_ACOMPANHAMENTO_URL is required for a production build.');
   }
-  return (url || 'http://localhost:3001').replace(/\/+$/, '');
+  return new URL(url || 'http://localhost:3001', window.location.origin)
+    .toString()
+    .replace(/\/+$/, '');
 };
 
 export const AcompanhamentoEmbed = ({
