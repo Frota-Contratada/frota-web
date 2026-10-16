@@ -1,5 +1,6 @@
 import { apiClient } from '../api/apiClient';
 import { getAccessTokenClaims } from '../../utils/jwt';
+import { cleanCnpj, cleanCep } from '../../utils';
 
 export interface EnderecoDto {
   cep: string;
@@ -71,42 +72,68 @@ const extrairFiliais = (res: FiliaisListResponse): { data: FilialDto[]; hasNextP
   return { data: payload?.data ?? [], hasNextPage: Boolean(payload?.hasNextPage) };
 };
 
-const memorizar = (filiais: FilialDto[]) => {
+const memorizar = (filiais: any[]) => {
+  if (!Array.isArray(filiais)) return;
   filiais.forEach((f) => {
-    if (f.empresaId) {
-      empresaPorFilial.set(Number(f.id), Number(f.empresaId));
-      if (!empresaPadrao) empresaPadrao = Number(f.empresaId);
+    const eid = f?.empresaId ?? f?.nCdEmpresa;
+    const fid = f?.id ?? f?.nCdFilial;
+    if (eid && fid) {
+      const numEid = Number(eid);
+      const numFid = Number(fid);
+      if (!isNaN(numEid) && numEid > 0 && !isNaN(numFid) && numFid > 0) {
+        empresaPorFilial.set(numFid, numEid);
+        if (!empresaPadrao) empresaPadrao = numEid;
+      }
     }
   });
 };
 
-export async function resolveEmpresaId(filialId?: number): Promise<number | undefined> {
-  if (filialId && empresaPorFilial.has(filialId)) return empresaPorFilial.get(filialId);
-  if (!filialId && empresaPadrao) return empresaPadrao;
+export async function resolveEmpresaId(filialId?: number): Promise<number> {
+  const numId = filialId && !isNaN(Number(filialId)) ? Number(filialId) : undefined;
+  if (numId && empresaPorFilial.has(numId)) return empresaPorFilial.get(numId)!;
+  if (!numId && empresaPadrao) return empresaPadrao;
 
   const claims = getAccessTokenClaims();
-  if (claims?.empresaId && (!filialId || claims.filialId === filialId)) {
-    return Number(claims.empresaId);
+  if (claims?.empresaId && (!numId || Number(claims.filialId) === numId)) {
+    const claimEid = Number(claims.empresaId);
+    if (!isNaN(claimEid) && claimEid > 0) return claimEid;
   }
 
   try {
     for (let page = 1; page <= 20; page += 1) {
       const { data, hasNextPage } = extrairFiliais(await listarFiliais({ page, limit: 100 }));
       memorizar(data);
-      if (filialId && empresaPorFilial.has(filialId)) return empresaPorFilial.get(filialId);
-      if (!filialId && empresaPadrao) return empresaPadrao;
+      if (numId && empresaPorFilial.has(numId)) return empresaPorFilial.get(numId)!;
+      if (!numId && empresaPadrao) return empresaPadrao;
       if (!hasNextPage) break;
     }
   } catch {
   }
 
-  return claims?.empresaId ? Number(claims.empresaId) : empresaPadrao;
+  const fallback = claims?.empresaId ? Number(claims.empresaId) : (empresaPadrao ?? 1);
+  return !isNaN(fallback) && fallback > 0 ? fallback : 1;
 }
 
 export const branchApi = {
   async create(data: Omit<CriarFilialParams, 'empresaId'> & { empresaId?: number }) {
-    const empresaId = data.empresaId ?? (await resolveEmpresaId());
-    return apiClient.post<FilialResponse>('/filial', { ...data, empresaId });
+    const resolved = await resolveEmpresaId();
+    const empresaId = Number(data.empresaId ?? (resolved > 0 ? resolved : 1));
+    const cnpj = cleanCnpj(data.cnpj);
+    const payload = {
+      ...data,
+      cnpj,
+      empresaId,
+      administradorId: Number(data.administradorId || 1),
+      endereco: {
+        ...data.endereco,
+        cep: cleanCep(data.endereco.cep),
+        numero: String(data.endereco.numero || '100').trim(),
+        uf: String(data.endereco.uf || 'SC').trim().toUpperCase().slice(0, 2),
+        latitude: Number(data.endereco.latitude) || 0,
+        longitude: Number(data.endereco.longitude) || 0,
+      },
+    };
+    return apiClient.post<FilialResponse>('/filial', payload);
   },
 
   async list(query?: BuscarFiliaisQueryParams) {
@@ -116,18 +143,35 @@ export const branchApi = {
   },
 
   async getById(id: number, empresaId?: number) {
-    const empresa = empresaId ?? (await resolveEmpresaId(id));
-    return apiClient.get<FilialResponse>(`/filial/${id}`, { query: { empresaId: empresa } });
+    const numId = Number(id);
+    const resolved = empresaId ?? (await resolveEmpresaId(numId));
+    const empresa = Number(resolved > 0 ? resolved : 1);
+    return apiClient.get<FilialResponse>(`/filial/${numId}`, { query: { empresaId: empresa } });
   },
 
   async update(id: number, data: AtualizarFilialParams, empresaId?: number) {
-    const empresa = empresaId ?? (await resolveEmpresaId(id));
-    return apiClient.patch<FilialResponse>(`/filial/${id}`, data, { query: { empresaId: empresa } });
+    const numId = Number(id);
+    const resolved = empresaId ?? (await resolveEmpresaId(numId));
+    const empresa = Number(resolved > 0 ? resolved : 1);
+    const payload = {
+      nome: data.nome,
+      endereco: {
+        ...data.endereco,
+        cep: cleanCep(data.endereco.cep),
+        numero: String(data.endereco.numero || '100').trim(),
+        uf: String(data.endereco.uf || 'SC').trim().toUpperCase().slice(0, 2),
+        latitude: Number(data.endereco.latitude) || 0,
+        longitude: Number(data.endereco.longitude) || 0,
+      },
+    };
+    return apiClient.patch<FilialResponse>(`/filial/${numId}`, payload, { query: { empresaId: empresa } });
   },
 
   async substituirAdministradores(id: number, data: SubstituirAdministradoresParams, empresaId?: number) {
-    const empresa = empresaId ?? (await resolveEmpresaId(id));
-    return apiClient.put<void>(`/filial/${id}/administradores`, data, { query: { empresaId: empresa } });
+    const numId = Number(id);
+    const resolved = empresaId ?? (await resolveEmpresaId(numId));
+    const empresa = Number(resolved > 0 ? resolved : 1);
+    return apiClient.put<void>(`/filial/${numId}/administradores`, data, { query: { empresaId: empresa } });
   },
 };
 

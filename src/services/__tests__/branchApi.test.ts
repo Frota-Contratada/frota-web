@@ -37,7 +37,7 @@ describe('branchApi', () => {
 
     const result = await branchApi.create(payload);
 
-    expect(postSpy).toHaveBeenCalledWith('/filial', payload);
+    expect(postSpy).toHaveBeenCalledWith('/filial', { ...payload, empresaId: 1 });
     expect(result.response.id).toBe(1);
   });
 
