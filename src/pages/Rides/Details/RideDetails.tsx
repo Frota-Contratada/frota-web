@@ -39,36 +39,43 @@ export const RideDetails = () => {
     let isMounted = true;
     if (rideId && !isNaN(Number(rideId))) {
       const id = Number(rideId);
+      
       ridesApi
-        .getById(id)
-        .then((res) => {
+        .getCorridaById(id)
+        .then(async (corridaRes) => {
           if (!isMounted) return;
-          if (res.response) {
-            setSolicitacao(res.response);
+          if (corridaRes?.response) {
+            const corridaData = corridaRes.response;
+            if (corridaData.solicitacaoId) {
+              try {
+                const solRes = await ridesApi.getById(corridaData.solicitacaoId);
+                if (!isMounted) return;
+                if (solRes.response) {
+                  setSolicitacao({
+                    ...solRes.response,
+                    corrida: corridaData,
+                    Corrida: [corridaData as any],
+                  });
+                  return;
+                }
+              } catch {
+              }
+            }
+            setSolicitacao(mapCorridaToSolicitacao(corridaData));
+            return;
           }
         })
         .catch(async () => {
           try {
-            const corridaRes = await ridesApi.getCorridaById(id);
-            if (corridaRes?.response) {
-              if (corridaRes.response.solicitacaoId) {
-                try {
-                  const solRes = await ridesApi.getById(corridaRes.response.solicitacaoId);
-                  if (!isMounted) return;
-                  if (solRes.response) {
-                    setSolicitacao(solRes.response);
-                    return;
-                  }
-                } catch {
-
-                }
-              }
-              if (!isMounted) return;
-              setSolicitacao(mapCorridaToSolicitacao(corridaRes.response));
+            const solRes = await ridesApi.getById(id);
+            if (!isMounted) return;
+            if (solRes.response) {
+              setSolicitacao(solRes.response);
               return;
             }
           } catch {
           }
+
           if (!isMounted) return;
           showToast({ type: 'error', title: 'Erro ao buscar detalhes da corrida' });
           navigate('/corridas/historico');

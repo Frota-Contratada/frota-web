@@ -37,7 +37,7 @@ describe('branchApi', () => {
 
     const result = await branchApi.create(payload);
 
-    expect(postSpy).toHaveBeenCalledWith('/filial', payload);
+    expect(postSpy).toHaveBeenCalledWith('/filial', { ...payload, empresaId: 1 });
     expect(result.response.id).toBe(1);
   });
 
@@ -92,9 +92,9 @@ describe('branchApi', () => {
 
     const getSpy = vi.spyOn(apiClient, 'get').mockResolvedValue(mockBranch);
 
-    const result = await branchApi.getById(5);
+    const result = await branchApi.getById(5, 10);
 
-    expect(getSpy).toHaveBeenCalledWith('/filial/5');
+    expect(getSpy).toHaveBeenCalledWith('/filial/5', { query: { empresaId: 10 } });
     expect(result.response.nome).toBe('CD Jundiaí');
   });
 
@@ -117,17 +117,17 @@ describe('branchApi', () => {
       response: { id: 1, ...updateData, cnpj: '12345678000199' },
     });
 
-    const result = await branchApi.update(1, updateData);
+    const result = await branchApi.update(1, updateData, 10);
 
-    expect(patchSpy).toHaveBeenCalledWith('/filial/1', updateData);
+    expect(patchSpy).toHaveBeenCalledWith('/filial/1', updateData, { query: { empresaId: 10 } });
     expect(result.response.nome).toBe('Seara Itajaí Novo');
   });
 
   it('calls substituirAdministradores with branch id and admin IDs', async () => {
     const putSpy = vi.spyOn(apiClient, 'put').mockResolvedValue(undefined);
 
-    await branchApi.substituirAdministradores(1, { administradorIds: [2, 3] });
+    await branchApi.substituirAdministradores(1, { administradorIds: [2, 3] }, 10);
 
-    expect(putSpy).toHaveBeenCalledWith('/filial/1/administradores', { administradorIds: [2, 3] });
+    expect(putSpy).toHaveBeenCalledWith('/filial/1/administradores', { administradorIds: [2, 3] }, { query: { empresaId: 10 } });
   });
 });

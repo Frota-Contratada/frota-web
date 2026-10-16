@@ -816,3 +816,48 @@
   height: 12px;
 }
 
+.costCenterSearchInput {
+  margin-bottom: var(--spacing-sm);
+}
+
+.costCenterBadgeActive {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-sm);
+  background-color: #dcfce7;
+  color: #166534;
+  margin-left: 0.4rem;
+  font-weight: 700;
+}
+
+.costCenterBadgeInactive {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-sm);
+  background-color: #fef3c7;
+  color: #92400e;
+  margin-left: 0.4rem;
+  font-weight: 700;
+}
+
+.costCenterChipActive .costCenterBadgeActive,
+.costCenterChipActive .costCenterBadgeInactive {
+  background-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.costCenterWarning {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  margin-top: 0.625rem;
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-md);
+  color: #92400e;
+  font-size: 0.8125rem;
+}
+

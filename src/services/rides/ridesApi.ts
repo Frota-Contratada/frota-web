@@ -587,8 +587,12 @@ export const ridesApi = {
     try {
       return await apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/cancelamento`, body);
     } catch (err: any) {
-      if (err?.status === 403 || err?.statusCode === 403 || err?.status === 404) {
-        return apiClient.patch<{ response: any }>(`/corridas/${id}/cancelamento`, body);
+      if (err?.status === 404 || err?.statusCode === 404) {
+        try {
+          return await apiClient.patch<{ response: any }>(`/corridas/${id}/cancelamento`, body);
+        } catch {
+          throw err;
+        }
       }
       throw err;
     }

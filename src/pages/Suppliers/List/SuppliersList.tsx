@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction, type BadgeStatus } from '../../../components/common';
+import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction, type BadgeStatus, type SortState } from '../../../components/common';
 import VisualizarIcon from '../../../assets/icons/visualizar.svg?react';
 import { supplierApi, extractListData, type FornecedorDto, type FornecedorBigNumbers } from '../../../services';
 import { exportToCsv } from '../../../utils/exportHelper';
@@ -81,6 +81,7 @@ export const SuppliersList = () => {
   const [suppliersList, setSuppliersList] = useState<Supplier[]>([]);
   const [bigNumbers, setBigNumbers] = useState<FornecedorBigNumbers | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [sortState, setSortState] = useState<SortState | null>(null);
 
 
 
@@ -239,14 +240,40 @@ export const SuppliersList = () => {
   const activeSuppliers = suppliersList.filter((supplier) => !supplier.deactivatedAt && supplier.status !== 'cancelado').length;
   const suppliersWithContracts = suppliersList.filter((supplier) => supplier.linkedContracts > 0).length;
   const totalVehicles = suppliersList.reduce((total, supplier) => total + supplier.vehicles, 0);
-  const totalPages = Math.max(1, Math.ceil(filteredSuppliers.length / PAGE_SIZE));
-  const pageData = filteredSuppliers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const sortedSuppliers = useMemo(() => {
+    if (!sortState) return filteredSuppliers;
+    const { key, direction } = sortState;
+
+    return [...filteredSuppliers].sort((a, b) => {
+      const aVal = (a as Record<string, unknown>)[key];
+      const bVal = (b as Record<string, unknown>)[key];
+
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      const cmp =
+        typeof aVal === 'number' && typeof bVal === 'number'
+          ? aVal - bVal
+          : String(aVal).localeCompare(String(bVal), 'pt-BR');
+
+      return direction === 'asc' ? cmp : -cmp;
+    });
+  }, [filteredSuppliers, sortState]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedSuppliers.length / PAGE_SIZE));
+  const pageData = sortedSuppliers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const actions: TableAction<Supplier>[] = [
     {
       icon: <VisualizarIcon width={18} height={18} />,
       label: 'Visualizar fornecedor',
       onClick: (row) => navigate(`/terceiros/fornecedores/${row.id}`),
+    },
+    {
+      icon: <VisualizarIcon width={18} height={18} />,
+      label: 'Editar fornecedor',
+      onClick: (row) => navigate(`/terceiros/fornecedores/${row.id}/editar`),
     },
   ];
 
@@ -315,6 +342,7 @@ export const SuppliersList = () => {
           data={pageData}
           keyExtractor={(supplier) => supplier.id}
           actions={actions}
+          onSortChange={setSortState}
           emptyMessage="Nenhum fornecedor encontrado."
           isLoading={isLoading}
           pagination={{ currentPage, totalPages, onPageChange: setCurrentPage }}

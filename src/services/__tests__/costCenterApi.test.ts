@@ -43,4 +43,22 @@ describe('costCenterApi', () => {
     expect(getSpy).toHaveBeenCalledWith('/centro-de-custo/filial', { query: undefined });
     expect(result.response).toEqual(mockList.response);
   });
+
+  it('resolves empresaId when listing admin cost centers for a filial', async () => {
+    const mockList = {
+      response: {
+        totalCount: 1,
+        hasNextPage: false,
+        data: [{ filialId: 704, numero: 4704, nome: 'Operações Sul' }],
+      },
+    };
+    const getSpy = vi.spyOn(apiClient, 'get').mockResolvedValue(mockList);
+
+    const result = await costCenterApi.listAdmin({ filialId: 704 });
+
+    expect(getSpy).toHaveBeenCalledWith('/centro-de-custo/admin', {
+      query: expect.objectContaining({ filialId: 704, limit: 100, page: 1 }),
+    });
+    expect(result.response).toEqual(mockList.response);
+  });
 });

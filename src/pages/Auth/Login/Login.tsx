@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { Button, Input, Card, useToast } from '../../../components/common';
-import { authApi } from '../../../services/auth/authApi';
+import { ApiError } from '../../../services/api/apiClient';
 import emailIcon from '../../../assets/icons/email.svg';
 import cadeadoIcon from '../../../assets/icons/cadeado.svg';
 import searaJbsLogo from '../../../assets/images/seara-jbs.svg';
@@ -49,22 +49,15 @@ export const Login = () => {
     try {
       await login({ email, senha: password, plataforma: 'WEB' });
     } catch (err) {
-
-      try {
-        const check = await authApi.verificarPrimeiroAcesso(email);
-        if (check?.response?.primeiroAcesso) {
-          showToast({
-            type: 'info',
-            title: 'Primeiro acesso identificado',
-            description: 'Você precisa definir sua primeira senha. Redirecionando para ativação...',
-          });
-          navigate('/sign-up', { state: { email } });
-          return;
-        }
-      } catch {
-
+      const status = err instanceof ApiError ? err.status : undefined;
+      if (status === 400 || status === 401 || status === 404) {
+        showToast({
+          type: 'error',
+          title: 'E-mail ou senha inválidos',
+          description: 'Confira suas credenciais. Se é seu primeiro acesso, use "Ative sua conta".',
+        });
+        return;
       }
-
       const message = err instanceof Error ? err.message : 'Erro ao fazer login';
       showToast({ type: 'error', title: message });
     }
