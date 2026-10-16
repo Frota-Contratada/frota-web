@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction, type BadgeStatus } from '../../../components/common';
+import { Button, StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction, type BadgeStatus, type SortState } from '../../../components/common';
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
 import { collaboratorApi, extractListData, type ColaboradorDto, type ColaboradorBigNumbers } from '../../../services';
 import { exportToCsv } from '../../../utils/exportHelper';
@@ -71,6 +71,7 @@ export const EmployeesList = () => {
   const [employeesList, setEmployeesList] = useState<Employee[]>([]);
   const [bigNumbers, setBigNumbers] = useState<ColaboradorBigNumbers | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [sortState, setSortState] = useState<SortState | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -216,8 +217,28 @@ export const EmployeesList = () => {
     });
   }, [query, selectedFilters, employeesList]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / PAGE_SIZE));
-  const pageData = filteredEmployees.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const sortedEmployees = useMemo(() => {
+    if (!sortState) return filteredEmployees;
+    const { key, direction } = sortState;
+
+    return [...filteredEmployees].sort((a, b) => {
+      const aVal = (a as Record<string, unknown>)[key];
+      const bVal = (b as Record<string, unknown>)[key];
+
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      const cmp =
+        typeof aVal === 'number' && typeof bVal === 'number'
+          ? aVal - bVal
+          : String(aVal).localeCompare(String(bVal), 'pt-BR');
+
+      return direction === 'asc' ? cmp : -cmp;
+    });
+  }, [filteredEmployees, sortState]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedEmployees.length / PAGE_SIZE));
+  const pageData = sortedEmployees.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const actions: TableAction<Employee>[] = [
     {
@@ -272,6 +293,7 @@ export const EmployeesList = () => {
               ? { type: 'success', title: 'Exportação concluída', description: 'O relatório em CSV foi baixado.' }
               : { type: 'warning', title: 'Aviso', description: 'Nenhum colaborador encontrado para exportar.' });
           }}
+          rightActions={<Button onClick={() => navigate('/colaboradores/novo')}>Cadastrar colaborador</Button>}
           filterSections={filterSections}
           selectedFilters={selectedFilters}
           onFilterChange={(values) => {
@@ -291,6 +313,7 @@ export const EmployeesList = () => {
           data={pageData}
           keyExtractor={(employee) => employee.id}
           actions={actions}
+          onSortChange={setSortState}
           emptyMessage="Nenhum colaborador encontrado."
           isLoading={isLoading}
           pagination={{ currentPage, totalPages, onPageChange: setCurrentPage }}

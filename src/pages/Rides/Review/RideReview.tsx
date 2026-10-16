@@ -191,7 +191,18 @@ export const RideReview = () => {
     try {
       setIsSubmitting(true);
       const fornecedorFinal = isPrimaryApprover ? (selectedSupplierId || undefined) : undefined;
-      await ridesApi.aprovar(solicitacao.id, fornecedorFinal);
+      try {
+        await ridesApi.aprovar(solicitacao.id, fornecedorFinal);
+      } catch (firstErr: any) {
+        const msg = firstErr?.message || '';
+        if ((msg.includes('deve escolher um fornecedor') || msg.includes('fornecedor')) && !fornecedorFinal && selectedSupplierId) {
+          await ridesApi.aprovar(solicitacao.id, selectedSupplierId);
+        } else if ((msg.includes('não autorizado') || msg.includes('Não informe fornecedor')) && fornecedorFinal) {
+          await ridesApi.aprovar(solicitacao.id, undefined);
+        } else {
+          throw firstErr;
+        }
+      }
       showToast({
         type: 'success',
         title: 'Solicitação aprovada',

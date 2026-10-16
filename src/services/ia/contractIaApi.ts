@@ -87,14 +87,25 @@ export const contractIaApi = {
     if (!response.ok) {
       let errorDetail = `Erro HTTP ${response.status}`;
       try {
-        const errorData = await response.json();
-        if (errorData?.detail) {
-          errorDetail = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail);
+        if (typeof response.text === 'function') {
+          const text = await response.text();
+          try {
+            const json = JSON.parse(text);
+            if (json?.detail) {
+              errorDetail = typeof json.detail === 'string' ? json.detail : JSON.stringify(json.detail);
+            } else if (text) {
+              errorDetail = text;
+            }
+          } catch {
+            if (text) errorDetail = text;
+          }
+        } else if (typeof response.json === 'function') {
+          const json = await response.json();
+          if (json?.detail) {
+            errorDetail = typeof json.detail === 'string' ? json.detail : JSON.stringify(json.detail);
+          }
         }
       } catch {
-
-        const text = await response.text();
-        if (text) errorDetail = text;
       }
       throw new Error(`Falha na extração com IA: ${errorDetail}`);
     }

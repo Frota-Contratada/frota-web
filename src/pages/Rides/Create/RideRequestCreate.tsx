@@ -132,9 +132,11 @@ export const RideRequestCreate = () => {
     }
   }, [currentUser]);
 
+  const [ccSearch, setCcSearch] = useState('');
+
   useEffect(() => {
     Promise.allSettled([
-      ridesApi.getMotivos(),
+      ridesApi.getMotivos('solicitacao'),
       ridesApi.getTiposCorrida(),
       costCenterApi.list(),
       collaboratorApi.list(),
@@ -151,9 +153,11 @@ export const RideRequestCreate = () => {
         const ccs = extractListData<CentroCustoDto>(ccRes.value);
         setBackendCentrosCusto(ccs);
         if (ccs.length > 0) {
+          const firstWithApprover = ccs.find((c) => c.temAprovador);
+          const defaultCc = firstWithApprover || ccs[0];
           setForm((prev) => ({
             ...prev,
-            costCenterIds: prev.costCenterIds.length > 0 ? prev.costCenterIds : [String(ccs[0].numero)],
+            costCenterIds: prev.costCenterIds.length > 0 ? prev.costCenterIds : [String(defaultCc.numero)],
           }));
         }
       }
@@ -219,6 +223,24 @@ export const RideRequestCreate = () => {
     return [{ label: userName, value: userName }];
   }, [collaboratorsList, userName]);
 
+  const filteredCentrosCusto = useMemo(() => {
+    if (!ccSearch.trim()) return backendCentrosCusto;
+    const term = ccSearch.toLowerCase().trim();
+    return backendCentrosCusto.filter(
+      (cc) =>
+        cc.nome.toLowerCase().includes(term) ||
+        String(cc.numero).includes(term) ||
+        String(cc.id || '').includes(term)
+    );
+  }, [backendCentrosCusto, ccSearch]);
+
+  const hasSelectedWithoutApprover = useMemo(() => {
+    return form.costCenterIds.some((id) => {
+      const cc = backendCentrosCusto.find((c) => String(c.numero) === id || String(c.id) === id);
+      return cc && cc.temAprovador === false;
+    });
+  }, [form.costCenterIds, backendCentrosCusto]);
+
   const estimatedKm = calculatedDistanceKm > 0 ? `${calculatedDistanceKm.toLocaleString('pt-BR')} km` : 'A calcular';
   const estimatedValue = simulatedValue !== null
     ? `R$ ${simulatedValue.toLocaleString('pt-BR', {
@@ -263,8 +285,13 @@ export const RideRequestCreate = () => {
 
   const requesterEmployee = collaboratorsList.find((c) => c.nome === form.requester);
   const selectedBeneficiary = collaboratorsList.find((c) => c.nome === form.beneficiaryName);
-  const selectedBeneficiaryCpf = selectedBeneficiary?.cpf ?? currentUser?.cpf ?? '';
   const isRideForSelf = form.rideFor === 'Para mim';
+  const selectedBeneficiaryCpf = isRideForSelf
+    ? (requesterEmployee?.cpf ?? currentUser?.cpf ?? form.passengerCpfs[0] ?? '')
+    : (selectedBeneficiary?.cpf ?? form.passengerCpfs[0] ?? '');
+  const isMainCpfDisabled = isRideForSelf
+    ? Boolean(requesterEmployee?.cpf || currentUser?.cpf)
+    : Boolean(selectedBeneficiary?.cpf);
 
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -375,7 +402,7 @@ export const RideRequestCreate = () => {
       ];
       const hasEmptyField = requiredFields.some((field) => field.trim().length === 0);
       const hasMissingCostCenter = form.costCenterIds.length === 0;
-      const hasMissingCpf = passengerCount > 1 && Array.from({ length: passengerCount }, (_, index) => {
+      const hasMissingCpf = Array.from({ length: passengerCount }, (_, index) => {
         const cpf = index === 0 ? selectedBeneficiaryCpf : form.passengerCpfs[index] ?? '';
         return cleanCpf(cpf).length !== 11;
       }).some(Boolean);
@@ -386,6 +413,8 @@ export const RideRequestCreate = () => {
           title: 'Campos obrigatórios',
           description: hasMissingCostCenter
             ? 'Selecione ao menos um centro de custo antes de continuar.'
+            : hasMissingCpf
+            ? 'Informe um CPF válido (11 dígitos) para todos os passageiros.'
             : 'Preencha todos os campos marcados com * antes de continuar.',
         });
         return false;
@@ -410,8 +439,11 @@ export const RideRequestCreate = () => {
       const selectedTipo = backendTiposCorrida.find((t) => t.nome === form.rideType);
       const selectedMotivo = backendMotivos.find((m) => m.nome === form.reason);
       const selectedCcIds = form.costCenterIds.length > 0
-        ? form.costCenterIds.map((id) => Number(id)).filter(Boolean)
-        : [backendCentrosCusto[0]?.numero || 101];
+        ? form.costCenterIds.map((id) => {
+            const cc = backendCentrosCusto.find((c) => String(c.numero) === id || String(c.id) === id);
+            return cc?.id ?? Number(id);
+          }).filter(Boolean)
+        : [backendCentrosCusto[0]?.id || backendCentrosCusto[0]?.numero || 101];
 
       const origemCidade = originLocation.cidade || destinationLocation.cidade || 'São Paulo';
       const origemUf = normalizeUf(originLocation.uf || destinationLocation.uf);
@@ -544,12 +576,21 @@ export const RideRequestCreate = () => {
                     <strong>Centros de custo *</strong>
                     <span>{form.costCenterIds.length} selecionado{form.costCenterIds.length === 1 ? '' : 's'} (rateio igual)</span>
                   </div>
+
+                  <div className={styles.costCenterSearchInput}>
+                    <Input
+                      placeholder="Buscar centro de custo por nome ou número..."
+                      value={ccSearch}
+                      onChange={(event) => setCcSearch(event.target.value)}
+                    />
+                  </div>
+
                   <div className={styles.costCenterChips} role="group" aria-label="Centros de custo">
-                    {backendCentrosCusto.map((cc) => {
+                    {filteredCentrosCusto.map((cc) => {
                       const isSelected = form.costCenterIds.includes(String(cc.numero));
                       return (
                         <button
-                          key={cc.numero}
+                          key={cc.id || cc.numero}
                           type="button"
                           className={`${styles.costCenterChip} ${isSelected ? styles.costCenterChipActive : ''}`}
                           onClick={() => toggleCostCenter(String(cc.numero))}
@@ -561,27 +602,42 @@ export const RideRequestCreate = () => {
                             </span>
                           )}
                           <span>{cc.nome} (Nº {cc.numero})</span>
+                          {cc.temAprovador === true ? (
+                            <span className={styles.costCenterBadgeActive}>Aprovador ativo</span>
+                          ) : cc.temAprovador === false ? (
+                            <span className={styles.costCenterBadgeInactive}>Sem aprovador</span>
+                          ) : null}
                         </button>
                       );
                     })}
                   </div>
+
+                  {hasSelectedWithoutApprover && (
+                    <div className={styles.costCenterWarning} role="alert">
+                      <ErroIcon width={16} height={16} />
+                      <span>
+                        Atenção: Ao menos um centro de custo selecionado não possui aprovador cadastrado.
+                        A solicitação pode não ser aprovada se enviada a um centro sem aprovador vigente.
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {passengerCount > 1 && (
+              {(passengerCount > 1 || (!isRideForSelf && !selectedBeneficiary?.cpf)) && (
                 <div className={styles.passengerSection}>
                   <div className={styles.sectionInlineHeader}>
                     <strong>CPFs dos passageiros</strong>
-                    <span>{passengerCount} passageiros</span>
+                    <span>{passengerCount} passageiro{passengerCount > 1 ? 's' : ''}</span>
                   </div>
                   <div className={styles.passengerGrid}>
                     {Array.from({ length: passengerCount }, (_, index) => (
                       <Input
                         key={`passenger-cpf-${index}`}
-                        label={index === 0 ? 'CPF do colaborador 1' : `CPF do passageiro ${index + 1}`}
+                        label={index === 0 ? `CPF do ${isRideForSelf ? 'solicitante' : 'colaborador 1'}` : `CPF do passageiro ${index + 1}`}
                         mask="cpf"
                         value={index === 0 ? selectedBeneficiaryCpf : form.passengerCpfs[index] ?? ''}
-                        disabled={index === 0}
+                        disabled={index === 0 && isMainCpfDisabled}
                         required
                         onChange={(event) => updatePassengerCpf(index, event.target.value)}
                       />

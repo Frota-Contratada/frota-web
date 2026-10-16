@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Login, ForgotPassword, ResetPassword, SignUp } from '../pages/Auth';
 import { Calendar } from '../pages/Calendar';
 import { ContractsList, ContractDetails, ContractCreate } from '../pages/Contracts';
@@ -12,10 +13,30 @@ import { ProtectedRoute } from './ProtectedRoute';
 import { MainLayout } from '../components/layout';
 import { useAuthStore } from '../stores/authStore';
 import { usePermissions } from '../hooks/usePermissions';
+import { LoadingState } from '../components/common';
+
+const LegacyTrackingRedirect = () => {
+  const { rideId } = useParams();
+  return <Navigate to={`/corridas/${rideId}/acompanhamento`} replace />;
+};
 
 export const AppRoutes = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isBootstrapping = useAuthStore((state) => state.isBootstrapping);
+  const bootstrap = useAuthStore((state) => state.bootstrap);
   const { defaultRoute, isSupplier } = usePermissions();
+
+  useEffect(() => {
+    void bootstrap();
+  }, [bootstrap]);
+
+  if (isBootstrapping) {
+    return (
+      <div style={{ minHeight: '100vh', padding: '2rem' }}>
+        <LoadingState variant="fullscreen" message="Validando sessão" />
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter>
@@ -41,7 +62,7 @@ export const AppRoutes = () => {
           <Route path="/corridas/historico" element={<RideHistoryList />} />
           <Route path="/corridas/historico/:rideId" element={<RideDetails />} />
           <Route path="/corridas/:rideId/acompanhamento" element={<RideTracking />} />
-          <Route path="/corridas/historico/:rideId/acompanhamento" element={<Navigate to="/corridas/:rideId/acompanhamento" replace />} />
+          <Route path="/corridas/historico/:rideId/acompanhamento" element={<LegacyTrackingRedirect />} />
 
           <Route path="/terceiros" element={<Navigate to={isSupplier ? "/terceiros/motoristas" : "/terceiros/fornecedores"} replace />} />
           <Route path="/terceiros/fornecedores" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial']}><SuppliersList /></ProtectedRoute>} />

@@ -7,13 +7,17 @@ import CheckIcon from '../../../assets/icons/check.svg?react';
 import { ridesApi, extractListData, type SolicitacaoDto, type MotivoSolicitacaoDto } from '../../../services';
 import { exportToCsv } from '../../../utils/exportHelper';
 import { usePermissions } from '../../../hooks/usePermissions';
+import { useAuthStore } from '../../../stores/authStore';
 import { RideAllocationModal } from '../../Fleet';
+import type { SortState } from '../../../components/common';
 import styles from './RideRequests.module.css';
 
 export type RequestStatus = 'P' | 'A' | 'R' | 'C';
 
 export type RideRequest = {
   id: number;
+  solicitanteId?: number;
+  fornecedorId?: number;
   requester: string;
   supplier: string;
   createdAt: string;
@@ -74,12 +78,14 @@ const columns: ColumnDef<RideRequest>[] = [
 export const RideRequestsList = () => {
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const { isApprover, isAdminMaster, isAdminFilial, can, isRequester } = usePermissions();
+  const { isApprover, isAdminMaster, isAdminFilial, can, isSupplier } = usePermissions();
+  const currentUser = useAuthStore((state) => state.user);
   const [currentPage, setCurrentPage] = useState(1);
   const [query, setQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [requestsList, setRequestsList] = useState<RideRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [sortState, setSortState] = useState<SortState | null>(null);
 
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [selectedRequestToCancel, setSelectedRequestToCancel] = useState<RideRequest | null>(null);
@@ -126,6 +132,8 @@ export const RideRequestsList = () => {
 
             return {
               id: s.id,
+              solicitanteId: s.solicitanteId,
+              fornecedorId: s.fornecedorId,
               requester: s.solicitanteNome || 'Solicitante',
               supplier: s.fornecedorNome || (s.fornecedorId ? `Fornecedor #${s.fornecedorId}` : '—'),
               createdAt: s.dataCriacao || s.createdAt || new Date().toISOString(),
@@ -255,12 +263,32 @@ export const RideRequestsList = () => {
     });
   }, [requestsList, query, selectedFilters]);
 
+  const sortedRequests = useMemo(() => {
+    if (!sortState) return filteredRequests;
+    const { key, direction } = sortState;
+
+    return [...filteredRequests].sort((a, b) => {
+      const aVal = (a as Record<string, unknown>)[key];
+      const bVal = (b as Record<string, unknown>)[key];
+
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      const cmp =
+        typeof aVal === 'number' && typeof bVal === 'number'
+          ? aVal - bVal
+          : String(aVal).localeCompare(String(bVal), 'pt-BR');
+
+      return direction === 'asc' ? cmp : -cmp;
+    });
+  }, [filteredRequests, sortState]);
+
   const pendingRequests = requestsList.filter((request) => request.status === 'P').length;
   const approvedRequests = requestsList.filter((request) => request.status === 'A').length;
   const totalPassengers = requestsList.reduce((total, request) => total + request.passengers, 0);
   const totalDistance = requestsList.reduce((total, request) => total + request.estimatedDistanceKm, 0);
-  const totalPages = Math.max(1, Math.ceil(filteredRequests.length / PAGE_SIZE));
-  const pageData = filteredRequests.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(sortedRequests.length / PAGE_SIZE));
+  const pageData = sortedRequests.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const [selectedRequestForAllocation, setSelectedRequestForAllocation] = useState<RideRequest | null>(null);
 
@@ -273,13 +301,18 @@ export const RideRequestsList = () => {
     {
       icon: <CheckIcon width={16} height={16} />,
       label: 'Alocar motorista e veículo',
-      hidden: (row) => row.status !== 'A' || !can('rides:execute'),
+      hidden: (row) => row.status !== 'A' || !isSupplier,
       onClick: (row) => setSelectedRequestForAllocation(row),
     },
     {
       icon: <ErroIcon width={16} height={16} />,
       label: 'Cancelar solicitação',
-      hidden: (row) => row.status === 'C' || row.status === 'R' || (!isRequester && !isAdminMaster),
+      hidden: (row) => {
+        if (row.status === 'C' || row.status === 'R') return true;
+        const currentUserId = currentUser?.id != null ? Number(currentUser.id) : undefined;
+        const isOwner = row.solicitanteId != null && (row.solicitanteId === currentUserId || String(row.solicitanteId) === currentUser?.id);
+        return !isOwner;
+      },
       onClick: (row) => {
         setSelectedRequestToCancel(row);
         setIsCancelModalOpen(true);
@@ -342,6 +375,7 @@ export const RideRequestsList = () => {
           data={pageData}
           keyExtractor={(request) => request.id}
           actions={actions}
+          onSortChange={setSortState}
           emptyMessage="Nenhuma solicitação encontrada."
           isLoading={isLoading}
           pagination={{ currentPage, totalPages, onPageChange: setCurrentPage }}
@@ -396,6 +430,7 @@ export const RideRequestsList = () => {
           requestId={Number(selectedRequestForAllocation.id)}
           requesterName={selectedRequestForAllocation.requester}
           passengersCount={selectedRequestForAllocation.passengers}
+          fornecedorId={selectedRequestForAllocation.fornecedorId}
           onSuccess={() => {
             setRefreshCount((c) => c + 1);
           }}

@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../stores/authStore';
+import { useAuthStore, buildUserFromMe } from '../stores/authStore';
 import { authApi } from '../services/auth/authApi';
-import type { LoginCredentials, User, UserProfile } from '../types/auth.types';
+import type { LoginCredentials } from '../types/auth.types';
 import { getDefaultRouteForProfiles } from '../types/profile.types';
 
 export const useAuth = () => {
@@ -21,30 +21,18 @@ export const useAuth = () => {
         localStorage.setItem('refresh_token', refreshToken);
 
         const meResponse = await authApi.me();
-        const meData = meResponse.response;
-        const mainProfile = (meData.perfis && meData.perfis.length > 0)
-          ? (meData.perfis[0].tipoPerfil as UserProfile)
-          : ('solicitante' as UserProfile);
-
-        const user: User = {
-          id: String(meData.id),
-          name: meData.nome,
-          email: meData.email,
-          cpf: meData.cpf,
-          profile: mainProfile,
-          fotoPerfil: meData.fotoPerfil,
-          dataAtivacao: meData.dataAtivacao,
-          perfis: meData.perfis,
-        };
+        const user = buildUserFromMe(meResponse.response);
 
         storeLogin(user, accessToken, refreshToken);
 
-        const userProfiles = (meData.perfis && meData.perfis.length > 0)
-          ? meData.perfis.map((p) => p.tipoPerfil)
-          : [mainProfile];
+        const userProfiles = user.perfis && user.perfis.length > 0
+          ? user.perfis.map((p) => p.tipoPerfil)
+          : [user.profile];
         const targetRoute = getDefaultRouteForProfiles(userProfiles);
         navigate(targetRoute, { replace: true });
       } catch (error) {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('refresh_token');
         const message = error instanceof Error ? error.message : 'Erro ao fazer login';
         setError(message);
         throw error;

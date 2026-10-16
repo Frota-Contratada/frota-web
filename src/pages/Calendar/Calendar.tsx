@@ -95,35 +95,99 @@ export const Calendar = () => {
 
   useEffect(() => {
     let isMounted = true;
-    ridesApi.list()
-      .then((res) => {
-        if (!isMounted) return;
-        const apiData = extractListData<SolicitacaoDto>(res);
-        const mapped: Ride[] = apiData.map((s) => {
-          const rideDate = s.dataCorrida ? new Date(s.dataCorrida) : new Date();
-          const rawStatus = (s.status || 'PENDENTE').toUpperCase();
-          let status: RideStatus = 'agendada';
-          if (rawStatus.includes('FINALIZ') || rawStatus.includes('CONCLU')) status = 'realizada';
-          else if (rawStatus.includes('CANCEL')) status = 'cancelada';
 
-          return {
-            id: s.id,
+    const startWindow = new Date(visibleDate.getFullYear(), visibleDate.getMonth() - 1, 1);
+    const endWindow = new Date(visibleDate.getFullYear(), visibleDate.getMonth() + 2, 0);
+    const dataInicioIso = startWindow.toISOString();
+    const dataFimIso = endWindow.toISOString();
+
+    Promise.allSettled([
+      ridesApi.getViagens({ inicio: dataInicioIso, fim: dataFimIso, dataInicio: dataInicioIso, dataFim: dataFimIso }),
+      ridesApi.getMinhasCorridas({ dataInicio: dataInicioIso, dataFim: dataFimIso }),
+      ridesApi.list({ limit: 100, page: 1 }),
+    ]).then(([viagensRes, corridasRes, solicitacoesRes]) => {
+      if (!isMounted) return;
+
+      const itemsMap = new Map<number, Ride>();
+
+      if (viagensRes.status === 'fulfilled' && viagensRes.value?.response) {
+        const viagens = Array.isArray(viagensRes.value.response) ? viagensRes.value.response : [];
+        viagens.forEach((v: any) => {
+          const id = Number(v.solicitacaoId || v.id || v.corridaId);
+          const rideDate = new Date(v.dataHoraPartida || v.dataAgendada || v.inicio || Date.now());
+          const rawStatus = String(v.status || 'AGENDADA').toUpperCase();
+          let status: RideStatus = 'agendada';
+          if (rawStatus.includes('FINALIZ') || rawStatus.includes('CONCLU') || rawStatus === 'F') status = 'realizada';
+          else if (rawStatus.includes('CANCEL') || rawStatus === 'C') status = 'cancelada';
+
+          itemsMap.set(id, {
+            id,
             date: toIsoDate(rideDate),
             time: rideDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            requester: s.solicitanteNome || 'Solicitante',
-            origin: s.localPartida || s.origem?.descricao || s.origem?.logradouro || 'Origem',
-            destination: s.localDestino || s.destino?.descricao || s.destino?.logradouro || 'Destino',
+            requester: v.motoristaNome || v.solicitanteNome || 'Solicitante',
+            origin: v.origem || 'Origem',
+            destination: v.destino || 'Destino',
             status,
-          };
+          });
         });
-        setRidesList(mapped);
-      })
-      .catch(() => {});
+      }
+
+      if (corridasRes.status === 'fulfilled' && corridasRes.value?.response) {
+        const corridas = Array.isArray(corridasRes.value.response) ? corridasRes.value.response : [];
+        corridas.forEach((c) => {
+          const id = Number(c.id);
+          const rideDate = new Date(c.dataAgendada || c.inicio || c.dataInicio || Date.now());
+          const rawStatus = String(c.status || 'I').toUpperCase();
+          let status: RideStatus = 'agendada';
+          if (rawStatus === 'F' || rawStatus.includes('FINALIZ')) status = 'realizada';
+          else if (rawStatus === 'C' || rawStatus.includes('CANCEL')) status = 'cancelada';
+
+          const orig = typeof c.origem === 'object' && c.origem ? c.origem.logradouro : (c.origem || c.localPartida || 'Origem');
+          const dest = typeof c.destino === 'object' && c.destino ? c.destino.logradouro : (c.destino || c.localDestino || 'Destino');
+
+          itemsMap.set(id, {
+            id,
+            date: toIsoDate(rideDate),
+            time: rideDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            requester: c.solicitante?.nome || 'Solicitante',
+            origin: String(orig),
+            destination: String(dest),
+            status,
+          });
+        });
+      }
+
+      if (solicitacoesRes.status === 'fulfilled' && solicitacoesRes.value) {
+        const sols = extractListData<SolicitacaoDto>(solicitacoesRes.value);
+        sols.forEach((s) => {
+          const id = Number(s.id);
+          if (!itemsMap.has(id)) {
+            const rideDate = s.dataCorrida ? new Date(s.dataCorrida) : new Date();
+            const rawStatus = (s.status || 'PENDENTE').toUpperCase();
+            let status: RideStatus = 'agendada';
+            if (rawStatus.includes('FINALIZ') || rawStatus.includes('CONCLU') || rawStatus === 'F') status = 'realizada';
+            else if (rawStatus.includes('CANCEL') || rawStatus === 'C') status = 'cancelada';
+
+            itemsMap.set(id, {
+              id,
+              date: toIsoDate(rideDate),
+              time: rideDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+              requester: s.solicitanteNome || 'Solicitante',
+              origin: s.localPartida || s.origem?.descricao || s.origem?.logradouro || 'Origem',
+              destination: s.localDestino || s.destino?.descricao || s.destino?.logradouro || 'Destino',
+              status,
+            });
+          }
+        });
+      }
+
+      setRidesList(Array.from(itemsMap.values()));
+    }).catch(() => {});
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [visibleDate]);
 
   const calendarDays = useMemo(
     () => (viewMode === 'month' ? buildCalendarDays(visibleDate) : buildWeekDays(visibleDate)),

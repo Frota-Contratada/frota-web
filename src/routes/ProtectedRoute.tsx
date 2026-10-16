@@ -16,12 +16,14 @@ export const ProtectedRoute = ({
   requiredPermission,
 }: ProtectedRouteProps) => {
   const location = useLocation();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, isBootstrapping } = useAuthStore();
   const { hasProfile, can, defaultRoute } = usePermissions();
 
-  const token = localStorage.getItem('auth_token');
+  if (isBootstrapping) {
+    return null;
+  }
 
-  if (!isAuthenticated && !token && !user) {
+  if (!isAuthenticated || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

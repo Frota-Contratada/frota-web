@@ -82,7 +82,7 @@ export const EmployeeEdit = () => {
         const availableCcs = costCenters.filter((c) => String(c.filialId) === branchVal);
         const ccVal = matchedCollab.centroCustoId
           ? String(matchedCollab.centroCustoId)
-          : (availableCcs[0]?.numero ? String(availableCcs[0].numero) : (costCenters[0]?.numero ? String(costCenters[0].numero) : '101'));
+          : (availableCcs[0] ? String(availableCcs[0].id ?? availableCcs[0].numero) : (costCenters[0] ? String(costCenters[0].id ?? costCenters[0].numero) : ''));
 
         setForm({
           name: matchedCollab.nome || '',
@@ -120,17 +120,21 @@ export const EmployeeEdit = () => {
   }, [costCentersList, selectedBranchId]);
 
   const costCenterOptions = useMemo(() => {
-    return filteredCostCenters.map((c) => ({
-      label: `${c.nome} (Nº ${c.numero})${c.temAprovador ? ' — Com Aprovador' : ' — Sem Aprovador'}`,
-      value: String(c.numero),
-    }));
+    return filteredCostCenters.map((c) => {
+      const ccId = c.id ?? c.numero;
+      const displayNum = c.numero ?? c.id;
+      return {
+        label: `${c.nome} (Nº ${displayNum})${c.temAprovador ? ' — Com Aprovador' : ' — Sem Aprovador'}`,
+        value: String(ccId),
+      };
+    });
   }, [filteredCostCenters]);
 
   const updateField = (field: keyof typeof form, value: unknown) => {
     if (field === 'branch') {
       const newBranchId = Number(value);
       const branchCcs = costCentersList.filter((c) => Number(c.filialId) === newBranchId);
-      const nextCc = branchCcs[0]?.numero ? String(branchCcs[0].numero) : '';
+      const nextCc = branchCcs[0] ? String(branchCcs[0].id ?? branchCcs[0].numero) : '';
       setForm((current) => ({ ...current, branch: String(value), costCenterId: nextCc }));
     } else {
       setForm((current) => ({ ...current, [field]: value }));

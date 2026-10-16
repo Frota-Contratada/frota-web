@@ -56,6 +56,32 @@ const readResponse = async <T>(response: Response): Promise<T | null> => {
   return response.text() as Promise<T>;
 };
 
+const STATUS_MESSAGES: Record<number, string> = {
+  401: 'Sessão inválida ou expirada. Faça login novamente.',
+  403: 'Você não tem permissão para realizar esta ação.',
+  404: 'Registro não encontrado.',
+  413: 'Arquivo muito grande para envio.',
+  429: 'Muitas tentativas em sequência. Aguarde alguns instantes e tente novamente.',
+  500: 'Erro interno no servidor. Tente novamente mais tarde.',
+  502: 'Serviço temporariamente indisponível. Tente novamente mais tarde.',
+  503: 'Serviço temporariamente indisponível. Tente novamente mais tarde.',
+};
+
+const extractValidationIssues = (data: unknown): string | null => {
+  if (!data || typeof data !== 'object') return null;
+  const errors = (data as { errors?: unknown; issues?: unknown }).errors ?? (data as { issues?: unknown }).issues;
+  if (!Array.isArray(errors) || errors.length === 0) return null;
+  const parts = errors
+    .map((issue) => {
+      if (!issue || typeof issue !== 'object') return null;
+      const { path, message } = issue as { path?: unknown; message?: unknown };
+      const field = Array.isArray(path) ? path.join('.') : '';
+      return field ? `${field}: ${String(message ?? 'inválido')}` : String(message ?? '');
+    })
+    .filter(Boolean);
+  return parts.length > 0 ? parts.slice(0, 3).join('; ') : null;
+};
+
 const getAuthHeaders = (skipAuth?: boolean): HeadersInit => {
   if (skipAuth) return {};
   const token = localStorage.getItem('auth_token');
@@ -151,14 +177,18 @@ async function request<T>(path: string, options: ApiRequestOptions = {}): Promis
   const data = await readResponse<T>(response);
 
   if (!response.ok) {
-    let message = 'Erro ao comunicar com a API.';
-    if (data && typeof data === 'object' && 'message' in data) {
+    let message = STATUS_MESSAGES[response.status] ?? 'Erro ao comunicar com a API.';
+    if (data && typeof data === 'object' && 'message' in data && response.status !== 429) {
       const rawMessage = (data as { message: unknown }).message;
       if (Array.isArray(rawMessage)) {
         message = rawMessage.join('. ');
       } else if (rawMessage) {
         message = String(rawMessage);
       }
+    }
+    if (message === 'Validation failed' || message === 'Validation Failed') {
+      const issues = extractValidationIssues(data);
+      message = issues ? `Dados inválidos: ${issues}` : 'Dados inválidos enviados ao servidor.';
     }
 
     console.error(`[API ${response.status}] ${fetchOptions.method || 'GET'} ${buildUrl(path, query)}:`, {

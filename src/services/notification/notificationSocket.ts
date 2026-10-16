@@ -31,7 +31,7 @@ export class NotificationSocketClient {
       this.disconnect();
     }
 
-    const authToken = token || localStorage.getItem('token') || localStorage.getItem('access_token');
+    const authToken = token || localStorage.getItem('auth_token');
     const baseUrl = getWsUrl();
     this.socket = io(`${baseUrl}/notificacoes`, {
       transports: ['websocket', 'polling'],
