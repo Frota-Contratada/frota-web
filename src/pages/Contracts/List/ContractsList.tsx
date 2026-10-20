@@ -213,7 +213,6 @@ export const ContractsList = () => {
   }, [query, selectedFilters, contractsList]);
 
   const totalPages = Math.max(1, Math.ceil(filteredContracts.length / PAGE_SIZE));
-  const pageData = filteredContracts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
 
 
@@ -320,11 +319,11 @@ export const ContractsList = () => {
 
         <Table
           columns={columns}
-          data={pageData}
+          data={filteredContracts}
           keyExtractor={(contract) => contract.id}
           actions={actions}
           emptyMessage="Nenhum contrato encontrado."
-          pagination={{ currentPage, totalPages, onPageChange: setCurrentPage }}
+          pagination={{ currentPage, totalPages, onPageChange: setCurrentPage, pageSize: PAGE_SIZE }}
           isLoading={isLoading}
         />
       </section>

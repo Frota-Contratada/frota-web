@@ -260,7 +260,6 @@ export const RideRequestsList = () => {
   const totalPassengers = requestsList.reduce((total, request) => total + request.passengers, 0);
   const totalDistance = requestsList.reduce((total, request) => total + request.estimatedDistanceKm, 0);
   const totalPages = Math.max(1, Math.ceil(filteredRequests.length / PAGE_SIZE));
-  const pageData = filteredRequests.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const [selectedRequestForAllocation, setSelectedRequestForAllocation] = useState<RideRequest | null>(null);
 
@@ -339,12 +338,12 @@ export const RideRequestsList = () => {
 
         <Table
           columns={columns}
-          data={pageData}
+          data={filteredRequests}
           keyExtractor={(request) => request.id}
           actions={actions}
           emptyMessage="Nenhuma solicitação encontrada."
           isLoading={isLoading}
-          pagination={{ currentPage, totalPages, onPageChange: setCurrentPage }}
+          pagination={{ currentPage, totalPages, onPageChange: setCurrentPage, pageSize: PAGE_SIZE }}
         />
       </section>
 

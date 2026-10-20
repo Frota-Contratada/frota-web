@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction, type BadgeStatus } from '../../../components/common';
 import VisualizarIcon from '../../../assets/icons/visualizar.svg?react';
+import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
 import { supplierApi, extractListData, type FornecedorDto, type FornecedorBigNumbers } from '../../../services';
 import { exportToCsv } from '../../../utils/exportHelper';
 import styles from './SuppliersList.module.css';
@@ -240,13 +241,17 @@ export const SuppliersList = () => {
   const suppliersWithContracts = suppliersList.filter((supplier) => supplier.linkedContracts > 0).length;
   const totalVehicles = suppliersList.reduce((total, supplier) => total + supplier.vehicles, 0);
   const totalPages = Math.max(1, Math.ceil(filteredSuppliers.length / PAGE_SIZE));
-  const pageData = filteredSuppliers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const actions: TableAction<Supplier>[] = [
     {
       icon: <VisualizarIcon width={18} height={18} />,
       label: 'Visualizar fornecedor',
       onClick: (row) => navigate(`/terceiros/fornecedores/${row.id}`),
+    },
+    {
+      icon: <RedirecionarIcon width={18} height={18} />,
+      label: 'Editar fornecedor',
+      onClick: (row) => navigate(`/terceiros/fornecedores/${row.id}/editar`),
     },
   ];
 
@@ -312,12 +317,12 @@ export const SuppliersList = () => {
 
         <Table
           columns={columns}
-          data={pageData}
+          data={filteredSuppliers}
           keyExtractor={(supplier) => supplier.id}
           actions={actions}
           emptyMessage="Nenhum fornecedor encontrado."
           isLoading={isLoading}
-          pagination={{ currentPage, totalPages, onPageChange: setCurrentPage }}
+          pagination={{ currentPage, totalPages, onPageChange: setCurrentPage, pageSize: PAGE_SIZE }}
         />
       </section>
 

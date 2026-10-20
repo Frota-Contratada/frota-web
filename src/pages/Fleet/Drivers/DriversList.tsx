@@ -95,7 +95,6 @@ export const DriversList = () => {
   const uniqueSuppliers = new Set(drivers.map((d) => d.fornecedorId)).size;
 
   const totalPages = Math.max(1, Math.ceil(filteredDrivers.length / PAGE_SIZE));
-  const pageData = filteredDrivers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
 
 
@@ -210,11 +209,11 @@ export const DriversList = () => {
 
         <Table
           columns={columns}
-          data={pageData}
+          data={filteredDrivers}
           keyExtractor={(row) => String(row.id)}
           emptyMessage="Nenhum motorista encontrado."
           isLoading={isLoading}
-          pagination={{ currentPage, totalPages, onPageChange: setCurrentPage }}
+          pagination={{ currentPage, totalPages, onPageChange: setCurrentPage, pageSize: PAGE_SIZE }}
         />
       </section>
     </div>

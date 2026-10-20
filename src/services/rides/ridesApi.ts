@@ -353,8 +353,8 @@ export const ridesApi = {
     const profiles = getUserNormalizedProfiles(user);
 
     const now = new Date();
-    const firstDay = new Date(now.setDate(now.getDate() - now.getDay()));
-    const lastDay = new Date(now.setDate(now.getDate() - now.getDay() + 6));
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay(), 0, 0, 0, 0);
+    const lastDay = new Date(firstDay.getFullYear(), firstDay.getMonth(), firstDay.getDate() + 6, 23, 59, 59, 999);
     const inicio = query?.inicio || query?.dataInicio || firstDay.toISOString();
     const fim = query?.fim || query?.dataFim || lastDay.toISOString();
 
@@ -486,10 +486,11 @@ export const ridesApi = {
   async list(query?: ApiQueryParams): Promise<{ response: PaginatedResponse<SolicitacaoDto> | SolicitacaoDto[] }> {
     const user = useAuthStore.getState().user;
     const profiles = getUserNormalizedProfiles(user);
+    const finalQuery: ApiQueryParams = { limit: 100, ...query };
 
     if (profiles.includes('solicitante') || profiles.includes('solicitante-emergencia')) {
       try {
-        return await apiClient.get<{ response: PaginatedResponse<SolicitacaoDto> | SolicitacaoDto[] }>('/solicitacoes', { query });
+        return await apiClient.get<{ response: PaginatedResponse<SolicitacaoDto> | SolicitacaoDto[] }>('/solicitacoes', { query: finalQuery });
       } catch (err: any) {
         if (err?.status !== 403 && err?.statusCode !== 403) {
           throw err;
@@ -499,7 +500,7 @@ export const ridesApi = {
 
     if (profiles.includes('aprovador') && !profiles.includes('admin-master') && !profiles.includes('admin-filial')) {
       try {
-        return await apiClient.get<{ response: PaginatedResponse<SolicitacaoDto> | SolicitacaoDto[] }>('/solicitacoes/aprovador/pendentes', { query });
+        return await apiClient.get<{ response: PaginatedResponse<SolicitacaoDto> | SolicitacaoDto[] }>('/solicitacoes/aprovador/pendentes', { query: finalQuery });
       } catch (err: any) {
         if (err?.status !== 403 && err?.statusCode !== 403) {
           throw err;

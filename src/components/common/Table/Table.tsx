@@ -31,6 +31,7 @@ export interface PaginationProps {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  pageSize?: number;
 }
 
 interface TableProps<T> {
@@ -114,11 +115,19 @@ export function Table<T>({
       const cmp =
         typeof aVal === 'number' && typeof bVal === 'number'
           ? aVal - bVal
-          : String(aVal).localeCompare(String(bVal), 'pt-BR');
+          : String(aVal).localeCompare(String(bVal), 'pt-BR', { numeric: true });
 
       return sort.direction === 'asc' ? cmp : -cmp;
     });
   }, [data, sort, onSortChange]);
+
+  const displayData = useMemo(() => {
+    if (!pagination) return sortedData;
+    const size = pagination.pageSize ?? 5;
+    if (sortedData.length <= size) return sortedData;
+    const start = (pagination.currentPage - 1) * size;
+    return sortedData.slice(start, start + size);
+  }, [sortedData, pagination]);
 
   return (
     <div className={styles.wrapper}>
@@ -173,14 +182,14 @@ export function Table<T>({
                 )}
               </tr>
             ))
-          ) : sortedData.length === 0 ? (
+          ) : displayData.length === 0 ? (
             <tr>
               <td colSpan={totalCols} className={styles.empty}>
                 {emptyMessage}
               </td>
             </tr>
           ) : (
-            sortedData.map((row) => (
+            displayData.map((row) => (
               <tr key={keyExtractor(row)} className={styles.tr}>
                 {columns.map((col) => {
                   const value = (row as Record<string, unknown>)[col.key as string];

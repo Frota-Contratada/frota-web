@@ -70,14 +70,18 @@ export const SupplierEdit = () => {
     setValidationErrors((current) => ({ ...current, [field]: '' }));
   };
 
+  const handleDocumentChange = (val: string) => {
+    updateField('document', formatCnpj(val));
+  };
+
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
     if (!form.name.trim()) errors.name = 'Nome é obrigatório';
     const cnpjLimpo = cleanCnpj(form.document);
     if (!cnpjLimpo) {
-      errors.document = 'CNPJ é obrigatório';
-    } else if (cnpjLimpo.length !== 14) {
-      errors.document = 'CNPJ deve conter 14 caracteres alfanuméricos';
+      errors.document = 'CNPJ/CPF é obrigatório';
+    } else if (cnpjLimpo.length !== 11 && cnpjLimpo.length !== 14) {
+      errors.document = 'Documento deve conter 11 (CPF) ou 14 (CNPJ) caracteres';
     }
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
@@ -155,7 +159,7 @@ export const SupplierEdit = () => {
               label="CNPJ"
               mask="cnpj"
               value={form.document}
-              onChange={(e) => updateField('document', e.target.value)}
+              onChange={(e) => handleDocumentChange(e.target.value)}
               error={validationErrors.document}
               required
               disabled={isLoading}

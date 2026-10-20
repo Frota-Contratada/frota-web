@@ -1,8 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
-import { useAuthStore } from '../stores/authStore';
+import { usePermissions } from '../hooks/usePermissions';
 import type { Permission, UserProfile } from '../types/profile.types';
-import { hasAnyPermission, hasPermission } from '../types/profile.types';
 
 interface ProfileRouteProps {
   children: ReactNode;
@@ -16,13 +15,11 @@ export const ProfileRoute = ({
   children, allowedProfiles, requiredPermission,
   requiredAnyPermission, fallbackPath = '/visao-executiva',
 }: ProfileRouteProps) => {
-  const user = useAuthStore((state) => state.user);
-  const profiles = user?.perfis?.map((p) => p.tipoPerfil) ?? (user?.profile ? [user.profile] : []);
-  const profile = user?.profile;
+  const { hasProfile, can } = usePermissions();
 
-  const canAccessByProfile = !allowedProfiles || Boolean(profile && allowedProfiles.includes(profile)) || (user?.perfis && user.perfis.some((p) => allowedProfiles?.includes(p.tipoPerfil as UserProfile)));
-  const canAccessByPermission = !requiredPermission || hasPermission(profile, requiredPermission);
-  const canAccessByAnyPermission = !requiredAnyPermission || requiredAnyPermission.some((perm) => hasAnyPermission(profiles, perm));
+  const canAccessByProfile = !allowedProfiles || hasProfile(allowedProfiles);
+  const canAccessByPermission = !requiredPermission || can(requiredPermission);
+  const canAccessByAnyPermission = !requiredAnyPermission || requiredAnyPermission.some((perm) => can(perm));
 
   if (!canAccessByProfile || !canAccessByPermission || !canAccessByAnyPermission) {
     return <Navigate to={fallbackPath} replace />;

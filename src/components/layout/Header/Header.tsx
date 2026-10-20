@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, useToast } from '../../common';
 import { useAuthStore } from '../../../stores/authStore';
+import { usePermissions } from '../../../hooks/usePermissions';
+import { PROFILE_LABELS } from '../../../types/profile.types';
 import dashboardsIcon from '../../../assets/icons/dashboards.svg';
 import alvoIcon from '../../../assets/icons/alvo.svg';
 import gastosIcon from '../../../assets/icons/gastos.svg';
@@ -140,6 +142,7 @@ export const Header = () => {
   const { showToast } = useToast();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const { profile: activeProfile } = usePermissions();
 
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -520,8 +523,10 @@ export const Header = () => {
                 <div className={styles.dropdownHeader}>
                   <strong className={styles.dropdownUserName}>{userName}</strong>
                   <span className={styles.dropdownUserEmail}>{userEmail}</span>
-                  {user?.profile && (
-                    <span className={styles.profileBadge}>{user.profile}</span>
+                  {(activeProfile || user?.profile) && (
+                    <span className={styles.profileBadge}>
+                      {(activeProfile && PROFILE_LABELS[activeProfile]) || activeProfile || user?.profile}
+                    </span>
                   )}
                 </div>
                 <div className={styles.dropdownDivider} />

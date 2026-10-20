@@ -52,7 +52,8 @@ export const EmployeeCreate = () => {
 
       const branchVal = branches[0]?.id ? String(branches[0].id) : '1';
       const availableCcs = costCenters.filter((c) => String(c.filialId) === branchVal);
-      const ccVal = availableCcs[0]?.numero ? String(availableCcs[0].numero) : (costCenters[0]?.numero ? String(costCenters[0].numero) : '101');
+      const firstCc = availableCcs[0]?.numero ?? availableCcs[0]?.id ?? costCenters[0]?.numero ?? costCenters[0]?.id;
+      const ccVal = firstCc ? String(firstCc) : '';
 
       setForm((curr) => ({
         ...curr,

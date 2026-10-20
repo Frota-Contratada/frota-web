@@ -1,6 +1,7 @@
 import { apiClient } from '../api/apiClient';
 import { useAuthStore } from '../../stores/authStore';
 import { getUserNormalizedProfiles } from '../../types/profile.types';
+import { resolveEmpresaId } from '../../utils/apiHelpers';
 
 export interface FornecedorDto {
   id: number;
@@ -23,6 +24,7 @@ export interface FornecedorDto {
 }
 
 export interface CriarFornecedorParams {
+  empresaId?: number;
   nome: string;
   cnpjCpf: string;
   filialId: number;
@@ -69,7 +71,11 @@ export interface AtualizarFornecedorParams {
 
 export const supplierApi = {
   create(data: CriarFornecedorParams) {
-    return apiClient.post<FornecedorResponse>('/fornecedor', data);
+    const empresaId = resolveEmpresaId(data.empresaId);
+    return apiClient.post<FornecedorResponse>('/fornecedor', {
+      ...data,
+      empresaId,
+    });
   },
 
   listAdmin(query?: BuscarFornecedoresQueryParams) {

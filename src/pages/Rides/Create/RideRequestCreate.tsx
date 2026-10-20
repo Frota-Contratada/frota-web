@@ -108,6 +108,8 @@ export const RideRequestCreate = () => {
   const [simulatedValue, setSimulatedValue] = useState<number | null>(null);
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
 
+  const [costCenterSearch, setCostCenterSearch] = useState<string>('');
+
   const [form, setForm] = useState({
     requester: userName,
     rideFor: 'Para mim',
@@ -151,10 +153,16 @@ export const RideRequestCreate = () => {
         const ccs = extractListData<CentroCustoDto>(ccRes.value);
         setBackendCentrosCusto(ccs);
         if (ccs.length > 0) {
-          setForm((prev) => ({
-            ...prev,
-            costCenterIds: prev.costCenterIds.length > 0 ? prev.costCenterIds : [String(ccs[0].numero)],
-          }));
+          const preferredCc = ccs.find((c) => c.ativo !== false && c.temAprovador === true)
+            || ccs.find((c) => c.ativo !== false)
+            || ccs[0];
+          const preferredNum = preferredCc.numero ?? preferredCc.id;
+          if (preferredNum) {
+            setForm((prev) => ({
+              ...prev,
+              costCenterIds: prev.costCenterIds.length > 0 ? prev.costCenterIds : [String(preferredNum)],
+            }));
+          }
         }
       }
       if (collabRes.status === 'fulfilled') {
@@ -199,10 +207,10 @@ export const RideRequestCreate = () => {
           setSimulatedValue(res.response.valorEstimado);
         }
         if (typeof res.response.distanciaKm === 'number') {
-          setCalculatedDistanceKm(res.response.distanciaKm);
+          setCalculatedDistanceKm((prev) => (prev > 0 ? prev : res.response.distanciaKm!));
         }
         if (typeof res.response.duracaoMinutos === 'number') {
-          setCalculatedDurationMin(res.response.duracaoMinutos);
+          setCalculatedDurationMin((prev) => (prev > 0 ? prev : res.response.duracaoMinutos!));
         }
       }
     } catch {
@@ -544,26 +552,47 @@ export const RideRequestCreate = () => {
                     <strong>Centros de custo *</strong>
                     <span>{form.costCenterIds.length} selecionado{form.costCenterIds.length === 1 ? '' : 's'} (rateio igual)</span>
                   </div>
+                  {backendCentrosCusto.length > 5 && (
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <Input
+                        placeholder="Buscar centro de custo por nome ou número..."
+                        value={costCenterSearch}
+                        onChange={(e) => setCostCenterSearch(e.target.value)}
+                      />
+                    </div>
+                  )}
                   <div className={styles.costCenterChips} role="group" aria-label="Centros de custo">
-                    {backendCentrosCusto.map((cc) => {
-                      const isSelected = form.costCenterIds.includes(String(cc.numero));
-                      return (
-                        <button
-                          key={cc.numero}
-                          type="button"
-                          className={`${styles.costCenterChip} ${isSelected ? styles.costCenterChipActive : ''}`}
-                          onClick={() => toggleCostCenter(String(cc.numero))}
-                          aria-pressed={isSelected}
-                        >
-                          {isSelected && (
-                            <span className={styles.costCenterCheckIcon}>
-                              <CheckIcon width={12} height={12} />
+                    {backendCentrosCusto
+                      .filter((cc) => {
+                        if (!costCenterSearch.trim()) return true;
+                        const q = costCenterSearch.trim().toLocaleLowerCase('pt-BR');
+                        const ccNum = String(cc.numero ?? cc.id ?? '');
+                        return cc.nome.toLocaleLowerCase('pt-BR').includes(q) || ccNum.includes(q);
+                      })
+                      .map((cc) => {
+                        const ccNum = String(cc.numero ?? cc.id);
+                        const isSelected = form.costCenterIds.includes(ccNum);
+                        const hasNoApprover = cc.temAprovador === false;
+                        return (
+                          <button
+                            key={ccNum}
+                            type="button"
+                            className={`${styles.costCenterChip} ${isSelected ? styles.costCenterChipActive : ''}`}
+                            onClick={() => toggleCostCenter(ccNum)}
+                            aria-pressed={isSelected}
+                            title={hasNoApprover ? 'Este centro de custo não possui aprovador vigente' : undefined}
+                          >
+                            {isSelected && (
+                              <span className={styles.costCenterCheckIcon}>
+                                <CheckIcon width={12} height={12} />
+                              </span>
+                            )}
+                            <span>
+                              {cc.nome} (Nº {ccNum}){hasNoApprover ? ' — Sem aprovador' : ''}
                             </span>
-                          )}
-                          <span>{cc.nome} (Nº {cc.numero})</span>
-                        </button>
-                      );
-                    })}
+                          </button>
+                        );
+                      })}
                   </div>
                 </div>
               </div>

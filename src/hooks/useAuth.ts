@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { authApi } from '../services/auth/authApi';
 import type { LoginCredentials, User, UserProfile } from '../types/auth.types';
-import { getDefaultRouteForProfiles } from '../types/profile.types';
+import { getDefaultRouteForProfiles, normalizeProfile } from '../types/profile.types';
 
 export const useAuth = () => {
   const navigate = useNavigate();
@@ -22,9 +22,10 @@ export const useAuth = () => {
 
         const meResponse = await authApi.me();
         const meData = meResponse.response;
-        const mainProfile = (meData.perfis && meData.perfis.length > 0)
-          ? (meData.perfis[0].tipoPerfil as UserProfile)
-          : ('solicitante' as UserProfile);
+        const rawMain = (meData.perfis && meData.perfis.length > 0)
+          ? meData.perfis[0].tipoPerfil
+          : 'solicitante';
+        const mainProfile = normalizeProfile(rawMain) || ('solicitante' as UserProfile);
 
         const user: User = {
           id: String(meData.id),

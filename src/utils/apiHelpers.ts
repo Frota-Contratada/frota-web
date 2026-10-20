@@ -34,3 +34,27 @@ export function extractListData<T>(response: unknown): T[] {
 
   return [];
 }
+
+export function resolveEmpresaId(explicitEmpresaId?: number): number {
+  if (explicitEmpresaId && Number(explicitEmpresaId) > 0) {
+    return Number(explicitEmpresaId);
+  }
+
+  try {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payloadJson = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+        const payload = JSON.parse(payloadJson) as { empresaId?: number };
+        if (payload?.empresaId && Number(payload.empresaId) > 0) {
+          return Number(payload.empresaId);
+        }
+      }
+    }
+  } catch {
+
+  }
+
+  return 1;
+}

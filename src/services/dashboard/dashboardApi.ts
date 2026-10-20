@@ -1,6 +1,7 @@
 import { apiClient, type ApiQueryParams } from '../api/apiClient';
 import { useAuthStore } from '../../stores/authStore';
 import { getUserNormalizedProfiles } from '../../types/profile.types';
+import { resolveEmpresaId } from '../../utils/apiHelpers';
 
 export interface DashboardBigNumber {
   valor: number;
@@ -112,6 +113,7 @@ export interface DashboardAuditoriaDto {
 export interface DashboardQueryParams extends ApiQueryParams {
   startDate?: string;
   endDate?: string;
+  empresa?: number;
   filial?: number;
   centroCusto?: number;
 }
@@ -125,19 +127,34 @@ function resolveDashboardPerfil(): 'admin' | 'filial' | 'aprovador' {
   return 'aprovador';
 }
 
+function buildDashboardQuery(query?: DashboardQueryParams): DashboardQueryParams | undefined {
+  if (!query) return undefined;
+  const normalized: DashboardQueryParams = { ...query };
+  if ((normalized.filial || normalized.centroCusto) && !normalized.empresa) {
+    normalized.empresa = resolveEmpresaId();
+  }
+  return normalized;
+}
+
 export const dashboardApi = {
   getExecutivo(query?: DashboardQueryParams): Promise<{ response: DashboardExecutivoDto }> {
     const perfil = resolveDashboardPerfil();
-    return apiClient.get<{ response: DashboardExecutivoDto }>(`/dashboard/${perfil}`, { query });
+    return apiClient.get<{ response: DashboardExecutivoDto }>(`/dashboard/${perfil}`, {
+      query: buildDashboardQuery(query),
+    });
   },
 
   getGastos(query?: DashboardQueryParams): Promise<{ response: DashboardGastosDto }> {
     const perfil = resolveDashboardPerfil();
-    return apiClient.get<{ response: DashboardGastosDto }>(`/dashboard/gastos/${perfil}`, { query });
+    return apiClient.get<{ response: DashboardGastosDto }>(`/dashboard/gastos/${perfil}`, {
+      query: buildDashboardQuery(query),
+    });
   },
 
   getAuditoria(query?: DashboardQueryParams): Promise<{ response: DashboardAuditoriaDto }> {
     const perfil = resolveDashboardPerfil();
-    return apiClient.get<{ response: DashboardAuditoriaDto }>(`/dashboard/auditoria/${perfil}`, { query });
+    return apiClient.get<{ response: DashboardAuditoriaDto }>(`/dashboard/auditoria/${perfil}`, {
+      query: buildDashboardQuery(query),
+    });
   },
 };

@@ -258,7 +258,6 @@ export const BranchesList = () => {
   const totalStates = new Set(branchesList.map((b) => b.state).filter(Boolean)).size;
   const totalCities = new Set(branchesList.map((b) => b.city).filter(Boolean)).size;
   const totalPages = Math.max(1, Math.ceil(filteredBranches.length / PAGE_SIZE));
-  const pageData = filteredBranches.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const actions: TableAction<Branch>[] = [
     {
@@ -332,12 +331,12 @@ export const BranchesList = () => {
 
         <Table
           columns={columns}
-          data={pageData}
+          data={filteredBranches}
           keyExtractor={(branch) => branch.id}
           actions={actions}
           emptyMessage="Nenhuma filial encontrada."
           isLoading={isLoading}
-          pagination={{ currentPage, totalPages, onPageChange: setCurrentPage }}
+          pagination={{ currentPage, totalPages, onPageChange: setCurrentPage, pageSize: PAGE_SIZE }}
         />
       </section>
     </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction, type BadgeStatus } from '../../../components/common';
+import { Button, StatCard, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction, type BadgeStatus } from '../../../components/common';
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
 import { collaboratorApi, extractListData, type ColaboradorDto, type ColaboradorBigNumbers } from '../../../services';
 import { exportToCsv } from '../../../utils/exportHelper';
@@ -217,7 +217,6 @@ export const EmployeesList = () => {
   }, [query, selectedFilters, employeesList]);
 
   const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / PAGE_SIZE));
-  const pageData = filteredEmployees.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const actions: TableAction<Employee>[] = [
     {
@@ -272,6 +271,7 @@ export const EmployeesList = () => {
               ? { type: 'success', title: 'Exportação concluída', description: 'O relatório em CSV foi baixado.' }
               : { type: 'warning', title: 'Aviso', description: 'Nenhum colaborador encontrado para exportar.' });
           }}
+          rightActions={<Button onClick={() => navigate('/colaboradores/novo')}>Cadastrar colaborador</Button>}
           filterSections={filterSections}
           selectedFilters={selectedFilters}
           onFilterChange={(values) => {
@@ -288,12 +288,12 @@ export const EmployeesList = () => {
 
         <Table
           columns={columns}
-          data={pageData}
+          data={filteredEmployees}
           keyExtractor={(employee) => employee.id}
           actions={actions}
           emptyMessage="Nenhum colaborador encontrado."
           isLoading={isLoading}
-          pagination={{ currentPage, totalPages, onPageChange: setCurrentPage }}
+          pagination={{ currentPage, totalPages, onPageChange: setCurrentPage, pageSize: PAGE_SIZE }}
         />
       </section>
     </div>

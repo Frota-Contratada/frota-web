@@ -54,8 +54,8 @@ export const driverRideApi = {
   getViagens(query?: ViagensMotoristaQueryParams) {
     const mappedQuery: Record<string, string | number | boolean | null | undefined> = {};
     const now = new Date();
-    const firstDay = new Date(now.setDate(now.getDate() - now.getDay()));
-    const lastDay = new Date(now.setDate(now.getDate() - now.getDay() + 6));
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay(), 0, 0, 0, 0);
+    const lastDay = new Date(firstDay.getFullYear(), firstDay.getMonth(), firstDay.getDate() + 6, 23, 59, 59, 999);
     const inicio = query?.inicio || query?.dataInicio || firstDay.toISOString();
     const fim = query?.fim || query?.dataFim || lastDay.toISOString();
     mappedQuery.inicio = inicio;

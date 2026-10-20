@@ -4,6 +4,7 @@ import type { User, AuthState } from '../types/auth.types';
 
 interface AuthStore extends AuthState {
   login: (user: User, accessToken: string, refreshToken: string) => void;
+  updateUser: (user: User) => void;
   logout: () => void;
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
@@ -25,6 +26,14 @@ export const useAuthStore = create<AuthStore>()(
           isAuthenticated: true,
           error: null,
           isLoading: false,
+        });
+      },
+
+      updateUser: (user: User) => {
+        set({
+          user,
+          isAuthenticated: true,
+          error: null,
         });
       },
 

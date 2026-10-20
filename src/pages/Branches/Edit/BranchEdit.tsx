@@ -112,8 +112,19 @@ export const BranchEdit = () => {
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
     if (!form.name.trim()) errors.name = 'Nome da filial é obrigatório';
+
+    const cleanCep = form.zipCode.replace(/\D/g, '');
+    if (!cleanCep) {
+      errors.zipCode = 'CEP é obrigatório';
+    } else if (cleanCep.length !== 8) {
+      errors.zipCode = 'CEP deve conter 8 dígitos';
+    }
+
     if (!form.address.trim()) errors.address = 'Endereço é obrigatório';
+    if (!form.neighborhood.trim()) errors.neighborhood = 'Bairro é obrigatório';
     if (!form.city.trim()) errors.city = 'Cidade é obrigatória';
+    if (!form.state || form.state.trim().length !== 2) errors.state = 'Estado (UF) é obrigatório';
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -210,6 +221,8 @@ export const BranchEdit = () => {
               placeholder="00000-000"
               value={form.zipCode}
               onChange={(e) => handleCepChange(e.target.value)}
+              error={validationErrors.zipCode}
+              required
               disabled={isLoading || isSearchingCep}
               rightIcon={isSearchingCep ? <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>Buscando...</span> : undefined}
             />
@@ -235,6 +248,8 @@ export const BranchEdit = () => {
               label="Bairro"
               value={form.neighborhood}
               onChange={(e) => updateField('neighborhood', e.target.value)}
+              error={validationErrors.neighborhood}
+              required
               disabled={isLoading}
             />
 

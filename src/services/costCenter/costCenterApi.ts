@@ -1,6 +1,7 @@
 import { apiClient } from '../api/apiClient';
 import { useAuthStore } from '../../stores/authStore';
 import { getUserNormalizedProfiles } from '../../types/profile.types';
+import { resolveEmpresaId } from '../../utils/apiHelpers';
 
 export interface VincularAprovadorParams {
   usuarioId: number;
@@ -52,6 +53,7 @@ export interface CentrosCustoListResponse {
 }
 
 export interface CentroCustoQueryParams {
+  empresaId?: number;
   filialId?: number;
   ativo?: boolean;
   nome?: string;
@@ -59,25 +61,75 @@ export interface CentroCustoQueryParams {
   limit?: number;
 }
 
-function listAdmin(query?: CentroCustoQueryParams) {
-  return apiClient.get<CentrosCustoListResponse>('/centro-de-custo/admin', {
-    query: query as Record<string, string | number | boolean | null | undefined>,
-  });
+function normalizeCostCenterItem(item: Record<string, unknown>): CentroCustoDto {
+  const numero = Number(item.numero ?? item.id ?? 0);
+  return {
+    ...(item as unknown as CentroCustoDto),
+    id: Number(item.id ?? numero),
+    numero,
+    filialId: Number(item.filialId ?? 1),
+    nome: String(item.nome ?? `Centro #${numero}`),
+    ativo: item.ativo !== undefined ? Boolean(item.ativo) : item.dataDesativacao == null,
+    temAprovador: item.temAprovador !== undefined ? Boolean(item.temAprovador) : undefined,
+  };
 }
 
-function listFilial(query?: CentroCustoQueryParams) {
-  return apiClient.get<CentrosCustoListResponse>('/centro-de-custo/filial', {
-    query: query as Record<string, string | number | boolean | null | undefined>,
-  });
+function normalizeCostCenterResponse(res: CentrosCustoListResponse): CentrosCustoListResponse {
+  if (!res || !res.response) return res;
+  if (Array.isArray(res.response)) {
+    return {
+      response: res.response.map((item) => normalizeCostCenterItem(item as unknown as Record<string, unknown>)),
+    };
+  }
+  if (typeof res.response === 'object' && Array.isArray((res.response as PaginatedCentrosCusto).data)) {
+    const paginated = res.response as PaginatedCentrosCusto;
+    return {
+      response: {
+        ...paginated,
+        data: paginated.data.map((item) => normalizeCostCenterItem(item as unknown as Record<string, unknown>)),
+      },
+    };
+  }
+  return res;
 }
 
-async function list(query?: CentroCustoQueryParams) {
+async function listAdmin(query?: CentroCustoQueryParams) {
+  const finalQuery: Record<string, string | number | boolean | null | undefined> = {
+    limit: 100,
+    ...query,
+  };
+  if (finalQuery.filialId && !finalQuery.empresaId) {
+    finalQuery.empresaId = resolveEmpresaId();
+  }
+  const res = await apiClient.get<CentrosCustoListResponse>('/centro-de-custo/admin', {
+    query: finalQuery,
+  });
+  return normalizeCostCenterResponse(res);
+}
+
+async function listFilial(query?: CentroCustoQueryParams) {
+  const finalQuery = query
+    ? {
+        limit: 100,
+        ...query,
+      }
+    : undefined;
+  const res = await apiClient.get<CentrosCustoListResponse>('/centro-de-custo/filial', {
+    query: finalQuery,
+  });
+  return normalizeCostCenterResponse(res);
+}
+
+async function list(query?: CentroCustoQueryParams | number) {
+  const normalizedQuery: CentroCustoQueryParams | undefined =
+    typeof query === 'number' ? { filialId: query } : query;
+
   const user = useAuthStore.getState().user;
   const profiles = getUserNormalizedProfiles(user);
 
   if (profiles.includes('admin-master')) {
     try {
-      return await listAdmin(query);
+      return await listAdmin(normalizedQuery);
     } catch {
       return listMinhas();
     }
@@ -96,14 +148,15 @@ async function list(query?: CentroCustoQueryParams) {
   }
 
   try {
-    return await listFilial(query);
+    return await listFilial(normalizedQuery);
   } catch {
     return listMinhas();
   }
 }
 
-function listMinhas() {
-  return apiClient.get<CentrosCustoListResponse>('/centro-de-custo');
+async function listMinhas() {
+  const res = await apiClient.get<CentrosCustoListResponse>('/centro-de-custo');
+  return normalizeCostCenterResponse(res);
 }
 
 export const costCenterApi = {
