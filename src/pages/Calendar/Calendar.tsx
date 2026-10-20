@@ -95,35 +95,78 @@ export const Calendar = () => {
 
   useEffect(() => {
     let isMounted = true;
-    ridesApi.list()
-      .then((res) => {
-        if (!isMounted) return;
-        const apiData = extractListData<SolicitacaoDto>(res);
-        const mapped: Ride[] = apiData.map((s) => {
-          const rideDate = s.dataCorrida ? new Date(s.dataCorrida) : new Date();
-          const rawStatus = (s.status || 'PENDENTE').toUpperCase();
-          let status: RideStatus = 'agendada';
-          if (rawStatus.includes('FINALIZ') || rawStatus.includes('CONCLU')) status = 'realizada';
-          else if (rawStatus.includes('CANCEL')) status = 'cancelada';
 
-          return {
-            id: s.id,
-            date: toIsoDate(rideDate),
-            time: rideDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            requester: s.solicitanteNome || 'Solicitante',
-            origin: s.localPartida || s.origem?.descricao || s.origem?.logradouro || 'Origem',
-            destination: s.localDestino || s.destino?.descricao || s.destino?.logradouro || 'Destino',
-            status,
-          };
-        });
-        setRidesList(mapped);
+    const year = visibleDate.getFullYear();
+    const month = visibleDate.getMonth();
+    const startRange = new Date(year, month - 1, 1, 0, 0, 0, 0).toISOString();
+    const endRange = new Date(year, month + 2, 0, 23, 59, 59, 999).toISOString();
+
+    Promise.allSettled([
+      ridesApi.list({ limit: 100 }),
+      ridesApi.getViagens({ inicio: startRange, fim: endRange }),
+    ])
+      .then(([listRes, viagensRes]) => {
+        if (!isMounted) return;
+
+        const rideMap = new Map<string, Ride>();
+
+        if (listRes.status === 'fulfilled') {
+          const apiData = extractListData<SolicitacaoDto>(listRes.value);
+          apiData.forEach((s) => {
+            const rideDate = s.dataCorrida ? new Date(s.dataCorrida) : new Date();
+            const rawStatus = (s.status || 'PENDENTE').toUpperCase();
+            let status: RideStatus = 'agendada';
+            if (rawStatus === 'F' || rawStatus.includes('FINALIZ') || rawStatus.includes('CONCLU')) status = 'realizada';
+            else if (rawStatus === 'C' || rawStatus === 'R' || rawStatus.includes('CANCEL') || rawStatus.includes('RECUS')) status = 'cancelada';
+
+            const id = Number(s.id);
+            rideMap.set(`sol-${id}`, {
+              id,
+              date: toIsoDate(rideDate),
+              time: rideDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+              requester: s.solicitanteNome || 'Solicitante',
+              origin: s.localPartida || s.origem?.descricao || s.origem?.logradouro || 'Origem',
+              destination: s.localDestino || s.destino?.descricao || s.destino?.logradouro || 'Destino',
+              status,
+            });
+          });
+        }
+
+        if (viagensRes.status === 'fulfilled') {
+          const viagens = extractListData<any>(viagensRes.value);
+          viagens.forEach((v, idx) => {
+            const rawDate = v.dataHoraPartida || v.dataAgendada || v.dataCorrida;
+            if (!rawDate) return;
+            const rideDate = new Date(rawDate);
+            const rawStatus = String(v.status || 'AGENDADA').toUpperCase();
+            let status: RideStatus = 'agendada';
+            if (rawStatus === 'F' || rawStatus.includes('FINALIZ') || rawStatus.includes('CONCLU')) status = 'realizada';
+            else if (rawStatus === 'C' || rawStatus === 'R' || rawStatus.includes('CANCEL') || rawStatus.includes('RECUS')) status = 'cancelada';
+
+            const solId = Number(v.solicitacaoId || v.corridaId || v.id || idx + 1000);
+            const key = `sol-${solId}`;
+            if (!rideMap.has(key)) {
+              rideMap.set(key, {
+                id: solId,
+                date: toIsoDate(rideDate),
+                time: rideDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                requester: v.solicitanteNome || v.motoristaNome || 'Viagem agendada',
+                origin: typeof v.origem === 'string' ? v.origem : (v.origem?.descricao || v.origem?.logradouro || 'Origem'),
+                destination: typeof v.destino === 'string' ? v.destino : (v.destino?.descricao || v.destino?.logradouro || 'Destino'),
+                status,
+              });
+            }
+          });
+        }
+
+        setRidesList(Array.from(rideMap.values()));
       })
       .catch(() => {});
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [visibleDate]);
 
   const calendarDays = useMemo(
     () => (viewMode === 'month' ? buildCalendarDays(visibleDate) : buildWeekDays(visibleDate)),

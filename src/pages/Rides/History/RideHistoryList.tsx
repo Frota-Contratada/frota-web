@@ -7,7 +7,7 @@ import { ridesApi, extractListData, type CorridaDto } from '../../../services';
 import { exportToCsv } from '../../../utils/exportHelper';
 import styles from './RideHistory.module.css';
 
-export type RideStatus = 'I' | 'F' | 'C';
+export type RideStatus = 'A' | 'I' | 'F' | 'C';
 
 export type RideHistory = {
   id: number;
@@ -29,12 +29,14 @@ export type RideHistory = {
 const PAGE_SIZE = 5;
 
 const rideStatusLabel: Record<RideStatus, string> = {
+  A: 'Agendada',
   I: 'Iniciada',
   F: 'Finalizada',
   C: 'Cancelada',
 };
 
 const rideStatusClass: Record<RideStatus, string> = {
+  A: styles.info,
   I: styles.info,
   F: styles.success,
   C: styles.danger,
@@ -85,8 +87,9 @@ export const RideHistoryList = () => {
           const supplierName = c.fornecedor?.nome || '—';
           const plate = c.veiculo?.placa || '—';
           const collaboratorName = c.solicitante?.nome || 'Colaborador';
-          const startTime = c.inicio
-            ? new Date(c.inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+          const rawStart = c.inicio || c.dataAgendada;
+          const startTime = rawStart
+            ? new Date(rawStart).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
             : '—';
           const finishTime = c.fim
             ? new Date(c.fim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -252,12 +255,11 @@ export const RideHistoryList = () => {
     });
   }, [historyList, query, selectedFilters]);
 
+  const scheduledRides = historyList.filter((ride) => ride.status === 'A').length;
   const activeRides = historyList.filter((ride) => ride.status === 'I').length;
   const finishedRides = historyList.filter((ride) => ride.status === 'F').length;
   const totalKm = historyList.reduce((total, ride) => total + ride.distanceKm, 0);
-  const ridesWithExpenses = historyList.filter((ride) => ride.extraExpenses !== 'R$ 0,00').length;
   const totalPages = Math.max(1, Math.ceil(filteredRides.length / PAGE_SIZE));
-  const pageData = filteredRides.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const actions: TableAction<RideHistory>[] = [
     {
@@ -276,10 +278,10 @@ export const RideHistoryList = () => {
   return (
     <div className={styles.page}>
       <section className={styles.statsGrid} aria-label="Resumo do histórico de corridas">
+        <StatCard title="Agendadas" value={String(scheduledRides)} isLoading={isLoading} />
         <StatCard title="Em andamento" value={String(activeRides)} isLoading={isLoading} />
         <StatCard title="Finalizadas" value={String(finishedRides)} isLoading={isLoading} />
         <StatCard title="KM percorridos" value={totalKm.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} isLoading={isLoading} />
-        <StatCard title="Com despesas" value={String(ridesWithExpenses)} isLoading={isLoading} />
       </section>
 
       <section className={styles.tableSection}>
@@ -323,12 +325,12 @@ export const RideHistoryList = () => {
 
         <Table
           columns={columns}
-          data={pageData}
+          data={filteredRides}
           keyExtractor={(ride) => ride.id}
           actions={actions}
           emptyMessage="Nenhuma corrida encontrada."
           isLoading={isLoading}
-          pagination={{ currentPage, totalPages, onPageChange: setCurrentPage }}
+          pagination={{ currentPage, totalPages, onPageChange: setCurrentPage, pageSize: PAGE_SIZE }}
         />
       </section>
     </div>
