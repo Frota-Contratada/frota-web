@@ -54,6 +54,7 @@
   min-width: 20px;
   height: 20px;
   padding: 0 0.35rem;
+  margin-left: 0.35rem;
   border-radius: var(--radius-full);
   background-color: var(--color-primary-50);
   color: var(--brand-primary);

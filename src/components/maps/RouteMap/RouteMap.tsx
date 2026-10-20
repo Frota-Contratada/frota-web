@@ -231,16 +231,15 @@ export const RouteMap = ({
       }
 
       map.resize();
+      setMapReady(true);
     };
 
     map.on('styledata', initLayers);
     map.on('load', () => {
       initLayers();
-      setMapReady(true);
     });
 
     mapRef.current = map;
-    setMapReady(true);
 
     const resizeObserver = new ResizeObserver(() => {
       map.resize();
