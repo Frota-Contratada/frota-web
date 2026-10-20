@@ -52,42 +52,69 @@ export const EmployeeEdit = () => {
     const numericId = Number(employeeId);
 
     Promise.allSettled([
-      branchApi.list(),
-      costCenterApi.list(),
-      collaboratorApi.list(),
+      branchApi.list({ limit: 100 }),
+      costCenterApi.list({ limit: 100 }),
+      collaboratorApi.list({ limit: 100 }),
       !isNaN(numericId) ? collaboratorApi.getProfiles(numericId) : Promise.reject(),
-    ]).then(([branchesRes, ccRes, collabsRes, profilesRes]) => {
+    ]).then(async ([branchesRes, ccRes, collabsRes, profilesRes]) => {
       if (!isMounted) return;
 
       const branches = branchesRes.status === 'fulfilled' ? extractListData<FilialDto>(branchesRes.value) : [];
-      const costCenters = ccRes.status === 'fulfilled' ? extractListData<CentroCustoDto>(ccRes.value) : [];
+      let costCenters = ccRes.status === 'fulfilled' ? extractListData<CentroCustoDto>(ccRes.value) : [];
       const collabs = collabsRes.status === 'fulfilled' ? extractListData<ColaboradorDto>(collabsRes.value) : [];
 
       setBranchesList(branches);
-      setCostCentersList(costCenters);
 
       const matchedCollab = collabs.find((c) => Number(c.id) === numericId);
+      const profileData = profilesRes.status === 'fulfilled' ? profilesRes.value?.response : undefined;
       let loadedProfiles: string[] = [];
 
-      if (profilesRes.status === 'fulfilled' && profilesRes.value?.response?.perfis) {
-        loadedProfiles = profilesRes.value.response.perfis.map((p) => normalizeProfileName(p.tipoPerfil));
+      if (profileData?.perfis) {
+        loadedProfiles = profileData.perfis.map((p) => normalizeProfileName(p.tipoPerfil));
       } else if (matchedCollab?.perfis && matchedCollab.perfis.length > 0) {
         loadedProfiles = matchedCollab.perfis.map((p) => normalizeProfileName(p.tipoPerfil));
       }
 
       setInitialProfiles(loadedProfiles);
 
-      if (matchedCollab) {
-        const branchVal = matchedCollab.filialId ? String(matchedCollab.filialId) : (branches[0]?.id ? String(branches[0].id) : '1');
-        const availableCcs = costCenters.filter((c) => String(c.filialId) === branchVal);
-        const ccVal = matchedCollab.centroCustoId
-          ? String(matchedCollab.centroCustoId)
-          : (availableCcs[0]?.numero ? String(availableCcs[0].numero) : (costCenters[0]?.numero ? String(costCenters[0].numero) : '101'));
+      if (matchedCollab || profileData) {
+        const resolvedFilialId = profileData?.filialId ?? matchedCollab?.filialId ?? branches[0]?.id ?? 1;
+        const branchVal = String(resolvedFilialId);
+
+        let availableCcs = costCenters.filter((c) => String(c.filialId) === branchVal);
+        if (availableCcs.length === 0 && resolvedFilialId) {
+          try {
+            const branchCcRes = await costCenterApi.list({ filialId: Number(resolvedFilialId), limit: 100 });
+            const branchCcs = extractListData<CentroCustoDto>(branchCcRes);
+            if (branchCcs.length > 0) {
+              availableCcs = branchCcs;
+              const existingKeys = new Set(costCenters.map((c) => `${c.filialId}-${c.numero ?? c.id}`));
+              const merged = [...costCenters];
+              for (const item of branchCcs) {
+                const key = `${item.filialId}-${item.numero ?? item.id}`;
+                if (!existingKeys.has(key)) merged.push(item);
+              }
+              costCenters = merged;
+            }
+          } catch {
+
+          }
+        }
+
+        setCostCentersList(costCenters);
+
+        const resolvedCcId = profileData?.centroCustoId ?? matchedCollab?.centroCustoId;
+        const firstCcNum = availableCcs[0]?.numero ?? availableCcs[0]?.id;
+        const ccVal = resolvedCcId
+          ? String(resolvedCcId)
+          : firstCcNum
+            ? String(firstCcNum)
+            : '';
 
         setForm({
-          name: matchedCollab.nome || '',
-          email: matchedCollab.email || '',
-          role: matchedCollab.cargo || 'Colaborador',
+          name: matchedCollab?.nome || '',
+          email: matchedCollab?.email || '',
+          role: matchedCollab?.cargo || 'Colaborador',
           branch: branchVal,
           costCenterId: ccVal,
           profiles: loadedProfiles,
@@ -115,23 +142,47 @@ export const EmployeeEdit = () => {
 
   const selectedBranchId = Number(form.branch) || 1;
   const filteredCostCenters = useMemo(() => {
-    const branchSpecific = costCentersList.filter((c) => Number(c.filialId) === selectedBranchId);
-    return branchSpecific.length > 0 ? branchSpecific : costCentersList;
+    return costCentersList.filter((c) => Number(c.filialId) === selectedBranchId);
   }, [costCentersList, selectedBranchId]);
 
   const costCenterOptions = useMemo(() => {
-    return filteredCostCenters.map((c) => ({
-      label: `${c.nome} (Nº ${c.numero})${c.temAprovador ? ' — Com Aprovador' : ' — Sem Aprovador'}`,
-      value: String(c.numero),
-    }));
+    return filteredCostCenters.map((c) => {
+      const ccNum = c.numero ?? c.id;
+      const approverSuffix = c.temAprovador === true ? ' — Com Aprovador' : c.temAprovador === false ? ' — Sem Aprovador' : '';
+      return {
+        label: `${c.nome} (Nº ${ccNum})${approverSuffix}`,
+        value: String(ccNum),
+      };
+    });
   }, [filteredCostCenters]);
 
   const updateField = (field: keyof typeof form, value: unknown) => {
     if (field === 'branch') {
       const newBranchId = Number(value);
       const branchCcs = costCentersList.filter((c) => Number(c.filialId) === newBranchId);
-      const nextCc = branchCcs[0]?.numero ? String(branchCcs[0].numero) : '';
+      const firstCc = branchCcs[0]?.numero ?? branchCcs[0]?.id;
+      const nextCc = firstCc ? String(firstCc) : '';
       setForm((current) => ({ ...current, branch: String(value), costCenterId: nextCc }));
+      if (branchCcs.length === 0 && newBranchId > 0) {
+        costCenterApi.list({ filialId: newBranchId, limit: 100 }).then((res) => {
+          const fetched = extractListData<CentroCustoDto>(res);
+          if (fetched.length > 0) {
+            setCostCentersList((prev) => {
+              const existingKeys = new Set(prev.map((c) => `${c.filialId}-${c.numero ?? c.id}`));
+              const merged = [...prev];
+              for (const item of fetched) {
+                const key = `${item.filialId}-${item.numero ?? item.id}`;
+                if (!existingKeys.has(key)) merged.push(item);
+              }
+              return merged;
+            });
+            const firstFetched = fetched[0]?.numero ?? fetched[0]?.id;
+            if (firstFetched) {
+              setForm((curr) => ({ ...curr, costCenterId: curr.costCenterId || String(firstFetched) }));
+            }
+          }
+        }).catch(() => {});
+      }
     } else {
       setForm((current) => ({ ...current, [field]: value }));
     }
@@ -307,15 +358,15 @@ export const EmployeeEdit = () => {
               />
             )}
 
-            {costCenterOptions.length > 0 && (
-              <Select
-                label="Centro de custo"
-                value={form.costCenterId}
-                options={costCenterOptions}
-                onChange={(val) => updateField('costCenterId', val)}
-                required
-              />
-            )}
+            <Select
+              label="Centro de custo"
+              value={form.costCenterId}
+              options={costCenterOptions}
+              placeholder={costCenterOptions.length === 0 ? 'Nenhum centro de custo para esta filial' : 'Selecione o centro de custo'}
+              onChange={(val) => updateField('costCenterId', val)}
+              error={validationErrors.costCenterId}
+              required
+            />
           </div>
 
           <div className={localStyles.divider} />

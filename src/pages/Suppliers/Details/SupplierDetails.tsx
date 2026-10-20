@@ -251,6 +251,9 @@ export const SupplierDetails = () => {
         </div>
 
         <div className={styles.heroActions}>
+          <Button onClick={() => navigate(`/terceiros/fornecedores/${supplier.id}/editar`)}>
+            Editar Fornecedor
+          </Button>
           <Button variant="outline" onClick={() => navigate('/terceiros/fornecedores')}>
             Voltar para Fornecedores
           </Button>
