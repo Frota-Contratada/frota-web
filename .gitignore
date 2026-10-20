@@ -32,6 +32,3 @@ frota-backend/
 frota-acompanhamento/
 frota-ia/
 
-# Local utility scripts
-scripts/remove-comments.mjs
-
