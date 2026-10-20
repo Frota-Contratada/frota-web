@@ -1,4 +1,5 @@
 import { apiClient } from '../api/apiClient';
+import { resolveEmpresaId } from '../../utils/apiHelpers';
 
 export interface EnderecoDto {
   cep: string;
@@ -14,12 +15,14 @@ export interface EnderecoDto {
 
 export interface FilialDto {
   id: number;
+  empresaId?: number;
   nome: string;
   cnpj: string;
   endereco: EnderecoDto;
 }
 
 export interface CriarFilialParams {
+  empresaId?: number;
   nome: string;
   cnpj: string;
   administradorId: number;
@@ -27,6 +30,7 @@ export interface CriarFilialParams {
 }
 
 export interface AtualizarFilialParams {
+  empresaId?: number;
   nome: string;
   endereco: EnderecoDto;
 }
@@ -54,28 +58,41 @@ export interface FiliaisListResponse {
 }
 
 export interface SubstituirAdministradoresParams {
+  empresaId?: number;
   administradorIds: number[];
 }
 
 export const branchApi = {
   create(data: CriarFilialParams) {
-    return apiClient.post<FilialResponse>('/filial', data);
+    const empresaId = resolveEmpresaId(data.empresaId);
+    return apiClient.post<FilialResponse>('/filial', {
+      ...data,
+      empresaId,
+    });
   },
 
   list(query?: BuscarFiliaisQueryParams) {
     return apiClient.get<FiliaisListResponse>('/filial', { query: query as Record<string, string | number | boolean | null | undefined> });
   },
 
-  getById(id: number) {
-    return apiClient.get<FilialResponse>(`/filial/${id}`);
+  getById(id: number, empresaId?: number) {
+    return apiClient.get<FilialResponse>(`/filial/${id}`, {
+      query: { empresaId: resolveEmpresaId(empresaId) },
+    });
   },
 
   update(id: number, data: AtualizarFilialParams) {
-    return apiClient.patch<FilialResponse>(`/filial/${id}`, data);
+    const { empresaId, ...body } = data;
+    return apiClient.patch<FilialResponse>(`/filial/${id}`, body, {
+      query: { empresaId: resolveEmpresaId(empresaId) },
+    });
   },
 
   substituirAdministradores(id: number, data: SubstituirAdministradoresParams) {
-    return apiClient.put<void>(`/filial/${id}/administradores`, data);
+    const { empresaId, ...body } = data;
+    return apiClient.put<void>(`/filial/${id}/administradores`, body, {
+      query: { empresaId: resolveEmpresaId(empresaId) },
+    });
   },
 };
 

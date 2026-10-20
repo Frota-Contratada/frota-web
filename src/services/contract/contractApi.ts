@@ -124,8 +124,11 @@ export const contractApi = {
     return this.getAdminBigNumbers(query);
   },
 
-  getPdfBlob(id: number) {
-    return apiClient.getBlob(`/contrato/${id}`);
+  async getPdfBlob(id: number) {
+    const rawBlob = await apiClient.getBlob(`/contrato/${id}`);
+    return rawBlob.type === 'application/pdf'
+      ? rawBlob
+      : new Blob([rawBlob], { type: 'application/pdf' });
   },
 
   substituirRegras(id: number, regras: unknown[]) {

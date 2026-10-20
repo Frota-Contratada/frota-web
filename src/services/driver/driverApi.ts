@@ -52,6 +52,8 @@ export const driverApi = {
       email: data.email.trim(),
       cpf: cleanCpf,
       fornecedorId: Number(data.fornecedorId),
+      ...(data.telefone ? { telefone: data.telefone } : {}),
+      ...(data.cnh ? { cnh: data.cnh } : {}),
     });
   },
 
