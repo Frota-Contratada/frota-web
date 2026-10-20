@@ -47,7 +47,7 @@ export const AppRoutes = () => {
           <Route path="/terceiros/fornecedores" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial']}><SuppliersList /></ProtectedRoute>} />
           <Route path="/terceiros/fornecedores/novo" element={<ProtectedRoute allowedProfiles={['admin-master']}><SupplierCreate /></ProtectedRoute>} />
           <Route path="/terceiros/fornecedores/:supplierId" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial']}><SupplierDetails /></ProtectedRoute>} />
-          <Route path="/terceiros/fornecedores/:supplierId/editar" element={<ProtectedRoute allowedProfiles={['admin-master']}><SupplierEdit /></ProtectedRoute>} />
+          <Route path="/terceiros/fornecedores/:supplierId/editar" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial']}><SupplierEdit /></ProtectedRoute>} />
           <Route path="/terceiros/contratos" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial']}><ContractsList /></ProtectedRoute>} />
           <Route path="/terceiros/contratos/novo" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial']}><ContractCreate /></ProtectedRoute>} />
           <Route path="/terceiros/contratos/:contractId" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial']}><ContractDetails /></ProtectedRoute>} />

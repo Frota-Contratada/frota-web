@@ -99,7 +99,7 @@ export const PROFILE_PERMISSIONS: Record<UserProfile, Permission[]> = {
 export const normalizeProfile = (raw?: string | null): UserProfile | undefined => {
   if (!raw) return undefined;
   const cleaned = raw.trim().toLowerCase().replace(/_/g, '-');
-  
+
   if (cleaned === 'admin-master' || cleaned === 'administrador-matriz' || cleaned === 'master' || cleaned === 'admin') {
     return 'admin-master';
   }
@@ -135,9 +135,35 @@ export const hasAnyPermission = (profiles: (UserProfile | string)[] | undefined,
   return profiles.some((p) => hasPermission(p as UserProfile, permission));
 };
 
+export const getTokenNormalizedProfiles = (): UserProfile[] => {
+  try {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return [];
+    const parts = token.split('.');
+    if (parts.length !== 3) return [];
+    const payloadJson = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(payloadJson) as { perfis?: string[] };
+    if (Array.isArray(payload?.perfis)) {
+      const profiles = new Set<UserProfile>();
+      payload.perfis.forEach((raw) => {
+        const norm = normalizeProfile(raw);
+        if (norm) profiles.add(norm);
+      });
+      return Array.from(profiles);
+    }
+  } catch {
+
+  }
+  return [];
+};
+
 export const getUserNormalizedProfiles = (
   user?: { profile?: string | null; perfis?: Array<{ tipoPerfil: string }> } | null
 ): UserProfile[] => {
+  const tokenProfiles = getTokenNormalizedProfiles();
+  if (tokenProfiles.length > 0) {
+    return tokenProfiles;
+  }
   if (!user) return [];
   const profiles = new Set<UserProfile>();
   if (user.profile) {
@@ -163,7 +189,7 @@ export const isAdminProfile = (profile: UserProfile | undefined): boolean => {
 export const getDefaultRouteForProfiles = (profiles: (UserProfile | string)[] | undefined): string => {
   if (!profiles || profiles.length === 0) return '/corridas/solicitacoes';
   const normalized = profiles.map(normalizeProfile).filter(Boolean) as UserProfile[];
-  
+
   if (normalized.includes('admin-master') || normalized.includes('admin-filial')) {
     return '/visao-executiva';
   }
