@@ -9,13 +9,26 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { StatCard, Table, TableToolbar, type ColumnDef, StatusBadge, type BadgeStatus, type DateRangeFilterValue } from '../../../components/common';
+import {
+  StatCard,
+  Table,
+  TableToolbar,
+  type ColumnDef,
+  StatusBadge,
+  type BadgeStatus,
+  type DateRangeFilterValue,
+  type FilterSection,
+} from '../../../components/common';
 import {
   supplierApi,
+  branchApi,
+  costCenterApi,
   ridesApi,
   dashboardApi,
   extractListData,
   type FornecedorDto,
+  type FilialDto,
+  type CentroCustoDto,
   type SolicitacaoDto,
   type DashboardAuditoriaDto,
 } from '../../../services';
@@ -26,6 +39,7 @@ export interface AuditRideRow {
   data: string;
   solicitante: string;
   email: string;
+  fornecedor: string;
   origem: string;
   destino: string;
   distanciaEstimada: string;
@@ -80,9 +94,44 @@ export const PriceAuditView = () => {
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [auditoriaData, setAuditoriaData] = useState<DashboardAuditoriaDto | null>(null);
   const [suppliers, setSuppliers] = useState<FornecedorDto[]>([]);
+  const [branches, setBranches] = useState<FilialDto[]>([]);
+  const [costCenters, setCostCenters] = useState<CentroCustoDto[]>([]);
   const [rides, setRides] = useState<SolicitacaoDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRangeFilterValue>({ from: '', to: '' });
+
+  const selectedFilialId = useMemo(() => {
+    const found = selectedFilters.find((f) => f.startsWith('filial:'));
+    return found ? Number(found.replace('filial:', '')) : undefined;
+  }, [selectedFilters]);
+
+  const selectedCentroCustoId = useMemo(() => {
+    const found = selectedFilters.find((f) => f.startsWith('centroCusto:'));
+    return found ? Number(found.replace('centroCusto:', '')) : undefined;
+  }, [selectedFilters]);
+
+  useEffect(() => {
+    let isMounted = true;
+    Promise.allSettled([
+      supplierApi.list(),
+      branchApi.list(),
+      costCenterApi.list(selectedFilialId ? { filialId: selectedFilialId } : undefined),
+    ]).then(([suppRes, branchRes, ccRes]) => {
+      if (!isMounted) return;
+      if (suppRes.status === 'fulfilled') {
+        setSuppliers(extractListData<FornecedorDto>(suppRes.value));
+      }
+      if (branchRes.status === 'fulfilled') {
+        setBranches(extractListData<FilialDto>(branchRes.value));
+      }
+      if (ccRes.status === 'fulfilled') {
+        setCostCenters(extractListData<CentroCustoDto>(ccRes.value));
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedFilialId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -91,19 +140,21 @@ export const PriceAuditView = () => {
     const backendQuery: Record<string, string | number> = {};
     if (dateRange.from) backendQuery.startDate = dateRange.from;
     if (dateRange.to) backendQuery.endDate = dateRange.to;
+    if (selectedFilialId) backendQuery.filial = selectedFilialId;
+    if (selectedCentroCustoId) backendQuery.centroCusto = selectedCentroCustoId;
+
+    const ridesQuery: Record<string, string | number> = {};
+    if (dateRange.from) ridesQuery.startDate = dateRange.from;
+    if (dateRange.to) ridesQuery.endDate = dateRange.to;
 
     Promise.allSettled([
       dashboardApi.getAuditoria(backendQuery),
-      supplierApi.list(),
-      ridesApi.list(backendQuery),
-    ]).then(([auditRes, suppRes, ridesRes]) => {
+      ridesApi.list(ridesQuery),
+    ]).then(([auditRes, ridesRes]) => {
       if (!isMounted) return;
 
       if (auditRes.status === 'fulfilled' && auditRes.value?.response) {
         setAuditoriaData(auditRes.value.response);
-      }
-      if (suppRes.status === 'fulfilled') {
-        setSuppliers(extractListData<FornecedorDto>(suppRes.value));
       }
       if (ridesRes.status === 'fulfilled') {
         setRides(extractListData<SolicitacaoDto>(ridesRes.value));
@@ -115,10 +166,30 @@ export const PriceAuditView = () => {
     return () => {
       isMounted = false;
     };
-  }, [dateRange]);
+  }, [dateRange, selectedFilialId, selectedCentroCustoId]);
+
+  const handleFilterChange = (nextFilters: string[]) => {
+    const prevFilials = selectedFilters.filter((f) => f.startsWith('filial:'));
+    const nextFilials = nextFilters.filter((f) => f.startsWith('filial:'));
+    const prevCCs = selectedFilters.filter((f) => f.startsWith('centroCusto:'));
+    const nextCCs = nextFilters.filter((f) => f.startsWith('centroCusto:'));
+
+    let normalized = [...nextFilters];
+    if (nextFilials.length > 1) {
+      const newlyAdded = nextFilials.find((f) => !prevFilials.includes(f)) ?? nextFilials[nextFilials.length - 1];
+      normalized = normalized.filter((f) => !f.startsWith('filial:') || f === newlyAdded);
+    }
+    if (nextCCs.length > 1) {
+      const newlyAdded = nextCCs.find((f) => !prevCCs.includes(f)) ?? nextCCs[nextCCs.length - 1];
+      normalized = normalized.filter((f) => !f.startsWith('centroCusto:') || f === newlyAdded);
+    }
+
+    setSelectedFilters(normalized);
+    setCurrentPage(1);
+  };
 
   const tableData: AuditRideRow[] = useMemo(() => {
-    if (auditoriaData?.corridas && auditoriaData.corridas.length > 0) {
+    if (auditoriaData?.corridas) {
       return auditoriaData.corridas.map((c, idx) => {
         const precoNum = Number(c.preco ?? 0);
         const precoFmt = precoNum > 0
@@ -143,6 +214,7 @@ export const PriceAuditView = () => {
           data: c.data ? new Date(c.data).toLocaleDateString('pt-BR') : '—',
           solicitante: c.solicitanteNome || 'Colaborador',
           email: c.solicitanteEmail || '—',
+          fornecedor: c.fornecedor || 'Geral',
           origem: c.fornecedor ? `Fornecedor: ${c.fornecedor}` : 'Matriz',
           destino: (c as any).destino || 'Destino Corporativo',
           distanciaEstimada: distEst > 0 ? `${distEst} km` : '—',
@@ -156,29 +228,25 @@ export const PriceAuditView = () => {
     }
 
     return rides.map((r, idx) => {
-      const rawStatus = (r.status || '').toUpperCase();
-      const corridaStatus = (r.corrida?.status || '').toUpperCase();
-      let badgeStatus: BadgeStatus = 'em_andamento';
-      let statusLabel = 'Em andamento';
+      const kmEstimado = Number(r.distanciaEstimadaKm ?? r.distanciaKm ?? 0);
+      const kmReal = Number(r.corrida?.kmPercorrido ?? 0);
 
-      if (corridaStatus === 'F' || rawStatus === 'CONCLUIDA' || rawStatus === 'FINALIZADA') {
-        badgeStatus = 'aprovado';
-        statusLabel = 'Concluída';
-      } else if (rawStatus === 'C' || corridaStatus === 'C' || rawStatus.includes('CANCEL')) {
+      let desvioNum = 0;
+      let desvioStr = '0%';
+      if (kmEstimado > 0 && kmReal > 0) {
+        const diff = kmReal - kmEstimado;
+        desvioNum = (diff / kmEstimado) * 100;
+        desvioStr = `${desvioNum >= 0 ? '+' : ''}${desvioNum.toFixed(1)}%`;
+      }
+
+      let badgeStatus: BadgeStatus = 'aprovado';
+      let statusLabel = 'Conforme';
+      if (Math.abs(desvioNum) > 20) {
         badgeStatus = 'cancelado';
-        statusLabel = 'Cancelada';
-      } else if (rawStatus === 'R' || rawStatus.includes('RECUS') || rawStatus.includes('REPROV')) {
-        badgeStatus = 'cancelado';
-        statusLabel = 'Recusada';
-      } else if (corridaStatus === 'I' || rawStatus.includes('ANDAMENTO')) {
-        badgeStatus = 'em_andamento';
-        statusLabel = 'Em andamento';
-      } else if (rawStatus === 'A' || rawStatus.includes('APROV') || corridaStatus === 'A') {
-        badgeStatus = 'aprovado';
-        statusLabel = 'Aprovada';
-      } else if (rawStatus === 'P' || rawStatus.includes('PEND') || rawStatus.includes('AGUARD')) {
+        statusLabel = 'Desvio Alto';
+      } else if (Math.abs(desvioNum) > 5) {
         badgeStatus = 'pendente';
-        statusLabel = 'Pendente';
+        statusLabel = 'Atenção';
       }
 
       const valorCalculado = r.corrida?.valorFinal ?? r.valorEstimado;
@@ -186,21 +254,14 @@ export const PriceAuditView = () => {
         ? `R$ ${Number(valorCalculado).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
         : '—';
 
-      const kmEstimado = Number(r.distanciaEstimadaKm ?? r.distanciaKm ?? 0);
-      const kmReal = Number(r.corrida?.kmPercorrido ?? 0);
-
-      let desvioStr = '0%';
-      if (kmEstimado > 0 && kmReal > 0) {
-        const diff = Math.abs(kmReal - kmEstimado);
-        const pct = (diff / kmEstimado) * 100;
-        desvioStr = `${pct.toFixed(1)}%`;
-      }
+      const suppName = r.fornecedorNome || (r.fornecedorId ? `Fornecedor #${r.fornecedorId}` : 'Geral');
 
       return {
         id: r.id ?? idx + 1,
         data: r.dataCorrida ? new Date(r.dataCorrida).toLocaleDateString('pt-BR') : '—',
         solicitante: r.solicitanteNome || (r.passageiros?.[0]?.nome ?? 'Colaborador'),
         email: r.passageiros?.[0]?.cpf ? `CPF: ${r.passageiros[0].cpf}` : '—',
+        fornecedor: suppName,
         origem: r.origem?.cidade ? `${r.origem.cidade} (${r.origem.logradouro || ''})` : (r.origem?.logradouro || '—'),
         destino: r.destino?.cidade ? `${r.destino.cidade} (${r.destino.logradouro || ''})` : (r.destino?.logradouro || '—'),
         distanciaEstimada: kmEstimado > 0 ? `${kmEstimado} km` : '—',
@@ -304,41 +365,85 @@ export const PriceAuditView = () => {
     return `${max.toFixed(1)}%`;
   }, [auditoriaData, rides]);
 
-  const priceAuditFilterSections = [
-    {
-      title: 'Status',
-      options: [
-        { label: 'Concluído', value: 'status:aprovado' },
-        { label: 'Pendente', value: 'status:pendente' },
-        { label: 'Em andamento', value: 'status:em_andamento' },
-      ],
-    },
-  ];
+  const priceAuditFilterSections: FilterSection[] = useMemo(() => {
+    const sections: FilterSection[] = [
+      {
+        title: 'Conformidade',
+        options: [
+          { label: 'Conforme', value: 'status:aprovado' },
+          { label: 'Atenção (> 5%)', value: 'status:pendente' },
+          { label: 'Desvio Alto (> 20%)', value: 'status:cancelado' },
+        ],
+      },
+    ];
+
+    const supplierNames = Array.from(
+      new Set([
+        ...suppliers.map((s) => s.nome).filter(Boolean),
+        ...tableData.map((row) => row.fornecedor).filter((f) => f && f !== 'Geral'),
+      ]),
+    ) as string[];
+
+    if (supplierNames.length > 0) {
+      sections.push({
+        title: 'Fornecedor',
+        options: supplierNames.map((name) => ({
+          label: name,
+          value: `fornecedor:${name}`,
+        })),
+      });
+    }
+
+    if (branches.length > 0) {
+      sections.push({
+        title: 'Filial',
+        options: branches.map((b) => ({
+          label: b.nome || `Filial #${b.id}`,
+          value: `filial:${b.id}`,
+        })),
+      });
+    }
+
+    if (costCenters.length > 0) {
+      sections.push({
+        title: 'Centro de custo',
+        options: costCenters.map((cc) => {
+          const code = cc.numero ?? cc.id;
+          return {
+            label: cc.nome ? `${code} - ${cc.nome}` : `CC-${code}`,
+            value: `centroCusto:${code}`,
+          };
+        }),
+      });
+    }
+
+    return sections;
+  }, [suppliers, tableData, branches, costCenters]);
 
   const filteredData = useMemo(() => {
     const statusFilters = selectedFilters
       .filter((f) => f.startsWith('status:'))
       .map((f) => f.replace('status:', ''));
+    const supplierFilters = selectedFilters
+      .filter((f) => f.startsWith('fornecedor:'))
+      .map((f) => f.replace('fornecedor:', ''));
 
     return tableData.filter((item) => {
       const matchesStatus = statusFilters.length === 0 || statusFilters.includes(item.status);
-      return matchesStatus;
+      const matchesSupplier = supplierFilters.length === 0 || supplierFilters.includes(item.fornecedor);
+      return matchesStatus && matchesSupplier;
     });
   }, [tableData, selectedFilters]);
 
   const PAGE_SIZE = 5;
   const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
-  const pageData = filteredData.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <div className={styles.page}>
       <TableToolbar
         filterSections={priceAuditFilterSections}
         selectedFilters={selectedFilters}
-        onFilterChange={(vals) => {
-          setSelectedFilters(vals);
-          setCurrentPage(1);
-        }}
+        onFilterChange={handleFilterChange}
         dateRange={dateRange}
         onDateRangeChange={(range) => {
           setDateRange(range);
@@ -359,7 +464,7 @@ export const PriceAuditView = () => {
         />
         <StatCard
           title="Solicitações monitoradas"
-          value={String(rides.length)}
+          value={String(auditoriaData?.corridas?.length ?? rides.length)}
           isLoading={isLoading}
         />
         <StatCard
@@ -435,7 +540,7 @@ export const PriceAuditView = () => {
       <section className={styles.tableSection}>
         <Table
           columns={columns}
-          data={pageData}
+          data={filteredData}
           keyExtractor={(item) => item.id}
           emptyMessage="Nenhuma corrida registrada para auditoria."
           isLoading={isLoading}
@@ -443,6 +548,7 @@ export const PriceAuditView = () => {
             currentPage,
             totalPages,
             onPageChange: setCurrentPage,
+            pageSize: PAGE_SIZE,
           }}
         />
       </section>

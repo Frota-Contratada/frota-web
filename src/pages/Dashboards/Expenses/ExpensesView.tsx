@@ -10,13 +10,23 @@ import {
   AreaChart,
   Area,
 } from 'recharts';
-import { StatCard, Table, TableToolbar, type ColumnDef, StatusBadge, type DateRangeFilterValue } from '../../../components/common';
+import {
+  StatCard,
+  Table,
+  TableToolbar,
+  type ColumnDef,
+  StatusBadge,
+  type DateRangeFilterValue,
+  type FilterSection,
+} from '../../../components/common';
 import {
   costCenterApi,
+  branchApi,
   ridesApi,
   dashboardApi,
   extractListData,
   type CentroCustoDto,
+  type FilialDto,
   type SolicitacaoDto,
   type DashboardGastosDto,
 } from '../../../services';
@@ -27,6 +37,7 @@ export interface ExpensesRow {
   centroCusto: string;
   nome: string;
   aprovador: string;
+  temAprovador: boolean;
   valor?: string;
   ativo: boolean;
 }
@@ -60,10 +71,40 @@ export const ExpensesView = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [gastosData, setGastosData] = useState<DashboardGastosDto | null>(null);
+  const [branches, setBranches] = useState<FilialDto[]>([]);
   const [costCenters, setCostCenters] = useState<CentroCustoDto[]>([]);
   const [rides, setRides] = useState<SolicitacaoDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRangeFilterValue>({ from: '', to: '' });
+
+  const selectedFilialId = useMemo(() => {
+    const found = selectedFilters.find((f) => f.startsWith('filial:'));
+    return found ? Number(found.replace('filial:', '')) : undefined;
+  }, [selectedFilters]);
+
+  const selectedCentroCustoId = useMemo(() => {
+    const found = selectedFilters.find((f) => f.startsWith('centroCusto:'));
+    return found ? Number(found.replace('centroCusto:', '')) : undefined;
+  }, [selectedFilters]);
+
+  useEffect(() => {
+    let isMounted = true;
+    Promise.allSettled([
+      branchApi.list(),
+      costCenterApi.list(selectedFilialId ? { filialId: selectedFilialId } : undefined),
+    ]).then(([branchRes, ccRes]) => {
+      if (!isMounted) return;
+      if (branchRes.status === 'fulfilled') {
+        setBranches(extractListData<FilialDto>(branchRes.value));
+      }
+      if (ccRes.status === 'fulfilled') {
+        setCostCenters(extractListData<CentroCustoDto>(ccRes.value));
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedFilialId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -72,19 +113,21 @@ export const ExpensesView = () => {
     const backendQuery: Record<string, string | number> = {};
     if (dateRange.from) backendQuery.startDate = dateRange.from;
     if (dateRange.to) backendQuery.endDate = dateRange.to;
+    if (selectedFilialId) backendQuery.filial = selectedFilialId;
+    if (selectedCentroCustoId) backendQuery.centroCusto = selectedCentroCustoId;
+
+    const ridesQuery: Record<string, string | number> = {};
+    if (dateRange.from) ridesQuery.startDate = dateRange.from;
+    if (dateRange.to) ridesQuery.endDate = dateRange.to;
 
     Promise.allSettled([
       dashboardApi.getGastos(backendQuery),
-      costCenterApi.list(),
-      ridesApi.list(backendQuery),
-    ]).then(([gastosRes, ccRes, ridesRes]) => {
+      ridesApi.list(ridesQuery),
+    ]).then(([gastosRes, ridesRes]) => {
       if (!isMounted) return;
 
       if (gastosRes.status === 'fulfilled' && gastosRes.value?.response) {
         setGastosData(gastosRes.value.response);
-      }
-      if (ccRes.status === 'fulfilled') {
-        setCostCenters(extractListData<CentroCustoDto>(ccRes.value));
       }
       if (ridesRes.status === 'fulfilled') {
         setRides(extractListData<SolicitacaoDto>(ridesRes.value));
@@ -96,20 +139,53 @@ export const ExpensesView = () => {
     return () => {
       isMounted = false;
     };
-  }, [dateRange]);
+  }, [dateRange, selectedFilialId, selectedCentroCustoId]);
+
+  const handleFilterChange = (nextFilters: string[]) => {
+    const prevFilials = selectedFilters.filter((f) => f.startsWith('filial:'));
+    const nextFilials = nextFilters.filter((f) => f.startsWith('filial:'));
+    const prevCCs = selectedFilters.filter((f) => f.startsWith('centroCusto:'));
+    const nextCCs = nextFilters.filter((f) => f.startsWith('centroCusto:'));
+
+    let normalized = [...nextFilters];
+    if (nextFilials.length > 1) {
+      const newlyAdded = nextFilials.find((f) => !prevFilials.includes(f)) ?? nextFilials[nextFilials.length - 1];
+      normalized = normalized.filter((f) => !f.startsWith('filial:') || f === newlyAdded);
+    }
+    if (nextCCs.length > 1) {
+      const newlyAdded = nextCCs.find((f) => !prevCCs.includes(f)) ?? nextCCs[nextCCs.length - 1];
+      normalized = normalized.filter((f) => !f.startsWith('centroCusto:') || f === newlyAdded);
+    }
+
+    setSelectedFilters(normalized);
+    setCurrentPage(1);
+  };
 
   const tableData: ExpensesRow[] = useMemo(() => {
     if (gastosData?.centrosCusto && gastosData.centrosCusto.length > 0) {
       return gastosData.centrosCusto.map((c, idx) => {
         const idNum = Number(c.centroCustoId ?? idx + 1);
         const valorNum = Number(c.valor ?? 0);
+        const matchingCc = costCenters.find(
+          (cc) => Number(cc.numero ?? cc.id ?? (cc as any).nCdCentroCusto) === idNum,
+        );
+        const responsavelTrim = (c.responsavel || '').trim();
+        const hasApprover =
+          Boolean(
+            responsavelTrim &&
+              responsavelTrim.toLowerCase() !== 'pendente' &&
+              responsavelTrim.toLowerCase() !== 'sem aprovador' &&
+              responsavelTrim !== '—',
+          ) || Boolean(matchingCc?.temAprovador);
+
         return {
           id: idNum > 0 ? idNum : idx + 1,
           centroCusto: idNum > 0 ? `CC-${idNum}` : `CC-${idx + 1}`,
-          nome: c.centroCusto || 'Centro de Custo',
-          aprovador: c.responsavel || 'Vinculado',
+          nome: c.centroCusto || matchingCc?.nome || 'Centro de Custo',
+          aprovador: responsavelTrim || (hasApprover ? 'Vinculado' : 'Pendente'),
+          temAprovador: hasApprover,
           valor: valorNum > 0 ? `R$ ${valorNum.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00',
-          ativo: true,
+          ativo: matchingCc ? matchingCc.ativo !== false : true,
         };
       });
     }
@@ -117,11 +193,13 @@ export const ExpensesView = () => {
     return costCenters.map((cc, idx) => {
       const num = cc.numero ?? cc.id ?? (cc as any).nCdCentroCusto;
       const idNum = Number(num ?? idx + 1);
+      const hasApprover = Boolean(cc.temAprovador);
       return {
         id: idNum > 0 ? idNum : idx + 1,
         centroCusto: idNum > 0 ? `CC-${idNum}` : `CC-${idx + 1}`,
         nome: cc.nome || 'Centro de Custo',
-        aprovador: cc.temAprovador ? 'Vinculado' : 'Pendente',
+        aprovador: hasApprover ? 'Vinculado' : 'Pendente',
+        temAprovador: hasApprover,
         valor: '—',
         ativo: cc.ativo !== false,
       };
@@ -198,22 +276,49 @@ export const ExpensesView = () => {
     }));
   }, [gastosData, rides]);
 
-  const expensesFilterSections = [
-    {
-      title: 'Status',
-      options: [
-        { label: 'Ativo', value: 'status:ativo' },
-        { label: 'Inativo', value: 'status:inativo' },
-      ],
-    },
-    {
-      title: 'Aprovador',
-      options: [
-        { label: 'Com aprovador', value: 'aprovador:Vinculado' },
-        { label: 'Sem aprovador', value: 'aprovador:Pendente' },
-      ],
-    },
-  ];
+  const expensesFilterSections: FilterSection[] = useMemo(() => {
+    const sections: FilterSection[] = [
+      {
+        title: 'Status',
+        options: [
+          { label: 'Ativo', value: 'status:ativo' },
+          { label: 'Inativo', value: 'status:inativo' },
+        ],
+      },
+      {
+        title: 'Aprovador',
+        options: [
+          { label: 'Com aprovador', value: 'aprovador:Vinculado' },
+          { label: 'Sem aprovador', value: 'aprovador:Pendente' },
+        ],
+      },
+    ];
+
+    if (branches.length > 0) {
+      sections.push({
+        title: 'Filial',
+        options: branches.map((b) => ({
+          label: b.nome || `Filial #${b.id}`,
+          value: `filial:${b.id}`,
+        })),
+      });
+    }
+
+    if (costCenters.length > 0) {
+      sections.push({
+        title: 'Centro de custo',
+        options: costCenters.map((cc) => {
+          const code = cc.numero ?? cc.id;
+          return {
+            label: cc.nome ? `${code} - ${cc.nome}` : `CC-${code}`,
+            value: `centroCusto:${code}`,
+          };
+        }),
+      });
+    }
+
+    return sections;
+  }, [branches, costCenters]);
 
   const filteredData = useMemo(() => {
     const statusFilters = selectedFilters.filter((f) => f.startsWith('status:')).map((f) => f.replace('status:', ''));
@@ -221,15 +326,17 @@ export const ExpensesView = () => {
 
     return tableData.filter((item) => {
       const matchesStatus = statusFilters.length === 0 || statusFilters.includes(item.ativo ? 'ativo' : 'inativo');
-      const matchesAprovador = aprovadorFilters.length === 0 || aprovadorFilters.includes(item.aprovador);
+      const matchesAprovador =
+        aprovadorFilters.length === 0 ||
+        aprovadorFilters.includes(item.temAprovador ? 'Vinculado' : 'Pendente');
+      const matchesCC = !selectedCentroCustoId || item.id === selectedCentroCustoId;
 
-      return matchesStatus && matchesAprovador;
+      return matchesStatus && matchesAprovador && matchesCC;
     });
-  }, [tableData, selectedFilters]);
+  }, [tableData, selectedFilters, selectedCentroCustoId]);
 
   const PAGE_SIZE = 5;
   const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
-  const pageData = filteredData.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const totalSpent = gastosData?.bigNumbers?.gastoTotal?.valor ?? rides.reduce((sum, r) => {
     const val = Number(r.corrida?.valorFinal ?? r.valorEstimado ?? 0);
@@ -243,10 +350,7 @@ export const ExpensesView = () => {
       <TableToolbar
         filterSections={expensesFilterSections}
         selectedFilters={selectedFilters}
-        onFilterChange={(vals) => {
-          setSelectedFilters(vals);
-          setCurrentPage(1);
-        }}
+        onFilterChange={handleFilterChange}
         dateRange={dateRange}
         onDateRangeChange={(range) => {
           setDateRange(range);
@@ -368,7 +472,7 @@ export const ExpensesView = () => {
       <section className={styles.tableSection}>
         <Table
           columns={columns}
-          data={pageData}
+          data={filteredData}
           keyExtractor={(item) => item.id}
           emptyMessage="Nenhum centro de custo registrado."
           isLoading={isLoading}
@@ -376,6 +480,7 @@ export const ExpensesView = () => {
             currentPage,
             totalPages,
             onPageChange: setCurrentPage,
+            pageSize: PAGE_SIZE,
           }}
         />
       </section>

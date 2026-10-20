@@ -20,17 +20,22 @@ import {
   type ColumnDef,
   type BadgeStatus,
   type DateRangeFilterValue,
+  type FilterSection,
 } from '../../../components/common';
 import {
   ridesApi,
   supplierApi,
   contractApi,
   dashboardApi,
+  branchApi,
+  costCenterApi,
   extractListData,
   type SolicitacaoDto,
   type FornecedorBigNumbers,
   type ContratoBigNumbers,
   type DashboardExecutivoDto,
+  type FilialDto,
+  type CentroCustoDto,
 } from '../../../services';
 import styles from '../Dashboards.module.css';
 
@@ -85,10 +90,49 @@ export const ExecutiveView = () => {
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [dashboardData, setDashboardData] = useState<DashboardExecutivoDto | null>(null);
   const [rides, setRides] = useState<SolicitacaoDto[]>([]);
+  const [branches, setBranches] = useState<FilialDto[]>([]);
+  const [costCenters, setCostCenters] = useState<CentroCustoDto[]>([]);
   const [supplierBigNumbers, setSupplierBigNumbers] = useState<FornecedorBigNumbers | null>(null);
   const [contractBigNumbers, setContractBigNumbers] = useState<ContratoBigNumbers | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [dateRange, setDateRange] = useState<DateRangeFilterValue>({ from: '', to: '' });
+
+  const selectedFilialId = useMemo(() => {
+    const found = selectedFilters.find((f) => f.startsWith('filial:'));
+    return found ? Number(found.replace('filial:', '')) : undefined;
+  }, [selectedFilters]);
+
+  const selectedCentroCustoId = useMemo(() => {
+    const found = selectedFilters.find((f) => f.startsWith('centroCusto:'));
+    return found ? Number(found.replace('centroCusto:', '')) : undefined;
+  }, [selectedFilters]);
+
+  useEffect(() => {
+    let isMounted = true;
+    Promise.allSettled([
+      branchApi.list(),
+      costCenterApi.list(selectedFilialId ? { filialId: selectedFilialId } : undefined),
+      supplierApi.getBigNumbers(),
+      contractApi.getBigNumbers(),
+    ]).then(([branchRes, ccRes, suppRes, contRes]) => {
+      if (!isMounted) return;
+      if (branchRes.status === 'fulfilled') {
+        setBranches(extractListData<FilialDto>(branchRes.value));
+      }
+      if (ccRes.status === 'fulfilled') {
+        setCostCenters(extractListData<CentroCustoDto>(ccRes.value));
+      }
+      if (suppRes.status === 'fulfilled' && suppRes.value?.response) {
+        setSupplierBigNumbers(suppRes.value.response);
+      }
+      if (contRes.status === 'fulfilled' && contRes.value?.response) {
+        setContractBigNumbers(contRes.value.response);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedFilialId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -97,13 +141,17 @@ export const ExecutiveView = () => {
     const backendQuery: Record<string, string | number> = {};
     if (dateRange.from) backendQuery.startDate = dateRange.from;
     if (dateRange.to) backendQuery.endDate = dateRange.to;
+    if (selectedFilialId) backendQuery.filial = selectedFilialId;
+    if (selectedCentroCustoId) backendQuery.centroCusto = selectedCentroCustoId;
+
+    const ridesQuery: Record<string, string | number> = {};
+    if (dateRange.from) ridesQuery.startDate = dateRange.from;
+    if (dateRange.to) ridesQuery.endDate = dateRange.to;
 
     Promise.allSettled([
       dashboardApi.getExecutivo(backendQuery),
-      ridesApi.list(backendQuery),
-      supplierApi.getBigNumbers(),
-      contractApi.getBigNumbers(),
-    ]).then(([dashRes, ridesRes, suppRes, contRes]) => {
+      ridesApi.list(ridesQuery),
+    ]).then(([dashRes, ridesRes]) => {
       if (!isMounted) return;
 
       if (dashRes.status === 'fulfilled' && dashRes.value?.response) {
@@ -112,12 +160,6 @@ export const ExecutiveView = () => {
       if (ridesRes.status === 'fulfilled') {
         setRides(extractListData<SolicitacaoDto>(ridesRes.value));
       }
-      if (suppRes.status === 'fulfilled' && suppRes.value?.response) {
-        setSupplierBigNumbers(suppRes.value.response);
-      }
-      if (contRes.status === 'fulfilled' && contRes.value?.response) {
-        setContractBigNumbers(contRes.value.response);
-      }
     }).finally(() => {
       if (isMounted) setIsLoading(false);
     });
@@ -125,16 +167,36 @@ export const ExecutiveView = () => {
     return () => {
       isMounted = false;
     };
-  }, [dateRange]);
+  }, [dateRange, selectedFilialId, selectedCentroCustoId]);
+
+  const handleFilterChange = (nextFilters: string[]) => {
+    const prevFilials = selectedFilters.filter((f) => f.startsWith('filial:'));
+    const nextFilials = nextFilters.filter((f) => f.startsWith('filial:'));
+    const prevCCs = selectedFilters.filter((f) => f.startsWith('centroCusto:'));
+    const nextCCs = nextFilters.filter((f) => f.startsWith('centroCusto:'));
+
+    let normalized = [...nextFilters];
+    if (nextFilials.length > 1) {
+      const newlyAdded = nextFilials.find((f) => !prevFilials.includes(f)) ?? nextFilials[nextFilials.length - 1];
+      normalized = normalized.filter((f) => !f.startsWith('filial:') || f === newlyAdded);
+    }
+    if (nextCCs.length > 1) {
+      const newlyAdded = nextCCs.find((f) => !prevCCs.includes(f)) ?? nextCCs[nextCCs.length - 1];
+      normalized = normalized.filter((f) => !f.startsWith('centroCusto:') || f === newlyAdded);
+    }
+
+    setSelectedFilters(normalized);
+    setCurrentPage(1);
+  };
 
   const tableData: ExecRideRow[] = useMemo(() => {
-    if (dashboardData?.corridas && dashboardData.corridas.length > 0) {
+    if (dashboardData?.corridas) {
       return dashboardData.corridas.map((c, idx) => {
         const rawStatus = (c.status || '').toUpperCase();
         let badgeStatus: BadgeStatus = 'em_andamento';
         let statusLabel = c.status || 'Em andamento';
 
-        if (rawStatus === 'F' || rawStatus === 'CONCLUIDA' || rawStatus === 'FINALIZADA' || rawStatus.includes('CONCLU')) {
+        if (rawStatus === 'F' || rawStatus === 'CONCLUIDO' || rawStatus === 'CONCLUIDA' || rawStatus === 'FINALIZADA' || rawStatus.includes('CONCLU')) {
           badgeStatus = 'aprovado';
           statusLabel = 'Concluída';
         } else if (rawStatus === 'C' || rawStatus.includes('CANCEL')) {
@@ -146,9 +208,9 @@ export const ExecutiveView = () => {
         } else if (rawStatus === 'I' || rawStatus.includes('ANDAMENTO')) {
           badgeStatus = 'em_andamento';
           statusLabel = 'Em andamento';
-        } else if (rawStatus === 'A' || rawStatus.includes('APROV')) {
-          badgeStatus = 'aprovado';
-          statusLabel = 'Aprovada';
+        } else if (rawStatus === 'A' || rawStatus === 'AGENDADA' || rawStatus.includes('AGEND') || rawStatus.includes('APROV')) {
+          badgeStatus = 'pendente';
+          statusLabel = rawStatus.includes('AGEND') || rawStatus === 'A' ? 'Agendada' : 'Aprovada';
         } else if (rawStatus === 'P' || rawStatus.includes('PEND') || rawStatus.includes('AGUARD')) {
           badgeStatus = 'pendente';
           statusLabel = 'Pendente';
@@ -193,8 +255,8 @@ export const ExecutiveView = () => {
         badgeStatus = 'em_andamento';
         statusLabel = 'Em andamento';
       } else if (rawStatus === 'A' || rawStatus.includes('APROV') || corridaStatus === 'A') {
-        badgeStatus = 'aprovado';
-        statusLabel = 'Aprovada';
+        badgeStatus = 'pendente';
+        statusLabel = corridaStatus === 'A' ? 'Agendada' : 'Aprovada';
       } else if (rawStatus === 'P' || rawStatus.includes('PEND') || rawStatus.includes('AGUARD')) {
         badgeStatus = 'pendente';
         statusLabel = 'Pendente';
@@ -268,17 +330,44 @@ export const ExecutiveView = () => {
     }));
   }, [dashboardData, rides]);
 
-  const executiveFilterSections = [
-    {
-      title: 'Status',
-      options: [
-        { label: 'Concluído', value: 'status:aprovado' },
-        { label: 'Pendente', value: 'status:pendente' },
-        { label: 'Em andamento', value: 'status:em_andamento' },
-        { label: 'Cancelado', value: 'status:cancelado' },
-      ],
-    },
-  ];
+  const executiveFilterSections: FilterSection[] = useMemo(() => {
+    const sections: FilterSection[] = [
+      {
+        title: 'Status',
+        options: [
+          { label: 'Concluída', value: 'status:aprovado' },
+          { label: 'Agendada / Pendente', value: 'status:pendente' },
+          { label: 'Em andamento', value: 'status:em_andamento' },
+          { label: 'Cancelada', value: 'status:cancelado' },
+        ],
+      },
+    ];
+
+    if (branches.length > 0) {
+      sections.push({
+        title: 'Filial',
+        options: branches.map((b) => ({
+          label: b.nome || `Filial #${b.id}`,
+          value: `filial:${b.id}`,
+        })),
+      });
+    }
+
+    if (costCenters.length > 0) {
+      sections.push({
+        title: 'Centro de custo',
+        options: costCenters.map((cc) => {
+          const code = cc.numero ?? cc.id;
+          return {
+            label: cc.nome ? `${code} - ${cc.nome}` : `CC-${code}`,
+            value: `centroCusto:${code}`,
+          };
+        }),
+      });
+    }
+
+    return sections;
+  }, [branches, costCenters]);
 
   const filteredTableData = useMemo(() => {
     const statusFilters = selectedFilters
@@ -293,7 +382,6 @@ export const ExecutiveView = () => {
 
   const PAGE_SIZE = 5;
   const totalPages = Math.max(1, Math.ceil(filteredTableData.length / PAGE_SIZE));
-  const pageData = filteredTableData.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const completedCount = dashboardData?.bigNumbers?.corridasConcluidas?.valor ?? rides.filter((r) => {
     const s = (r.status || '').toUpperCase();
@@ -307,10 +395,7 @@ export const ExecutiveView = () => {
       <TableToolbar
         filterSections={executiveFilterSections}
         selectedFilters={selectedFilters}
-        onFilterChange={(vals) => {
-          setSelectedFilters(vals);
-          setCurrentPage(1);
-        }}
+        onFilterChange={handleFilterChange}
         dateRange={dateRange}
         onDateRangeChange={(range) => {
           setDateRange(range);
@@ -432,7 +517,7 @@ export const ExecutiveView = () => {
       <section className={styles.tableSection}>
         <Table
           columns={columns}
-          data={pageData}
+          data={filteredTableData}
           keyExtractor={(row) => row.id}
           emptyMessage="Nenhuma corrida registrada na visão executiva."
           isLoading={isLoading}
@@ -440,6 +525,7 @@ export const ExecutiveView = () => {
             currentPage,
             totalPages,
             onPageChange: setCurrentPage,
+            pageSize: PAGE_SIZE,
           }}
         />
       </section>
