@@ -30,6 +30,15 @@ export interface CatalogoItemDto {
 }
 
 export type MotivoSolicitacaoDto = CatalogoItemDto;
+
+export interface FornecedorCandidatoDto {
+  fornecedorId: number;
+  fornecedorNome: string;
+  contratoId: number;
+  valorEstimado: number;
+  /** Fornecedor já gravado na solicitação (o de menor valor na criação). */
+  selecionado: boolean;
+}
 export type TipoCorridaDto = CatalogoItemDto;
 export type TipoVeiculoDto = CatalogoItemDto;
 
@@ -71,6 +80,8 @@ export interface CriarSolicitacaoParams {
   destino: EnderecoSolicitacaoDto;
   paradas?: EnderecoSolicitacaoDto[];
   centrosCustoIds: number[];
+  /** Colaborador da mesma filial que vai usar a corrida; o CPF vem do cadastro dele. */
+  beneficiarioId?: number;
   passageiros?: { nome: string; cpf?: string; solicitante?: boolean }[];
   cpfsAcompanhantes?: string[];
   respostasPerguntas?: RespostaPerguntaRequest[];
@@ -558,6 +569,10 @@ export const ridesApi = {
       decisao: 'APROVAR',
       fornecedorId,
     });
+  },
+
+  getFornecedoresCandidatos(id: number) {
+    return apiClient.get<{ response: FornecedorCandidatoDto[] }>(`/solicitacoes/${id}/fornecedores-candidatos`);
   },
 
   rejeitar(id: number, motivoRecusaId: number = 1): Promise<{ response: SolicitacaoDto }> {

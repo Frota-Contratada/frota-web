@@ -16,6 +16,7 @@ import {
   type TipoCorridaDto,
   type CentroCustoDto,
   type ColaboradorDto,
+  type BeneficiarioDto,
 } from '../../../services';
 import { useAuthStore } from '../../../stores/authStore';
 import { cleanCpf, normalizeUf } from '../../../utils';
@@ -71,6 +72,7 @@ export const RideRequestCreate = () => {
   const [backendTiposCorrida, setBackendTiposCorrida] = useState<TipoCorridaDto[]>([]);
   const [backendCentrosCusto, setBackendCentrosCusto] = useState<CentroCustoDto[]>([]);
   const [collaboratorsList, setCollaboratorsList] = useState<ColaboradorDto[]>([]);
+  const [beneficiarios, setBeneficiarios] = useState<BeneficiarioDto[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const userName = currentUser?.name || 'Usuário Atual';
@@ -161,9 +163,15 @@ export const RideRequestCreate = () => {
           }));
         }
       }
-      if (collabRes.status === 'fulfilled') {
-        const collabs = extractListData<ColaboradorDto>(collabRes.value);
-        if (collabs.length > 0) setCollaboratorsList(collabs);
+      const collabs = collabRes.status === 'fulfilled' ? extractListData<ColaboradorDto>(collabRes.value) : [];
+      if (collabs.length > 0) {
+        setCollaboratorsList(collabs);
+      } else {
+        // Solicitante e aprovador não acessam as listagens de administrador.
+        collaboratorApi
+          .listBeneficiarios()
+          .then((res) => setBeneficiarios(res?.response?.data ?? []))
+          .catch(() => setBeneficiarios([]));
       }
     }).catch(() => {});
   }, []);
@@ -220,8 +228,11 @@ export const RideRequestCreate = () => {
     if (collaboratorsList.length > 0) {
       return collaboratorsList.map((c) => ({ label: c.nome, value: c.nome }));
     }
+    if (beneficiarios.length > 0) {
+      return beneficiarios.map((b) => ({ label: b.nome, value: b.nome }));
+    }
     return [{ label: userName, value: userName }];
-  }, [collaboratorsList, userName]);
+  }, [collaboratorsList, beneficiarios, userName]);
 
   const filteredCentrosCusto = useMemo(() => {
     if (!ccSearch.trim()) return backendCentrosCusto;
@@ -286,12 +297,17 @@ export const RideRequestCreate = () => {
   const requesterEmployee = collaboratorsList.find((c) => c.nome === form.requester);
   const selectedBeneficiary = collaboratorsList.find((c) => c.nome === form.beneficiaryName);
   const isRideForSelf = form.rideFor === 'Para mim';
+  const selectedBeneficiaryId = isRideForSelf
+    ? undefined
+    : selectedBeneficiary?.id ?? beneficiarios.find((b) => b.nome === form.beneficiaryName)?.id;
+  // Com beneficiário escolhido na lista, o backend usa o CPF do cadastro dele.
+  const usesRegisteredCpf = selectedBeneficiaryId != null;
   const selectedBeneficiaryCpf = isRideForSelf
     ? (requesterEmployee?.cpf ?? currentUser?.cpf ?? form.passengerCpfs[0] ?? '')
     : (selectedBeneficiary?.cpf ?? form.passengerCpfs[0] ?? '');
   const isMainCpfDisabled = isRideForSelf
     ? Boolean(requesterEmployee?.cpf || currentUser?.cpf)
-    : Boolean(selectedBeneficiary?.cpf);
+    : Boolean(selectedBeneficiary?.cpf) || usesRegisteredCpf;
 
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -403,6 +419,7 @@ export const RideRequestCreate = () => {
       const hasEmptyField = requiredFields.some((field) => field.trim().length === 0);
       const hasMissingCostCenter = form.costCenterIds.length === 0;
       const hasMissingCpf = Array.from({ length: passengerCount }, (_, index) => {
+        if (index === 0 && usesRegisteredCpf) return false;
         const cpf = index === 0 ? selectedBeneficiaryCpf : form.passengerCpfs[index] ?? '';
         return cleanCpf(cpf).length !== 11;
       }).some(Boolean);
@@ -485,6 +502,7 @@ export const RideRequestCreate = () => {
           longitude: destinationLocation.lng,
         },
         centrosCustoIds: selectedCcIds,
+        beneficiarioId: selectedBeneficiaryId,
         passageiros: passengerList,
         cpfsAcompanhantes: companionCpfs.length > 0 ? companionCpfs : undefined,
       });
@@ -624,7 +642,7 @@ export const RideRequestCreate = () => {
                 </div>
               </div>
 
-              {(passengerCount > 1 || (!isRideForSelf && !selectedBeneficiary?.cpf)) && (
+              {(passengerCount > 1 || (!isRideForSelf && !selectedBeneficiary?.cpf && !usesRegisteredCpf)) && (
                 <div className={styles.passengerSection}>
                   <div className={styles.sectionInlineHeader}>
                     <strong>CPFs dos passageiros</strong>
@@ -638,7 +656,8 @@ export const RideRequestCreate = () => {
                         mask="cpf"
                         value={index === 0 ? selectedBeneficiaryCpf : form.passengerCpfs[index] ?? ''}
                         disabled={index === 0 && isMainCpfDisabled}
-                        required
+                        placeholder={index === 0 && usesRegisteredCpf && !selectedBeneficiaryCpf ? 'CPF do cadastro do colaborador' : undefined}
+                        required={!(index === 0 && usesRegisteredCpf)}
                         onChange={(event) => updatePassengerCpf(index, event.target.value)}
                       />
                     ))}

@@ -86,6 +86,7 @@ export const PROFILE_PERMISSIONS: Record<UserProfile, Permission[]> = {
   aprovador: [
     'dashboard:read',
     'rides:read',
+    'rides:create',
     'rides:review',
     'rides:approve',
     'rides:reject',

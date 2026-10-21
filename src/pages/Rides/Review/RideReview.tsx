@@ -14,6 +14,15 @@ import { useAuthStore } from '../../../stores/authStore';
 
 type ReviewStep = 1 | 2 | 3;
 
+type SupplierOption = {
+  id: number;
+  nome: string;
+  detalhe: string;
+};
+
+const formatCurrency = (value: number) =>
+  `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 type InfoItemProps = {
   label: string;
   value: string;
@@ -34,8 +43,9 @@ export const RideReview = () => {
   const { can, isRequester, isAdminMaster } = usePermissions();
 
   const [solicitacao, setSolicitacao] = useState<SolicitacaoDto | null>(null);
-  const [availableSuppliers, setAvailableSuppliers] = useState<FornecedorDto[]>([]);
+  const [availableSuppliers, setAvailableSuppliers] = useState<SupplierOption[]>([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState(0);
+  const [hasCandidateList, setHasCandidateList] = useState(false);
   const [currentStep, setCurrentStep] = useState<ReviewStep>(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -79,19 +89,37 @@ export const RideReview = () => {
     if (requestId && !isNaN(Number(requestId))) {
       Promise.allSettled([
         ridesApi.getById(Number(requestId)),
-        supplierApi.list(),
+        ridesApi.getFornecedoresCandidatos(Number(requestId)),
         ridesApi.getMotivosCancelamento(),
         ridesApi.getMotivosRecusa(),
-      ]).then(([reqRes, suppRes, motivosCancelRes, motivosRecusaRes]) => {
+      ]).then(async ([reqRes, candRes, motivosCancelRes, motivosRecusaRes]) => {
         if (!isMounted) return;
-        if (reqRes.status === 'fulfilled' && reqRes.value.response) {
-          setSolicitacao(reqRes.value.response);
+        const request = reqRes.status === 'fulfilled' ? reqRes.value.response : undefined;
+        if (request) {
+          setSolicitacao(request);
         }
-        if (suppRes.status === 'fulfilled') {
-          const supps = extractListData<FornecedorDto>(suppRes.value);
-          if (supps.length > 0) {
-            setAvailableSuppliers(supps);
-            setSelectedSupplierId(supps[0].id);
+        if (candRes.status === 'fulfilled') {
+          // Só fornecedores com contrato publicado que atende a corrida, com o valor de cada um.
+          const candidatos = candRes.value?.response ?? [];
+          setHasCandidateList(true);
+          setAvailableSuppliers(
+            candidatos.map((c) => ({
+              id: c.fornecedorId,
+              nome: c.fornecedorNome,
+              detalhe: `Valor estimado: ${formatCurrency(Number(c.valorEstimado))}`,
+            }))
+          );
+          const preselected = candidatos.find((c) => c.selecionado) ?? candidatos[0];
+          if (preselected) setSelectedSupplierId(preselected.fornecedorId);
+        } else {
+          try {
+            const supps = extractListData<FornecedorDto>(await supplierApi.list());
+            if (!isMounted) return;
+            setAvailableSuppliers(supps.map((s) => ({ id: s.id, nome: s.nome, detalhe: `CNPJ/CPF: ${s.cnpjCpf}` })));
+            const preselected = supps.find((s) => s.id === request?.fornecedorId) ?? supps[0];
+            if (preselected) setSelectedSupplierId(preselected.id);
+          } catch {
+            setAvailableSuppliers([]);
           }
         }
         if (motivosCancelRes.status === 'fulfilled' && motivosCancelRes.value?.response) {
@@ -370,9 +398,17 @@ export const RideReview = () => {
               <div className={styles.cardHeader}>
                 <div>
                   <h3>Selecionar fornecedor</h3>
-                  <p>Escolha a empresa que atenderá essa solicitação.</p>
+                  <p>
+                    {hasCandidateList
+                      ? 'Fornecedores com contrato vigente para esta corrida. O de menor valor já vem marcado.'
+                      : 'Escolha a empresa que atenderá essa solicitação.'}
+                  </p>
                 </div>
               </div>
+
+              {availableSuppliers.length === 0 && (
+                <p>Nenhum fornecedor com contrato publicado atende esta corrida. A aprovação usa o fornecedor já gravado na solicitação, se houver.</p>
+              )}
 
               <div className={styles.supplierGrid} role="radiogroup" aria-label="Fornecedores disponíveis">
                 {availableSuppliers.map((supplier) => {
@@ -393,7 +429,7 @@ export const RideReview = () => {
                       <span className={styles.radioCustom} aria-hidden="true" />
                       <div className={styles.supplierMeta}>
                         <strong>{supplier.nome}</strong>
-                        <span>CNPJ/CPF: {supplier.cnpjCpf}</span>
+                        <span>{supplier.detalhe}</span>
                       </div>
                     </label>
                   );
