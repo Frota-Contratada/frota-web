@@ -17,6 +17,8 @@ export type { FornecedorDto, CriarFornecedorParams, AtualizarFornecedorParams, B
 export { collaboratorApi } from './collaborator/collaboratorApi';
 export type { ColaboradorDto, ColaboradoresAdminQueryParams, ColaboradoresFilialQueryParams, ColaboradorBigNumbers, ColaboradoresListResponse, PerfisColaboradorResponse, VincularCentroCustoBody } from './collaborator/collaboratorApi';
 export { contractApi } from './contract/contractApi';
+export { montarRegrasContrato, QUALQUER_VEICULO } from './contract/contractRules';
+export type { RegraContratoPayload, TipoRegraApi } from './contract/contractRules';
 export type { ContratoDto, CriarContratoParams, BuscarContratosAdminQueryParams, BuscarContratosFilialQueryParams, ContratoBigNumbers, ContratoResponse, ContratosListResponse, ContratoBigNumbersResponse } from './contract/contractApi';
 export { costCenterApi } from './costCenter/costCenterApi';
 export type { CentroCustoDto, CentroCustoAdminDto, CentrosCustoListResponse, VincularAprovadorParams, AprovadorCentroCustoDto, VincularAprovadorResponse } from './costCenter/costCenterApi';

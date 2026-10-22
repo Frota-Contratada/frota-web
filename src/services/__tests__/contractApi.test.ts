@@ -17,6 +17,10 @@ describe('contractApi', () => {
       arquivo: file,
       dataVigenciaInicio: '2026-09-13T00:00:00.000Z',
       dataVigenciaFim: '2027-09-13T00:00:00.000Z',
+      empresaId: 30,
+      filialId: 704,
+      fornecedorId: 864,
+      tipoCorridaIds: [1, 2],
     });
 
     expect(postSpy).toHaveBeenCalled();
@@ -25,7 +29,21 @@ describe('contractApi', () => {
     expect(formData instanceof FormData).toBe(true);
     expect((formData as FormData).get('dataVigenciaInicio')).toBe('2026-09-13');
     expect((formData as FormData).get('dataVigenciaFim')).toBe('2027-09-13');
+    expect((formData as FormData).get('empresaId')).toBe('30');
+    expect((formData as FormData).get('filialId')).toBe('704');
+    expect((formData as FormData).get('fornecedorId')).toBe('864');
+    expect((formData as FormData).get('tipoCorridaIds')).toBe('1,2');
     expect(result.response.id).toBe(1);
+  });
+
+  it('calls publicar on the publication route', async () => {
+    const patchSpy = vi.spyOn(apiClient, 'patch').mockResolvedValue({
+      response: { id: 7, situacao: 'publicado' },
+    });
+
+    await contractApi.publicar(7);
+
+    expect(patchSpy).toHaveBeenCalledWith('/contrato/7/publicacao');
   });
 
   it('calls listAdmin with query params', async () => {
