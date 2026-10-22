@@ -4,7 +4,12 @@ import { Button, Input, StatCard, StatusBadge, Table, TableToolbar, useToast, ty
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
 import CheckIcon from '../../../assets/icons/check.svg?react';
 import ErroIcon from '../../../assets/icons/erro.svg?react';
-import { contractApi, contractIaApi, extractListData, type ContratoDto, type ContratoBigNumbers } from '../../../services';
+import { contractApi, contractIaApi, extractListData, extractTotalCount, type ContratoDto, type ContratoBigNumbers } from '../../../services';
+import {
+  LIMITE_LISTA_COMPLETA,
+  useListagemServidor,
+  type ConsultaPagina,
+} from '../../../hooks/useListagemServidor';
 import { exportToCsv } from '../../../utils/exportHelper';
 import styles from './ContractsList.module.css';
 
@@ -40,21 +45,84 @@ const columns: ColumnDef<Contract>[] = [
   },
 ];
 
+// Colunas que o backend ordena; as demais são ordenadas na tela.
+const CAMPOS_ORDENACAO: Partial<Record<keyof Contract, string>> = {
+  codigo: 'id',
+  inicio: 'dataVigenciaInicio',
+  vencimento: 'dataVigenciaFim',
+};
+
+const mapContract = (c: ContratoDto): Contract => {
+  const rawStatus = (c.status || '').toUpperCase();
+  let badgeStatus: BadgeStatus = 'em_andamento';
+  if (rawStatus === 'ATIVO' || rawStatus === 'APROVADO') badgeStatus = 'aprovado';
+  else if (rawStatus === 'VENCE_EM_BREVE' || rawStatus === 'PENDENTE') badgeStatus = 'pendente';
+  else if (rawStatus === 'VENCIDO' || rawStatus === 'CANCELADO') badgeStatus = 'cancelado';
+
+  const fornecedorNome = c.vinculos?.[0]?.fornecedorNome || (c.vinculos && c.vinculos.length > 0 ? c.vinculos.map(v => v.fornecedorNome).join(', ') : '—');
+  const filialNome = c.vinculos?.[0]?.filialNome || (c.vinculos && c.vinculos.length > 0 ? c.vinculos.map(v => v.filialNome).join(', ') : '—');
+
+  return {
+    id: c.id,
+    codigo: `CONT-${String(c.id).padStart(4, '0')}`,
+    fornecedor: fornecedorNome,
+    filial: filialNome,
+    inicio: c.dataVigenciaInicio ? new Date(c.dataVigenciaInicio).toLocaleDateString('pt-BR') : '—',
+    vencimento: c.dataVigenciaFim ? new Date(c.dataVigenciaFim).toLocaleDateString('pt-BR') : 'Indeterminado',
+    status: badgeStatus,
+    arquivo: c.caminhoArquivo ? c.caminhoArquivo.split('/').pop() || 'contrato.pdf' : 'contrato.pdf',
+  };
+};
+
+const buscarPaginaContratos = async ({ page, limit, ordenarPor, direcao }: ConsultaPagina) => {
+  const res = await contractApi.list({ page, limit, ordenarPor, direcao });
+  return { itens: extractListData<ContratoDto>(res).map(mapContract), total: extractTotalCount(res) };
+};
+
+// O backend não busca contratos por texto: a busca é aplicada na tela.
+const filtrarContract = (contract: Contract, filters: string[], busca: string) => {
+  const normalizedQuery = busca.toLocaleLowerCase('pt-BR');
+  const valuesOf = (prefix: string) =>
+    filters.filter((filter) => filter.startsWith(prefix)).map((filter) => filter.replace(prefix, ''));
+  const statusFilters = valuesOf('status:');
+  const fornecedorFilters = valuesOf('fornecedor:');
+  const filialFilters = valuesOf('filial:');
+
+  const matchesQuery =
+    normalizedQuery.length === 0 ||
+    contract.codigo.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
+    contract.fornecedor.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
+    contract.filial.toLocaleLowerCase('pt-BR').includes(normalizedQuery);
+
+  const matchesStatus = statusFilters.length === 0 || statusFilters.includes(contract.status);
+  const matchesFornecedor = fornecedorFilters.length === 0 || fornecedorFilters.includes(contract.fornecedor);
+  const matchesFilial = filialFilters.length === 0 || filialFilters.includes(contract.filial);
+
+  return matchesQuery && matchesStatus && matchesFornecedor && matchesFilial;
+};
+
 export const ContractsList = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [contractsList, setContractsList] = useState<Contract[]>([]);
   const [bigNumbers, setBigNumbers] = useState<ContratoBigNumbers | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingBigNumbers, setIsLoadingBigNumbers] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [query, setQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [dataInicioVigencia, setDataInicioVigencia] = useState(new Date().toISOString().slice(0, 10));
   const [dataFimVigencia, setDataFimVigencia] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isExtractingIa, setIsExtractingIa] = useState(false);
+
+  const lista = useListagemServidor<Contract>({
+    buscarPagina: buscarPaginaContratos,
+    camposOrdenacao: CAMPOS_ORDENACAO,
+    tamanhoPagina: PAGE_SIZE,
+    filtrosLocais: selectedFilters,
+    filtrar: filtrarContract,
+    buscaNoServidor: false,
+  });
+  const contractsList = lista.todas;
 
   const handleExtrairComIa = async () => {
     if (!selectedFile) return;
@@ -81,59 +149,30 @@ export const ContractsList = () => {
     }
   };
 
-  const fetchContracts = async () => {
-    try {
-      setIsLoading(true);
-      const [contractsRes, bigNumbersRes] = await Promise.allSettled([
-        contractApi.list(),
-        contractApi.getAdminBigNumbers().catch(() => contractApi.getFilialBigNumbers()),
-      ]);
-
-      if (contractsRes.status === 'fulfilled') {
-        const apiContracts = extractListData<ContratoDto>(contractsRes.value);
-        const mapped: Contract[] = apiContracts.map((c: ContratoDto) => {
-          const rawStatus = (c.status || '').toUpperCase();
-          let badgeStatus: BadgeStatus = 'em_andamento';
-          if (rawStatus === 'ATIVO' || rawStatus === 'APROVADO') badgeStatus = 'aprovado';
-          else if (rawStatus === 'VENCE_EM_BREVE' || rawStatus === 'PENDENTE') badgeStatus = 'pendente';
-          else if (rawStatus === 'VENCIDO' || rawStatus === 'CANCELADO') badgeStatus = 'cancelado';
-
-          const fornecedorNome = c.vinculos?.[0]?.fornecedorNome || (c.vinculos && c.vinculos.length > 0 ? c.vinculos.map(v => v.fornecedorNome).join(', ') : '—');
-          const filialNome = c.vinculos?.[0]?.filialNome || (c.vinculos && c.vinculos.length > 0 ? c.vinculos.map(v => v.filialNome).join(', ') : '—');
-          
-          return {
-            id: c.id,
-            codigo: `CONT-${String(c.id).padStart(4, '0')}`,
-            fornecedor: fornecedorNome,
-            filial: filialNome,
-            inicio: c.dataVigenciaInicio ? new Date(c.dataVigenciaInicio).toLocaleDateString('pt-BR') : '—',
-            vencimento: c.dataVigenciaFim ? new Date(c.dataVigenciaFim).toLocaleDateString('pt-BR') : 'Indeterminado',
-            status: badgeStatus,
-            arquivo: c.caminhoArquivo ? c.caminhoArquivo.split('/').pop() || 'contrato.pdf' : 'contrato.pdf',
-          };
-        });
-        setContractsList(mapped);
-      }
-
-      if (bigNumbersRes.status === 'fulfilled' && bigNumbersRes.value.response) {
-        setBigNumbers(bigNumbersRes.value.response);
-      }
-
-      if (contractsRes.status === 'rejected') {
-        const msg = contractsRes.reason instanceof Error ? contractsRes.reason.message : 'Falha ao buscar contratos';
-        showToast({ type: 'error', title: 'Erro ao carregar contratos', description: msg });
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Erro ao processar dados de contratos';
-      showToast({ type: 'error', title: 'Erro ao carregar contratos', description: msg });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  useEffect(() => {
+    let isMounted = true;
+    contractApi
+      .getAdminBigNumbers()
+      .catch(() => contractApi.getFilialBigNumbers())
+      .then((res) => {
+        if (isMounted && res?.response) setBigNumbers(res.response);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (isMounted) setIsLoadingBigNumbers(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
-    fetchContracts();
-  }, []);
+    if (lista.erro) {
+      showToast({ type: 'error', title: 'Erro ao carregar contratos', description: lista.erro.message });
+    }
+  }, [lista.erro, showToast]);
+
+  const isLoading = isLoadingBigNumbers || lista.isLoadingTodas;
 
   const filterSections = useMemo<FilterSection[]>(() => {
     const statuses = Array.from(new Set(contractsList.map((c) => c.status))).filter(Boolean);
@@ -185,37 +224,6 @@ export const ContractsList = () => {
     return sections;
   }, [contractsList]);
 
-  const filteredContracts = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
-    const statusFilters = selectedFilters
-      .filter((filter) => filter.startsWith('status:'))
-      .map((filter) => filter.replace('status:', ''));
-    const fornecedorFilters = selectedFilters
-      .filter((filter) => filter.startsWith('fornecedor:'))
-      .map((filter) => filter.replace('fornecedor:', ''));
-    const filialFilters = selectedFilters
-      .filter((filter) => filter.startsWith('filial:'))
-      .map((filter) => filter.replace('filial:', ''));
-
-    return contractsList.filter((contract) => {
-      const matchesQuery =
-        normalizedQuery.length === 0 ||
-        contract.codigo.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
-        contract.fornecedor.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
-        contract.filial.toLocaleLowerCase('pt-BR').includes(normalizedQuery);
-
-      const matchesStatus = statusFilters.length === 0 || statusFilters.includes(contract.status);
-      const matchesFornecedor = fornecedorFilters.length === 0 || fornecedorFilters.includes(contract.fornecedor);
-      const matchesFilial = filialFilters.length === 0 || filialFilters.includes(contract.filial);
-
-      return matchesQuery && matchesStatus && matchesFornecedor && matchesFilial;
-    });
-  }, [query, selectedFilters, contractsList]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredContracts.length / PAGE_SIZE));
-
-
-
   const actions: TableAction<Contract>[] = [
     {
       icon: <RedirecionarIcon width={18} height={18} />,
@@ -243,7 +251,7 @@ export const ContractsList = () => {
       setSelectedFile(null);
       setDataFimVigencia('');
       showToast({ type: 'success', title: 'Contrato enviado com sucesso', description: `${selectedFile.name} foi cadastrado.` });
-      fetchContracts();
+      lista.recarregar();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Falha ao salvar contrato';
       showToast({ type: 'error', title: 'Erro ao enviar contrato', description: msg });
@@ -279,23 +287,33 @@ export const ContractsList = () => {
 
       <section className={styles.tableSection}>
         <TableToolbar
-          onSearch={(value) => {
-            setQuery(value);
-            setCurrentPage(1);
-          }}
-          onExport={() => {
-            const ok = exportToCsv('contratos-frota', filteredContracts, [
-              { key: 'codigo', label: 'Contrato' },
-              { key: 'fornecedor', label: 'Fornecedor' },
-              { key: 'filial', label: 'Filial' },
-              { key: 'inicio', label: 'Início Vigência' },
-              { key: 'vencimento', label: 'Fim Vigência' },
-              { key: 'status', label: 'Status' },
-              { key: 'arquivo', label: 'Arquivo' },
-            ]);
-            showToast(ok
-              ? { type: 'success', title: 'Exportação concluída', description: 'O relatório em CSV foi baixado.' }
-              : { type: 'warning', title: 'Aviso', description: 'Nenhum contrato encontrado para exportar.' });
+          onSearch={lista.alterarBusca}
+          onExport={async () => {
+            try {
+              const { itens: paraExportar, parcial } = await lista.carregarFiltrados();
+              const ok = exportToCsv('contratos-frota', paraExportar, [
+                { key: 'codigo', label: 'Contrato' },
+                { key: 'fornecedor', label: 'Fornecedor' },
+                { key: 'filial', label: 'Filial' },
+                { key: 'inicio', label: 'Início Vigência' },
+                { key: 'vencimento', label: 'Fim Vigência' },
+                { key: 'status', label: 'Status' },
+                { key: 'arquivo', label: 'Arquivo' },
+              ]);
+              showToast(ok
+                ? { type: 'success', title: 'Exportação concluída', description: 'O relatório em CSV foi baixado.' }
+                : { type: 'warning', title: 'Aviso', description: 'Nenhum contrato encontrado para exportar.' });
+              if (parcial) {
+                showToast({
+                  type: 'warning',
+                  title: 'Exportação parcial',
+                  description: `O arquivo tem só os primeiros ${LIMITE_LISTA_COMPLETA.toLocaleString('pt-BR')} registros.`,
+                });
+              }
+            } catch (err) {
+              const message = err instanceof Error ? err.message : 'Falha ao buscar os registros';
+              showToast({ type: 'error', title: 'Erro ao exportar', description: message });
+            }
           }}
           rightActions={
             <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -307,24 +325,25 @@ export const ContractsList = () => {
           selectedFilters={selectedFilters}
           onFilterChange={(values) => {
             setSelectedFilters(values);
-            setCurrentPage(1);
+            lista.setPagina(1);
           }}
           onFilterApply={() => showToast({ type: 'success', title: 'Filtro aplicado', description: 'A tabela foi atualizada.' })}
           onFilterClear={() => {
             setSelectedFilters([]);
-            setCurrentPage(1);
+            lista.setPagina(1);
             showToast({ type: 'info', title: 'Filtros limpos' });
           }}
         />
 
         <Table
           columns={columns}
-          data={filteredContracts}
+          data={lista.itens}
           keyExtractor={(contract) => contract.id}
           actions={actions}
           emptyMessage="Nenhum contrato encontrado."
-          pagination={{ currentPage, totalPages, onPageChange: setCurrentPage, pageSize: PAGE_SIZE }}
-          isLoading={isLoading}
+          onSortChange={lista.alterarOrdenacao}
+          pagination={{ currentPage: lista.pagina, totalPages: lista.totalPaginas, onPageChange: lista.setPagina, pageSize: PAGE_SIZE }}
+          isLoading={lista.isLoading}
         />
       </section>
 

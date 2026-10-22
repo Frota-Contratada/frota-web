@@ -25,6 +25,7 @@ vi.mock('../../../services', () => ({
   contractApi: { list: vi.fn(), getAdminBigNumbers: vi.fn() },
   contractIaApi: { extrairDados: vi.fn() },
   extractListData: (response: { response: unknown[] }) => response.response,
+  extractTotalCount: (response: { response: unknown[] }) => response.response.length,
 }));
 
 vi.mock('../../../utils/exportHelper', () => ({ exportToCsv: vi.fn() }));
@@ -44,10 +45,13 @@ describe('ContractsList export', () => {
   it('downloads filtered contract rows rather than showing only a toast', async () => {
     render(<ContractsList />);
     await waitFor(() => expect(contractApi.list).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: 'Exportar contratos' }));
-    expect(exportToCsv).toHaveBeenCalledWith('contratos-frota',
-      [expect.objectContaining({ id: 9001, fornecedor: 'Fornecedor fictício' })],
-      expect.arrayContaining([expect.objectContaining({ key: 'codigo', label: 'Contrato' })]));
+    // A exportação usa a lista completa, que chega depois da primeira página.
+    await waitFor(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Exportar contratos' }));
+      expect(exportToCsv).toHaveBeenLastCalledWith('contratos-frota',
+        [expect.objectContaining({ id: 9001, fornecedor: 'Fornecedor fictício' })],
+        expect.arrayContaining([expect.objectContaining({ key: 'codigo', label: 'Contrato' })]));
+    });
     expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Exportação concluída' }));
   });
 });

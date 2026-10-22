@@ -1,7 +1,7 @@
 export { apiClient, ApiError } from './api/apiClient';
 export type { ApiQueryParams, ApiRequestOptions, ApiQueryValue } from './api/apiClient';
-export { extractListData } from '../utils/apiHelpers';
-export type { PaginatedResponse } from '../utils/apiHelpers';
+export { extractListData, extractTotalCount } from '../utils/apiHelpers';
+export type { ListagemQueryParams, PaginatedResponse } from '../utils/apiHelpers';
 export { authApi } from './auth/authApi';
 export type { PinEnviarParams, PinConfirmarParams, PinConfirmarResponse, RefreshTokenParams, RedefinirSenhaParams, SignUpParams, PrimeiroAcessoResponse } from './auth/authApi';
 export { userApi } from './user/userApi';

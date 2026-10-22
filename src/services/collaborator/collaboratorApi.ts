@@ -1,4 +1,5 @@
 import { apiClient } from '../api/apiClient';
+import type { ListagemQueryParams } from '../../utils/apiHelpers';
 import { useAuthStore } from '../../stores/authStore';
 import { getUserNormalizedProfiles } from '../../types/profile.types';
 
@@ -30,7 +31,7 @@ export interface ColaboradorDto {
   }>;
 }
 
-export interface ColaboradoresAdminQueryParams {
+export interface ColaboradoresAdminQueryParams extends ListagemQueryParams {
   nome?: string;
   cpf?: string;
   filialId?: number;
@@ -40,7 +41,7 @@ export interface ColaboradoresAdminQueryParams {
   limit?: number;
 }
 
-export interface ColaboradoresFilialQueryParams {
+export interface ColaboradoresFilialQueryParams extends ListagemQueryParams {
   nome?: string;
   cpf?: string;
   centroCustoId?: number;
