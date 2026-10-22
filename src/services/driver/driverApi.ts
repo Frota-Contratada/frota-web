@@ -1,4 +1,5 @@
 import { apiClient } from '../api/apiClient';
+import type { ListagemQueryParams } from '../../utils/apiHelpers';
 
 export interface MotoristaDto {
   id: number;
@@ -22,7 +23,7 @@ export interface CriarMotoristaParams {
   cnh?: string;
 }
 
-export interface BuscarMotoristasQueryParams {
+export interface BuscarMotoristasQueryParams extends ListagemQueryParams {
   nome?: string;
   cpf?: string;
   page?: number;

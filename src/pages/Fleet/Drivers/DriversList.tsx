@@ -1,7 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection } from '../../../components/common';
-import { driverApi, type MotoristaDto } from '../../../services';
+import { driverApi, extractListData, extractTotalCount, type MotoristaDto } from '../../../services';
+import {
+  LIMITE_LISTA_COMPLETA,
+  useListagemServidor,
+  type ConsultaPagina,
+} from '../../../hooks/useListagemServidor';
 import { exportToCsv } from '../../../utils/exportHelper';
 import { formatCpf } from '../../../utils';
 import styles from '../Fleet.module.css';
@@ -30,73 +35,63 @@ const filterSections: FilterSection[] = [
   },
 ];
 
+// Colunas que o backend ordena; as demais são ordenadas na tela.
+const CAMPOS_ORDENACAO: Partial<Record<keyof MotoristaDto, string>> = {
+  nome: 'nome',
+  dataAtivacao: 'dataAtivacao',
+};
+
+const buscarPaginaMotoristas = async ({ page, limit, busca, ordenarPor, direcao }: ConsultaPagina) => {
+  const res = await driverApi.list({ page, limit, nome: busca, ordenarPor, direcao });
+  return { itens: extractListData<MotoristaDto>(res), total: extractTotalCount(res) };
+};
+
+// A busca vai ao backend pelo nome; aqui ela vale para filtros locais e exportação.
+const filtrarMotorista = (driver: MotoristaDto, filters: string[], busca: string) => {
+  const q = busca.toLowerCase();
+  const matchesQuery = !q || driver.nome.toLowerCase().includes(q);
+
+  const statusFilter = filters
+    .filter((f) => f.startsWith('status:'))
+    .map((f) => f.replace('status:', ''));
+
+  let matchesStatus = true;
+  if (statusFilter.length > 0) {
+    matchesStatus = statusFilter.some((st) => {
+      if (st === 'ativo') return driver.ativo !== false;
+      if (st === 'inativo') return driver.ativo === false;
+      return true;
+    });
+  }
+
+  return matchesQuery && matchesStatus;
+};
+
 export const DriversList = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const [drivers, setDrivers] = useState<MotoristaDto[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [query, setQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
 
-
-
-  const fetchDrivers = async () => {
-    try {
-      setIsLoading(true);
-      const queryParams: Record<string, string | number> = {};
-      if (query.trim()) queryParams.nome = query.trim();
-      const res = await driverApi.list(queryParams);
-      if (Array.isArray(res.response)) {
-        setDrivers(res.response);
-      } else if (res.response && Array.isArray(res.response.data)) {
-        setDrivers(res.response.data);
-      }
-    } catch {
-      showToast({ type: 'error', title: 'Erro', description: 'Não foi possível carregar os motoristas.' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const lista = useListagemServidor<MotoristaDto>({
+    buscarPagina: buscarPaginaMotoristas,
+    camposOrdenacao: CAMPOS_ORDENACAO,
+    tamanhoPagina: PAGE_SIZE,
+    filtrosLocais: selectedFilters,
+    filtrar: filtrarMotorista,
+  });
+  const drivers = lista.todas;
+  const isLoading = lista.isLoadingTodas;
 
   useEffect(() => {
-    fetchDrivers();
-  }, [query]);
-
-  const filteredDrivers = useMemo(() => {
-    return drivers.filter((driver) => {
-      const q = query.toLowerCase().trim();
-      const matchesQuery =
-        !q ||
-        driver.nome.toLowerCase().includes(q) ||
-        (driver.cpf && driver.cpf.includes(q)) ||
-        (driver.fornecedorNome && driver.fornecedorNome.toLowerCase().includes(q));
-
-      const statusFilter = selectedFilters
-        .filter((f) => f.startsWith('status:'))
-        .map((f) => f.replace('status:', ''));
-
-      let matchesStatus = true;
-      if (statusFilter.length > 0) {
-        matchesStatus = statusFilter.some((st) => {
-          if (st === 'ativo') return driver.ativo !== false;
-          if (st === 'inativo') return driver.ativo === false;
-          return true;
-        });
-      }
-
-      return matchesQuery && matchesStatus;
-    });
-  }, [drivers, query, selectedFilters]);
+    if (lista.erro) {
+      showToast({ type: 'error', title: 'Erro', description: 'Não foi possível carregar os motoristas.' });
+    }
+  }, [lista.erro, showToast]);
 
   const totalActive = drivers.filter((d) => d.ativo !== false).length;
   const totalInactive = drivers.filter((d) => d.ativo === false).length;
   const uniqueSuppliers = new Set(drivers.map((d) => d.fornecedorId)).size;
-
-  const totalPages = Math.max(1, Math.ceil(filteredDrivers.length / PAGE_SIZE));
-
-
 
   const columns: ColumnDef<MotoristaDto>[] = [
     {
@@ -132,6 +127,7 @@ export const DriversList = () => {
     {
       key: 'dataAtivacao',
       header: 'Data de Cadastro',
+      sortable: true,
       render: (_, row) =>
         row.dataAtivacao ? new Date(row.dataAtivacao).toLocaleDateString('pt-BR') : '—',
     },
@@ -163,34 +159,44 @@ export const DriversList = () => {
 
       <section className={styles.tableSection}>
         <TableToolbar
-          onSearch={(val) => {
-            setQuery(val);
-            setCurrentPage(1);
-          }}
-          onExport={() => {
-            const ok = exportToCsv('motoristas-frota', filteredDrivers, [
-              { key: 'id', label: 'ID' },
-              { key: 'nome', label: 'Nome' },
-              {
-                key: 'cpf',
-                label: 'CPF',
-                format: (val) => formatCpf(val),
-              },
-              {
-                key: 'telefone',
-                label: 'Telefone',
-                format: (val) => formatPhone(val),
-              },
-              { key: 'email', label: 'E-mail' },
-              { key: 'fornecedorNome', label: 'Fornecedor' },
-              {
-                key: 'ativo',
-                label: 'Status',
-                format: (val) => (val !== false ? 'Ativo' : 'Inativo'),
-              },
-            ]);
-            if (ok) {
-              showToast({ type: 'success', title: 'Relatório exportado', description: 'CSV de motoristas baixado com sucesso.' });
+          onSearch={lista.alterarBusca}
+          onExport={async () => {
+            try {
+              const { itens: paraExportar, parcial } = await lista.carregarFiltrados();
+              const ok = exportToCsv('motoristas-frota', paraExportar, [
+                { key: 'id', label: 'ID' },
+                { key: 'nome', label: 'Nome' },
+                {
+                  key: 'cpf',
+                  label: 'CPF',
+                  format: (val) => formatCpf(val),
+                },
+                {
+                  key: 'telefone',
+                  label: 'Telefone',
+                  format: (val) => formatPhone(val),
+                },
+                { key: 'email', label: 'E-mail' },
+                { key: 'fornecedorNome', label: 'Fornecedor' },
+                {
+                  key: 'ativo',
+                  label: 'Status',
+                  format: (val) => (val !== false ? 'Ativo' : 'Inativo'),
+                },
+              ]);
+              if (ok) {
+                showToast({ type: 'success', title: 'Relatório exportado', description: 'CSV de motoristas baixado com sucesso.' });
+              }
+              if (parcial) {
+                showToast({
+                  type: 'warning',
+                  title: 'Exportação parcial',
+                  description: `O arquivo tem só os primeiros ${LIMITE_LISTA_COMPLETA.toLocaleString('pt-BR')} registros.`,
+                });
+              }
+            } catch (err) {
+              const message = err instanceof Error ? err.message : 'Falha ao buscar os registros';
+              showToast({ type: 'error', title: 'Erro ao exportar', description: message });
             }
           }}
           rightActions={
@@ -202,18 +208,22 @@ export const DriversList = () => {
           selectedFilters={selectedFilters}
           onFilterChange={(vals) => {
             setSelectedFilters(vals);
-            setCurrentPage(1);
+            lista.setPagina(1);
           }}
-          onFilterClear={() => setSelectedFilters([])}
+          onFilterClear={() => {
+            setSelectedFilters([]);
+            lista.setPagina(1);
+          }}
         />
 
         <Table
           columns={columns}
-          data={filteredDrivers}
+          data={lista.itens}
           keyExtractor={(row) => String(row.id)}
           emptyMessage="Nenhum motorista encontrado."
-          isLoading={isLoading}
-          pagination={{ currentPage, totalPages, onPageChange: setCurrentPage, pageSize: PAGE_SIZE }}
+          isLoading={lista.isLoading}
+          onSortChange={lista.alterarOrdenacao}
+          pagination={{ currentPage: lista.pagina, totalPages: lista.totalPaginas, onPageChange: lista.setPagina, pageSize: PAGE_SIZE }}
         />
       </section>
     </div>

@@ -1,9 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type ColumnDef, type FilterSection, type TableAction, type BadgeStatus } from '../../../components/common';
 import VisualizarIcon from '../../../assets/icons/visualizar.svg?react';
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
-import { supplierApi, extractListData, type FornecedorDto, type FornecedorBigNumbers } from '../../../services';
+import { supplierApi, extractListData, extractTotalCount, type FornecedorDto, type FornecedorBigNumbers } from '../../../services';
+import {
+  LIMITE_LISTA_COMPLETA,
+  useListagemServidor,
+  type ConsultaPagina,
+} from '../../../hooks/useListagemServidor';
 import { exportToCsv } from '../../../utils/exportHelper';
 import styles from './SuppliersList.module.css';
 
@@ -37,7 +42,7 @@ const PAGE_SIZE = 5;
 
 const columns: ColumnDef<Supplier>[] = [
   {
-    key: 'id',
+    key: 'name',
     header: 'Fornecedor',
     sortable: true,
     render: (_, row) => (
@@ -73,174 +78,151 @@ const columns: ColumnDef<Supplier>[] = [
   },
 ];
 
+// Colunas que o backend ordena; as demais são ordenadas na tela.
+const CAMPOS_ORDENACAO: Partial<Record<keyof Supplier, string>> = {
+  name: 'nome',
+  activatedAt: 'dataAtivacao',
+  status: 'situacao',
+};
+
+const mapSupplier = (s: FornecedorDto): Supplier => {
+  let badgeStatus: BadgeStatus = 'aprovado';
+  if (s.ativo === true) {
+    badgeStatus = 'aprovado';
+  } else if (s.ativo === false) {
+    badgeStatus = 'cancelado';
+  } else if (s.status) {
+    const raw = s.status.toLowerCase();
+    if (raw === 'ativo' || raw === 'aprovado') badgeStatus = 'aprovado';
+    else if (raw === 'pendente') badgeStatus = 'pendente';
+    else if (raw === 'cancelado' || raw === 'inativo') badgeStatus = 'cancelado';
+    else badgeStatus = 'em_andamento';
+  }
+
+  const activeContractsCount = s.contratosVigentes ? s.contratosVigentes.length : (s.totalContratos ?? 0);
+  const vehiclesCount = s.quantidadeVeiculosAtivos ?? s.totalMotoristas ?? 0;
+  const activationDate = s.dataAtivacao
+    ? new Date(s.dataAtivacao).toLocaleDateString('pt-BR')
+    : '—';
+
+  return {
+    id: s.id,
+    name: s.nome,
+    document: s.cnpjCpf ?? '',
+    filePath: s.foto || null,
+    activatedAt: activationDate,
+    deactivatedAt: s.ativo === false ? 'Sim' : null,
+    linkedBranches: s.contratosVigentes ? s.contratosVigentes.length : 1,
+    linkedContracts: activeContractsCount,
+    vehicles: vehiclesCount,
+    status: badgeStatus,
+  };
+};
+
+const buscarPaginaFornecedores = async ({ page, limit, busca, ordenarPor, direcao }: ConsultaPagina) => {
+  const res = await supplierApi.list({ page, limit, nome: busca, ordenarPor, direcao });
+  return { itens: extractListData<FornecedorDto>(res).map(mapSupplier), total: extractTotalCount(res) };
+};
+
+// A busca vai ao backend pelo nome; aqui ela vale para filtros locais e exportação.
+const filtrarSupplier = (supplier: Supplier, filters: string[], busca: string) => {
+  const normalizedQuery = busca.toLocaleLowerCase('pt-BR');
+  const valuesOf = (prefix: string) =>
+    filters.filter((filter) => filter.startsWith(prefix)).map((filter) => filter.replace(prefix, ''));
+  const statusFilters = valuesOf('status:');
+  const linkFilters = valuesOf('link:');
+  const vehicleFilters = valuesOf('veiculos:');
+
+  const matchesQuery =
+    normalizedQuery.length === 0 || supplier.name.toLocaleLowerCase('pt-BR').includes(normalizedQuery);
+
+  const matchesStatus = statusFilters.length === 0 || statusFilters.includes(supplier.status);
+  const matchesLinks =
+    linkFilters.length === 0 ||
+    (linkFilters.includes('contrato') && supplier.linkedContracts > 0) ||
+    (linkFilters.includes('sem-contrato') && supplier.linkedContracts === 0);
+  const matchesVehicles =
+    vehicleFilters.length === 0 ||
+    (vehicleFilters.includes('com') && supplier.vehicles > 0) ||
+    (vehicleFilters.includes('sem') && supplier.vehicles === 0);
+
+  return matchesQuery && matchesStatus && matchesLinks && matchesVehicles;
+};
+
+const filterSections: FilterSection[] = [
+  {
+    id: 'status',
+    title: 'Status do Fornecedor',
+    options: [
+      { label: 'Ativo / Aprovado', value: 'status:aprovado' },
+      { label: 'Inativo / Cancelado', value: 'status:cancelado' },
+      { label: 'Pendente', value: 'status:pendente' },
+    ],
+  },
+  {
+    id: 'contratos',
+    title: 'Contratos',
+    options: [
+      { label: 'Com contrato vigente', value: 'link:contrato' },
+      { label: 'Sem contrato vigente', value: 'link:sem-contrato' },
+    ],
+  },
+  {
+    id: 'veiculos',
+    title: 'Frota de Veículos',
+    options: [
+      { label: 'Com veículos na frota', value: 'veiculos:com' },
+      { label: 'Sem veículos cadastrados', value: 'veiculos:sem' },
+    ],
+  },
+];
+
 export const SuppliersList = () => {
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const [currentPage, setCurrentPage] = useState(1);
-  const [query, setQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
-  const [suppliersList, setSuppliersList] = useState<Supplier[]>([]);
   const [bigNumbers, setBigNumbers] = useState<FornecedorBigNumbers | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingBigNumbers, setIsLoadingBigNumbers] = useState(true);
 
-
+  const lista = useListagemServidor<Supplier>({
+    buscarPagina: buscarPaginaFornecedores,
+    camposOrdenacao: CAMPOS_ORDENACAO,
+    tamanhoPagina: PAGE_SIZE,
+    filtrosLocais: selectedFilters,
+    filtrar: filtrarSupplier,
+    carregarCompleta: false,
+  });
+  const suppliersList = lista.todas;
 
   useEffect(() => {
     let isMounted = true;
-    setIsLoading(true);
-
-    const queryParams: Record<string, string | number> = {};
-    if (query.trim()) queryParams.nome = query.trim();
-
-    Promise.allSettled([
-      supplierApi.list(queryParams),
-      supplierApi.getAdminBigNumbers().catch(() => supplierApi.getFilialBigNumbers()),
-    ])
-      .then(([suppliersRes, numbersRes]) => {
-        if (!isMounted) return;
-
-        if (numbersRes.status === 'fulfilled' && numbersRes.value && numbersRes.value.response) {
-          setBigNumbers(numbersRes.value.response);
-        }
-
-        if (suppliersRes.status === 'fulfilled' && suppliersRes.value) {
-          const rawList = extractListData<FornecedorDto>(suppliersRes.value);
-          const apiSuppliers: Supplier[] = rawList.map((s) => {
-            let badgeStatus: BadgeStatus = 'aprovado';
-            if (s.ativo === true) {
-              badgeStatus = 'aprovado';
-            } else if (s.ativo === false) {
-              badgeStatus = 'cancelado';
-            } else if (s.status) {
-              const raw = s.status.toLowerCase();
-              if (raw === 'ativo' || raw === 'aprovado') badgeStatus = 'aprovado';
-              else if (raw === 'pendente') badgeStatus = 'pendente';
-              else if (raw === 'cancelado' || raw === 'inativo') badgeStatus = 'cancelado';
-              else badgeStatus = 'em_andamento';
-            }
-
-            const activeContractsCount = s.contratosVigentes ? s.contratosVigentes.length : (s.totalContratos ?? 0);
-            const vehiclesCount = s.quantidadeVeiculosAtivos ?? s.totalMotoristas ?? 0;
-            const activationDate = s.dataAtivacao
-              ? new Date(s.dataAtivacao).toLocaleDateString('pt-BR')
-              : '—';
-
-            return {
-              id: s.id,
-              name: s.nome,
-              document: s.cnpjCpf ?? '',
-              filePath: s.foto || null,
-              activatedAt: activationDate,
-              deactivatedAt: s.ativo === false ? 'Sim' : null,
-              linkedBranches: s.contratosVigentes ? s.contratosVigentes.length : 1,
-              linkedContracts: activeContractsCount,
-              vehicles: vehiclesCount,
-              status: badgeStatus,
-            };
-          });
-          setSuppliersList(apiSuppliers);
-        } else if (suppliersRes.status === 'rejected') {
-          const msg = suppliersRes.reason instanceof Error ? suppliersRes.reason.message : 'Falha ao buscar fornecedores';
-          showToast({ type: 'error', title: 'Erro ao carregar fornecedores', description: msg });
-        }
+    supplierApi
+      .getAdminBigNumbers()
+      .catch(() => supplierApi.getFilialBigNumbers())
+      .then((res) => {
+        if (isMounted && res?.response) setBigNumbers(res.response);
       })
-      .catch((err) => {
-        const message = err instanceof Error ? err.message : 'Erro ao buscar fornecedores';
-        showToast({ type: 'error', title: message });
-      })
+      .catch(() => undefined)
       .finally(() => {
-        if (isMounted) setIsLoading(false);
+        if (isMounted) setIsLoadingBigNumbers(false);
       });
-
     return () => {
       isMounted = false;
     };
-  }, [showToast, query]);
+  }, []);
 
-
-
-  const filterSections = useMemo<FilterSection[]>(() => {
-    const statuses = Array.from(new Set(suppliersList.map((s) => s.status))).filter(Boolean);
-    const hasWithContract = suppliersList.some((s) => s.linkedContracts > 0);
-    const hasWithoutContract = suppliersList.some((s) => s.linkedContracts === 0);
-    const hasVehicles = suppliersList.some((s) => s.vehicles > 0);
-    const hasNoVehicles = suppliersList.some((s) => s.vehicles === 0);
-
-    const sections: FilterSection[] = [];
-
-    if (statuses.length > 0) {
-      sections.push({
-        id: 'status',
-        title: 'Status do Fornecedor',
-        options: statuses.map((status) => ({
-          label: status === 'aprovado' ? 'Ativo / Aprovado' : status === 'cancelado' ? 'Inativo / Cancelado' : status === 'pendente' ? 'Pendente' : 'Em andamento',
-          value: `status:${status}`,
-        })),
-      });
+  useEffect(() => {
+    if (lista.erro) {
+      showToast({ type: 'error', title: 'Erro ao carregar fornecedores', description: lista.erro.message });
     }
+  }, [lista.erro, showToast]);
 
-    const linkOptions = [];
-    if (hasWithContract) linkOptions.push({ label: 'Com contrato vigente', value: 'link:contrato' });
-    if (hasWithoutContract) linkOptions.push({ label: 'Sem contrato vigente', value: 'link:sem-contrato' });
-    if (linkOptions.length > 0) {
-      sections.push({
-        id: 'contratos',
-        title: 'Contratos',
-        options: linkOptions,
-      });
-    }
+  const isLoading = isLoadingBigNumbers;
 
-    const vehicleOptions = [];
-    if (hasVehicles) vehicleOptions.push({ label: 'Com veículos na frota', value: 'veiculos:com' });
-    if (hasNoVehicles) vehicleOptions.push({ label: 'Sem veículos cadastrados', value: 'veiculos:sem' });
-    if (vehicleOptions.length > 0) {
-      sections.push({
-        id: 'veiculos',
-        title: 'Frota de Veículos',
-        options: vehicleOptions,
-      });
-    }
-
-    return sections;
-  }, [suppliersList]);
-
-  const filteredSuppliers = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR');
-    const statusFilters = selectedFilters
-      .filter((filter) => filter.startsWith('status:'))
-      .map((filter) => filter.replace('status:', ''));
-    const linkFilters = selectedFilters
-      .filter((filter) => filter.startsWith('link:'))
-      .map((filter) => filter.replace('link:', ''));
-    const vehicleFilters = selectedFilters
-      .filter((filter) => filter.startsWith('veiculos:'))
-      .map((filter) => filter.replace('veiculos:', ''));
-
-    return suppliersList.filter((supplier) => {
-      const matchesQuery =
-        normalizedQuery.length === 0 ||
-        supplier.name.toLocaleLowerCase('pt-BR').includes(normalizedQuery) ||
-        supplier.document.includes(normalizedQuery) ||
-        (supplier.filePath && supplier.filePath.toLocaleLowerCase('pt-BR').includes(normalizedQuery));
-
-      const matchesStatus = statusFilters.length === 0 || statusFilters.includes(supplier.status);
-      const matchesLinks =
-        linkFilters.length === 0 ||
-        (linkFilters.includes('contrato') && supplier.linkedContracts > 0) ||
-        (linkFilters.includes('sem-contrato') && supplier.linkedContracts === 0);
-      const matchesVehicles =
-        vehicleFilters.length === 0 ||
-        (vehicleFilters.includes('com') && supplier.vehicles > 0) ||
-        (vehicleFilters.includes('sem') && supplier.vehicles === 0);
-
-      return matchesQuery && matchesStatus && matchesLinks && matchesVehicles;
-    });
-  }, [suppliersList, query, selectedFilters]);
 
   const activeSuppliers = suppliersList.filter((supplier) => !supplier.deactivatedAt && supplier.status !== 'cancelado').length;
   const suppliersWithContracts = suppliersList.filter((supplier) => supplier.linkedContracts > 0).length;
   const totalVehicles = suppliersList.reduce((total, supplier) => total + supplier.vehicles, 0);
-  const totalPages = Math.max(1, Math.ceil(filteredSuppliers.length / PAGE_SIZE));
 
   const actions: TableAction<Supplier>[] = [
     {
@@ -282,47 +264,58 @@ export const SuppliersList = () => {
 
       <section className={styles.tableSection}>
         <TableToolbar
-          onSearch={(value) => {
-            setQuery(value);
-            setCurrentPage(1);
-          }}
-          onExport={() => {
-            const ok = exportToCsv('fornecedores-frota', filteredSuppliers, [
-              { key: 'id', label: 'Código' },
-              { key: 'name', label: 'Fornecedor' },
-              { key: 'document', label: 'CNPJ/CPF' },
-              { key: 'linkedBranches', label: 'Filiais atendidas' },
-              { key: 'linkedContracts', label: 'Contratos vigentes' },
-              { key: 'vehicles', label: 'Veículos ativos' },
-              { key: 'status', label: 'Status' },
-            ]);
-            showToast(ok
-              ? { type: 'success', title: 'Exportação concluída', description: 'O relatório em CSV foi baixado.' }
-              : { type: 'warning', title: 'Aviso', description: 'Nenhum fornecedor encontrado para exportar.' });
+          onSearch={lista.alterarBusca}
+          onExport={async () => {
+            try {
+              const { itens: paraExportar, parcial } = await lista.carregarFiltrados();
+              const ok = exportToCsv('fornecedores-frota', paraExportar, [
+                { key: 'id', label: 'Código' },
+                { key: 'name', label: 'Fornecedor' },
+                { key: 'document', label: 'CNPJ/CPF' },
+                { key: 'linkedBranches', label: 'Filiais atendidas' },
+                { key: 'linkedContracts', label: 'Contratos vigentes' },
+                { key: 'vehicles', label: 'Veículos ativos' },
+                { key: 'status', label: 'Status' },
+              ]);
+              showToast(ok
+                ? { type: 'success', title: 'Exportação concluída', description: 'O relatório em CSV foi baixado.' }
+                : { type: 'warning', title: 'Aviso', description: 'Nenhum fornecedor encontrado para exportar.' });
+              if (parcial) {
+                showToast({
+                  type: 'warning',
+                  title: 'Exportação parcial',
+                  description: `O arquivo tem só os primeiros ${LIMITE_LISTA_COMPLETA.toLocaleString('pt-BR')} registros.`,
+                });
+              }
+            } catch (err) {
+              const message = err instanceof Error ? err.message : 'Falha ao buscar os registros';
+              showToast({ type: 'error', title: 'Erro ao exportar', description: message });
+            }
           }}
           rightActions={<Button onClick={() => navigate('/terceiros/fornecedores/novo')}>Cadastrar fornecedor</Button>}
           filterSections={filterSections}
           selectedFilters={selectedFilters}
           onFilterChange={(values) => {
             setSelectedFilters(values);
-            setCurrentPage(1);
+            lista.setPagina(1);
           }}
           onFilterApply={() => showToast({ type: 'success', title: 'Filtro aplicado', description: 'A tabela foi atualizada.' })}
           onFilterClear={() => {
             setSelectedFilters([]);
-            setCurrentPage(1);
+            lista.setPagina(1);
             showToast({ type: 'info', title: 'Filtros limpos' });
           }}
         />
 
         <Table
           columns={columns}
-          data={filteredSuppliers}
+          data={lista.itens}
           keyExtractor={(supplier) => supplier.id}
           actions={actions}
           emptyMessage="Nenhum fornecedor encontrado."
-          isLoading={isLoading}
-          pagination={{ currentPage, totalPages, onPageChange: setCurrentPage, pageSize: PAGE_SIZE }}
+          isLoading={lista.isLoading}
+          onSortChange={lista.alterarOrdenacao}
+          pagination={{ currentPage: lista.pagina, totalPages: lista.totalPaginas, onPageChange: lista.setPagina, pageSize: PAGE_SIZE }}
         />
       </section>
 

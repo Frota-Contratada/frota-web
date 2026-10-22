@@ -1,4 +1,5 @@
 import { apiClient } from '../api/apiClient';
+import type { ListagemQueryParams } from '../../utils/apiHelpers';
 import { useAuthStore } from '../../stores/authStore';
 import { getUserNormalizedProfiles } from '../../types/profile.types';
 import type { RegraContratoPayload } from './contractRules';
@@ -34,13 +35,13 @@ export interface CriarContratoParams {
   tipoCorridaIds: number[];
 }
 
-export interface BuscarContratosAdminQueryParams {
+export interface BuscarContratosAdminQueryParams extends ListagemQueryParams {
   fornecedorId?: number;
   filialId?: number;
   status?: string;
 }
 
-export interface BuscarContratosFilialQueryParams {
+export interface BuscarContratosFilialQueryParams extends ListagemQueryParams {
   fornecedorId?: number;
   status?: string;
 }
