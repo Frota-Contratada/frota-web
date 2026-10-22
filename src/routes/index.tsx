@@ -35,7 +35,7 @@ export const AppRoutes = () => {
           <Route path="/solicitacoes" element={<Navigate to="/corridas/solicitacoes" replace />} />
           <Route path="/solicitacoes/:requestId" element={<Navigate to="/corridas/solicitacoes" replace />} />
           <Route path="/corridas/solicitacoes" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'aprovador', 'solicitante', 'solicitante-emergencia', 'admin-fornecedor']}><RideRequestsList /></ProtectedRoute>} />
-          <Route path="/corridas/solicitacoes/nova" element={<ProtectedRoute allowedProfiles={['solicitante', 'solicitante-emergencia', 'admin-master']}><RideRequestCreate /></ProtectedRoute>} />
+          <Route path="/corridas/solicitacoes/nova" element={<ProtectedRoute allowedProfiles={['solicitante', 'solicitante-emergencia', 'aprovador', 'admin-master']}><RideRequestCreate /></ProtectedRoute>} />
           <Route path="/corridas/solicitacoes/:requestId/revisar" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'aprovador']}><RideReview /></ProtectedRoute>} />
           <Route path="/corridas/calendario" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial', 'aprovador', 'solicitante', 'solicitante-emergencia']}><Calendar /></ProtectedRoute>} />
           <Route path="/corridas/historico" element={<RideHistoryList />} />

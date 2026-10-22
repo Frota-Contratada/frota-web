@@ -31,6 +31,8 @@ vi.mock('../../../../services', async (importOriginal) => {
     ...actual,
     ridesApi: {
       getById: vi.fn(),
+      // Sem a rota de candidatos (backend antigo), a tela usa a lista de fornecedores.
+      getFornecedoresCandidatos: vi.fn().mockRejectedValue(new Error('Not Found')),
       aprovar: vi.fn(),
       reprovar: vi.fn(),
       getMotivosCancelamento: vi.fn().mockResolvedValue({ response: [] }),
@@ -109,6 +111,42 @@ describe('RideReview Functional Logic & Business Rules', () => {
       expect(ridesApi.aprovar).toHaveBeenCalledWith(101, 201);
       expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ type: 'success' }));
     });
+  });
+
+  it('lists candidate suppliers with estimated value and keeps the one saved on the request', async () => {
+    vi.mocked(ridesApi.getById).mockResolvedValue({
+      response: {
+        id: 101,
+        status: 'PENDENTE',
+        solicitanteId: 99,
+        solicitanteNome: 'Outro Solicitante',
+        dataCorrida: '2026-10-20T10:00:00Z',
+        origem: { logradouro: 'Rua A', numero: '100' },
+        destino: { logradouro: 'Rua B', numero: '200' },
+        centrosCusto: [{ centroCustoId: 1, centroCustoNome: 'Operações', aprovadorId: 10 }],
+      },
+    } as never);
+    vi.mocked(ridesApi.getFornecedoresCandidatos).mockResolvedValueOnce({
+      response: [
+        { fornecedorId: 201, fornecedorNome: 'Viação Alpha', contratoId: 1, valorEstimado: 60, selecionado: false },
+        { fornecedorId: 202, fornecedorNome: 'Viação Beta', contratoId: 2, valorEstimado: 43.32, selecionado: true },
+      ],
+    });
+    vi.mocked(ridesApi.aprovar).mockResolvedValue({ response: { id: 101, status: 'APROVADA' } } as never);
+
+    render(<RideReview />);
+
+    await waitFor(() => expect(ridesApi.getFornecedoresCandidatos).toHaveBeenCalledWith(101));
+    fireEvent.click(screen.getByRole('button', { name: /próximo/i }));
+
+    await waitFor(() => expect(screen.getByText('Valor estimado: R$ 43,32')).toBeInTheDocument());
+    expect(supplierApi.list).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /próximo/i }));
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Revisar tudo' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /aprovar solicitação/i }));
+
+    await waitFor(() => expect(ridesApi.aprovar).toHaveBeenCalledWith(101, 202));
   });
 
   it('does not require or send supplier when secondary cost center approver (rateio) approves', async () => {
