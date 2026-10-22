@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input, StatCard, StatusBadge, Table, TableToolbar, useToast, type BadgeStatus, type ColumnDef, type FilterSection, type TableAction } from '../../../components/common';
+import { Button, StatCard, StatusBadge, Table, TableToolbar, useToast, type BadgeStatus, type ColumnDef, type FilterSection, type TableAction } from '../../../components/common';
 import RedirecionarIcon from '../../../assets/icons/redirecionar.svg?react';
-import CheckIcon from '../../../assets/icons/check.svg?react';
-import ErroIcon from '../../../assets/icons/erro.svg?react';
-import { contractApi, contractIaApi, extractListData, type ContratoDto, type ContratoBigNumbers } from '../../../services';
+import { contractApi, extractListData, type ContratoDto, type ContratoBigNumbers } from '../../../services';
 import { exportToCsv } from '../../../utils/exportHelper';
 import styles from './ContractsList.module.css';
 
@@ -46,40 +44,9 @@ export const ContractsList = () => {
   const [contractsList, setContractsList] = useState<Contract[]>([]);
   const [bigNumbers, setBigNumbers] = useState<ContratoBigNumbers | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [query, setQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [dataInicioVigencia, setDataInicioVigencia] = useState(new Date().toISOString().slice(0, 10));
-  const [dataFimVigencia, setDataFimVigencia] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isExtractingIa, setIsExtractingIa] = useState(false);
-
-  const handleExtrairComIa = async () => {
-    if (!selectedFile) return;
-    try {
-      setIsExtractingIa(true);
-      const resultado = await contractIaApi.extrairDados(selectedFile);
-      if (resultado.datasNormalizadas?.dataVigenciaInicio) {
-        setDataInicioVigencia(resultado.datasNormalizadas.dataVigenciaInicio);
-      }
-      if (resultado.datasNormalizadas?.dataVigenciaFim) {
-        setDataFimVigencia(resultado.datasNormalizadas.dataVigenciaFim);
-      }
-      const confianca = Math.round((resultado.extracao?.confianca_geral ?? 0) * 100);
-      showToast({
-        type: 'success',
-        title: 'Datas extraídas com IA',
-        description: `Vigência preenchida com ${confianca}% de confiança.`,
-      });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Falha na extração com IA';
-      showToast({ type: 'error', title: 'Erro ao analisar contrato', description: msg });
-    } finally {
-      setIsExtractingIa(false);
-    }
-  };
 
   const fetchContracts = async () => {
     try {
@@ -224,34 +191,6 @@ export const ContractsList = () => {
     },
   ];
 
-  const handleUploadSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!selectedFile) {
-      showToast({ type: 'warning', title: 'Arquivo obrigatório', description: 'Por favor, anexe o arquivo PDF do contrato.' });
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      await contractApi.create({
-        arquivo: selectedFile,
-        dataVigenciaInicio: dataInicioVigencia,
-        dataFimVigencia: dataFimVigencia ? dataFimVigencia : undefined,
-      });
-      setIsModalOpen(false);
-      setSelectedFile(null);
-      setDataFimVigencia('');
-      showToast({ type: 'success', title: 'Contrato enviado com sucesso', description: `${selectedFile.name} foi cadastrado.` });
-      fetchContracts();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Falha ao salvar contrato';
-      showToast({ type: 'error', title: 'Erro ao enviar contrato', description: msg });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <div className={styles.page}>
       <section className={styles.statsGrid} aria-label="Resumo de contratos">
@@ -299,7 +238,6 @@ export const ContractsList = () => {
           }}
           rightActions={
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <Button variant="outline" onClick={() => setIsModalOpen(true)}>Anexar PDF</Button>
               <Button onClick={() => navigate('/terceiros/contratos/novo')}>Novo contrato</Button>
             </div>
           }
@@ -328,71 +266,6 @@ export const ContractsList = () => {
         />
       </section>
 
-      {isModalOpen && (
-        <div className={styles.modalOverlay} role="presentation" onMouseDown={() => setIsModalOpen(false)}>
-          <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="contract-upload-title" onMouseDown={(event) => event.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <div>
-                <h2 id="contract-upload-title">Inserir contrato</h2>
-                <p>Envie o arquivo PDF e informe o período de vigência.</p>
-              </div>
-              <button className={styles.closeButton} type="button" aria-label="Fechar modal" onClick={() => setIsModalOpen(false)}>
-                <ErroIcon width={14} height={14} aria-hidden="true" />
-              </button>
-            </div>
-
-            <form className={styles.form} onSubmit={handleUploadSubmit}>
-              <Input
-                label="Início da vigência *"
-                type="date"
-                value={dataInicioVigencia}
-                onChange={(e) => setDataInicioVigencia(e.target.value)}
-                required
-              />
-
-              <Input
-                label="Fim da vigência (opcional)"
-                type="date"
-                value={dataFimVigencia}
-                onChange={(e) => setDataFimVigencia(e.target.value)}
-              />
-
-              <label className={styles.uploadBox}>
-                <input
-                  type="file"
-                  accept="application/pdf,.pdf"
-                  onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
-                  required
-                />
-                <span className={styles.uploadIcon} aria-hidden="true">
-                  <CheckIcon width={22} height={22} />
-                </span>
-                <strong>{selectedFile?.name || 'Selecionar PDF do contrato'}</strong>
-                <small>Arquivo em PDF, assinado e com anexos consolidados.</small>
-              </label>
-
-              {selectedFile && (
-                <div style={{ marginTop: '0.75rem', marginBottom: '0.5rem' }}>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleExtrairComIa}
-                    isLoading={isExtractingIa}
-                    disabled={isSubmitting}
-                  >
-                    Preencher vigência com IA (frota-ia)
-                  </Button>
-                </div>
-              )}
-
-              <div className={styles.modalActions}>
-                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                <Button type="submit" isLoading={isSubmitting} disabled={isExtractingIa}>Salvar contrato</Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
     </div>
   );

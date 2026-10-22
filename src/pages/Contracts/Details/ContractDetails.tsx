@@ -25,6 +25,7 @@ export const ContractDetails = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [contract, setContract] = useState<ContratoDto | null>(null);
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -71,6 +72,25 @@ export const ContractDetails = () => {
     };
   }, [contractId, navigate]);
 
+  const handlePublicar = async () => {
+    if (!contract) return;
+    try {
+      setIsPublishing(true);
+      const res = await contractApi.publicar(contract.id);
+      setContract({ ...contract, ...(res?.response ?? {}), situacao: 'publicado' });
+      showToast({
+        type: 'success',
+        title: 'Contrato publicado',
+        description: 'O contrato passa a valer para o cálculo das corridas.',
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro ao publicar contrato.';
+      showToast({ type: 'error', title: 'Contrato não publicado', description: msg });
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className={styles.contractReaderPage}>
@@ -97,6 +117,7 @@ export const ContractDetails = () => {
     { label: 'Início da Vigência', value: dataInicio },
     { label: 'Fim da Vigência', value: dataFim },
     { label: 'Status Operacional', value: contract?.status || 'ATIVO' },
+    { label: 'Situação', value: contract?.situacao === 'publicado' ? 'Publicado' : contract?.situacao === 'rascunho' ? 'Rascunho' : '—' },
   ];
 
   return (
@@ -111,6 +132,11 @@ export const ContractDetails = () => {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {contract?.situacao === 'rascunho' && (
+            <Button onClick={() => void handlePublicar()} isLoading={isPublishing}>
+              Publicar contrato
+            </Button>
+          )}
           {pdfBlobUrl && (
             <Button
               variant="outline"
