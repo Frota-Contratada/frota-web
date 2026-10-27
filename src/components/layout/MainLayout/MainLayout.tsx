@@ -9,8 +9,14 @@ import styles from './MainLayout.module.css';
 
 export const MainLayout = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const location = useLocation();
   const updateUser = useAuthStore((state) => state.updateUser);
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setIsMobileSidebarOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
@@ -44,9 +50,24 @@ export const MainLayout = () => {
 
   return (
     <div className={styles.layout}>
-      <Sidebar isCollapsed={isSidebarCollapsed} onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
+      {isMobileSidebarOpen && (
+        <div
+          className={styles.backdrop}
+          onClick={() => setIsMobileSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <Sidebar
+        isCollapsed={isSidebarCollapsed}
+        onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
+      />
       <div className={`${styles.main} ${isSidebarCollapsed ? styles.sidebarCollapsed : ''}`}>
-        <Header />
+        <Header
+          onToggleMobileMenu={() => setIsMobileSidebarOpen((prev) => !prev)}
+          isMobileMenuOpen={isMobileSidebarOpen}
+        />
         <main className={styles.content}>
           <div key={location.pathname} className={styles.pageWrapper}>
             <Outlet />

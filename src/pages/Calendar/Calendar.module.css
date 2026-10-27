@@ -480,5 +480,132 @@
 @media (max-width: 1100px) {
   .container {
     grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+
+  .calendarCard {
+    height: auto;
+    min-height: 480px;
+    overflow: visible;
+  }
+
+  .detailsCard {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .rideList {
+    max-height: 450px;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: var(--spacing-md);
+    gap: var(--spacing-md);
+  }
+
+  .calendarHeader {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-md);
+    padding: 1rem;
+  }
+
+  .title {
+    font-size: var(--font-size-lg);
+  }
+
+  .subtitle {
+    font-size: var(--font-size-xs);
+  }
+
+  .headerActions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: var(--spacing-sm);
+  }
+
+  .viewToggle {
+    width: 100%;
+    display: flex;
+  }
+
+  .viewButton,
+  .viewButtonActive {
+    flex: 1;
+    text-align: center;
+  }
+
+  .monthControls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .monthLabel {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .legend {
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    padding: 0.75rem 1rem;
+    font-size: var(--font-size-xs);
+  }
+
+  .daysGrid {
+    grid-template-rows: repeat(var(--calendar-rows), minmax(64px, 1fr));
+  }
+
+  .dayCell {
+    padding: 0.25rem;
+  }
+
+  .ridePill {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.25rem;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: var(--spacing-sm);
+    gap: var(--spacing-sm);
+  }
+
+  .weekDay {
+    font-size: 0.7rem;
+    padding: 0.25rem 0;
+  }
+
+  .dayNumber {
+    width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+  }
+
+  .daysGrid {
+    grid-template-rows: repeat(var(--calendar-rows), minmax(54px, 1fr));
+  }
+
+  .ridePill {
+    font-size: 0.6rem;
+    padding: 0.1rem 0.2rem;
+  }
+
+  .detailsHeader {
+    padding: 1rem;
+  }
+
+  .rideCard {
+    padding: 0.875rem;
   }
 }

@@ -31,9 +31,35 @@
 @media (max-width: 760px) {
   .page {
     padding: var(--spacing-md);
+    gap: var(--spacing-md);
   }
+
   .statsGrid {
     grid-template-columns: 1fr;
+  }
+
+  .chartCard {
+    padding: var(--spacing-lg);
+  }
+
+  .chartHeader {
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: var(--spacing-sm);
+    gap: var(--spacing-sm);
+  }
+
+  .chartCard {
+    padding: var(--spacing-md);
+  }
+
+  .chartContainer {
+    height: 220px;
   }
 }
 

@@ -435,3 +435,18 @@
   font-size: var(--font-size-xs, 0.75rem);
   color: var(--color-gray-500, #6b7280);
 }
+
+@media (max-width: 640px) {
+  .trigger {
+    min-height: 46px;
+    padding: 0.35rem 0.625rem;
+  }
+
+  .chipLabel {
+    max-width: 120px;
+  }
+
+  .dropdown {
+    max-height: 280px;
+  }
+}

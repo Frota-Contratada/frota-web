@@ -100,6 +100,8 @@ const allMenuItems: MenuItem[] = [
 interface SidebarProps {
   isCollapsed?: boolean;
   onToggle?: () => void;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 const getSubmenuConnectorClass = (count: number) => {
@@ -109,7 +111,7 @@ const getSubmenuConnectorClass = (count: number) => {
   return styles.submenu3;
 };
 
-export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
+export const Sidebar = ({ isCollapsed = false, onToggle, isMobileOpen = false, onCloseMobile }: SidebarProps) => {
   const { hasProfile, isRequester, isSupplier, isApprover } = usePermissions();
   const [openMenus, setOpenMenus] = useState<string[]>(() => {
     if (isSupplier) return ['terceiros'];
@@ -171,7 +173,10 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
 
 
   return (
-    <aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
+    <aside
+      className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''} ${isMobileOpen ? styles.mobileOpen : ''}`}
+      aria-label="Menu principal"
+    >
       <div className={styles.header}>
         <div className={styles.logos}>
           <img src={searaJbsLogo} alt="Seara JBS" className={styles.logo} />
@@ -184,6 +189,15 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
           aria-label="Recolher menu"
         >
           <ArrowIcon size={24} className={styles.collapseArrow} />
+        </button>
+
+        <button
+          type="button"
+          className={styles.mobileCloseButton}
+          onClick={onCloseMobile}
+          aria-label="Fechar menu"
+        >
+          ✕
         </button>
       </div>
 
@@ -214,6 +228,7 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
                             to={subItem.path}
                             className={`${styles.submenuLink} ${isActive(subItem.path) ? styles.active : ''}`}
                             title={isCollapsed ? subItem.label : undefined}
+                            onClick={() => onCloseMobile?.()}
                           >
                             {subItem.icon && (
                               <span className={styles.submenuIcon}>{subItem.icon}</span>
@@ -231,6 +246,7 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
                   className={`${styles.menuButton} ${isActive(item.path) ? styles.active : ''}`}
                   title={isCollapsed ? item.label : undefined}
                   aria-label={item.label}
+                  onClick={() => onCloseMobile?.()}
                 >
                   <span className={styles.menuIcon}>{item.icon}</span>
                   <span className={styles.menuLabel}>{item.label}</span>
@@ -240,8 +256,6 @@ export const Sidebar = ({ isCollapsed = false, onToggle }: SidebarProps) => {
           ))}
         </ul>
       </nav>
-
-
     </aside>
   );
 };

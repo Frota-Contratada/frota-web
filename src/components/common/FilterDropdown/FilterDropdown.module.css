@@ -417,3 +417,48 @@
     transform: translateY(0);
   }
 }
+
+@media (max-width: 600px) {
+  .dropdown {
+    position: fixed;
+    top: 70px;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 90px);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .body {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    max-height: 55vh;
+    overflow-y: auto;
+  }
+
+  .tabs {
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+
+  .tabButton {
+    white-space: nowrap;
+    width: auto;
+    flex-shrink: 0;
+  }
+
+  .dateSummary {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+
+  .dateArrow {
+    display: none;
+  }
+}

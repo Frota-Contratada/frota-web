@@ -573,11 +573,14 @@
 
   .previewViewport {
     height: 520px;
-    padding: var(--spacing-md);
+    padding: var(--spacing-sm);
   }
 
   .previewPage {
-    min-width: 560px;
+    min-width: 0;
+    width: 100%;
+    padding: 1.5rem 1rem;
+    min-height: auto;
   }
 
   .previewPagination {

@@ -123,6 +123,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 0.25rem;
   padding: 1rem 1.25rem;
   border-top: 1px solid var(--border);
@@ -169,4 +170,22 @@
   font-size: var(--font-size-sm);
   color: var(--text-muted);
   user-select: none;
+}
+
+@media (max-width: 640px) {
+  .th,
+  .td {
+    padding: 0.75rem 0.875rem;
+  }
+
+  .pagination {
+    padding: 0.75rem;
+  }
+
+  .pageButton,
+  .ellipsis {
+    min-width: 32px;
+    height: 32px;
+    font-size: 0.8125rem;
+  }
 }
