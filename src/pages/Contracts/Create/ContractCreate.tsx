@@ -263,6 +263,13 @@ export const ContractCreate = () => {
           await contractApi.substituirRegras(createdId, regrasFormatadas);
         } catch (ruleErr) {
           console.warn('Aviso: regras editadas não puderam ser sincronizadas:', ruleErr);
+          showToast({
+            type: 'warning',
+            title: 'Contrato criado com ressalvas',
+            description: 'O contrato foi salvo, mas algumas regras de precificação não puderam ser sincronizadas automaticamente. Revise as regras na edição.',
+          });
+          navigate(`/terceiros/contratos/${createdId}`);
+          return;
         }
       }
 
