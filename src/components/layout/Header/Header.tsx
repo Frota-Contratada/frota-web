@@ -136,7 +136,12 @@ const resolveNotificationRoute = (rota?: string, dados?: Record<string, unknown>
   return target;
 };
 
-export const Header = () => {
+interface HeaderProps {
+  onToggleMobileMenu?: () => void;
+  isMobileMenuOpen?: boolean;
+}
+
+export const Header = ({ onToggleMobileMenu, isMobileMenuOpen }: HeaderProps = {}) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -192,7 +197,7 @@ export const Header = () => {
     fetchNotificationCount();
     const interval = setInterval(fetchNotificationCount, 30000);
 
-    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('access_token');
     notificationSocket.setCallbacks({
       onNotificationCreated: (notificacao) => {
         setUnreadCount((c) => c + 1);
@@ -388,6 +393,18 @@ export const Header = () => {
   return (
     <header className={styles.header}>
       <div className={styles.container}>
+        <button
+          type="button"
+          className={`${styles.mobileMenuButton} ${isMobileMenuOpen ? styles.mobileMenuButtonActive : ''}`}
+          onClick={onToggleMobileMenu}
+          aria-label={isMobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
+          aria-expanded={isMobileMenuOpen}
+        >
+          <span className={styles.hamburgerLine} />
+          <span className={styles.hamburgerLine} />
+          <span className={styles.hamburgerLine} />
+        </button>
+
         <div className={styles.titleGroup}>
           <nav className={styles.breadcrumbs} aria-label="Breadcrumb">
             <ol className={styles.breadcrumbList}>
