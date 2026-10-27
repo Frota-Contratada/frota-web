@@ -138,6 +138,30 @@ export const collaboratorApi = {
     return isFilialOnly ? this.getFilialBigNumbers(query) : this.getAdminBigNumbers(query);
   },
 
+  async getById(id: number) {
+    const res = await this.list({ limit: 100 });
+    const items = (Array.isArray((res as any)?.response)
+      ? (res as any).response
+      : (res as any)?.response?.data || []) as ColaboradorDto[];
+    const found = items.find((c) => Number(c.id) === id);
+    if (found) {
+      return { response: found };
+    }
+    const paginated = (res as any)?.response;
+    if (paginated?.hasNextPage && paginated?.totalCount > 100) {
+      const totalPages = Math.ceil(paginated.totalCount / 100);
+      for (let p = 2; p <= Math.min(totalPages, 5); p++) {
+        const nextRes = await this.list({ page: p, limit: 100 });
+        const nextItems = (Array.isArray((nextRes as any)?.response)
+          ? (nextRes as any).response
+          : (nextRes as any)?.response?.data || []) as ColaboradorDto[];
+        const nextFound = nextItems.find((c) => Number(c.id) === id);
+        if (nextFound) return { response: nextFound };
+      }
+    }
+    return { response: null };
+  },
+
   getProfiles(id: number) {
     return apiClient.get<PerfisColaboradorResponse>(`/usuario/colaborador/${id}/perfis`);
   },

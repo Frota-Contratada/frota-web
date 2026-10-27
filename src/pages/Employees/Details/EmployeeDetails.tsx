@@ -107,16 +107,14 @@ export const EmployeeDetails = () => {
     }
 
     Promise.allSettled([
-      collaboratorApi.list(),
+      collaboratorApi.getById(numericId),
       collaboratorApi.getProfiles(numericId),
       driverApi.getById(numericId),
     ])
       .then(([collabsRes, profilesRes, driverRes]) => {
         if (!isMounted) return;
 
-        const collabs =
-          collabsRes.status === 'fulfilled' ? extractListData<ColaboradorDto>(collabsRes.value) : [];
-        const matchedCollab = collabs.find((c) => Number(c.id) === numericId);
+        const matchedCollab = collabsRes.status === 'fulfilled' && (collabsRes.value as any)?.response ? (collabsRes.value as any).response : null;
 
         let loadedProfiles: string[] = [];
         if (profilesRes.status === 'fulfilled' && profilesRes.value?.response?.perfis) {
