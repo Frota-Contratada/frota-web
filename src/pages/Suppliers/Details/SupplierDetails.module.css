@@ -446,3 +446,22 @@
   }
 }
 
+@media (max-width: 480px) {
+  .page {
+    padding: var(--spacing-sm);
+    gap: var(--spacing-sm);
+  }
+
+  .heroCard {
+    padding: 1rem;
+  }
+
+  .modalActions {
+    flex-direction: column-reverse;
+  }
+
+  .modalActions > button {
+    width: 100%;
+  }
+}
+

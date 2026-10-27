@@ -148,6 +148,9 @@
 }
 
 @media (max-width: 768px) {
+  .page {
+    padding: var(--spacing-md);
+  }
   .statsGrid {
     grid-template-columns: 1fr;
   }
@@ -156,5 +159,32 @@
   }
   .fullWidth {
     grid-column: span 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: var(--spacing-sm);
+    gap: var(--spacing-sm);
+  }
+
+  .formCard {
+    padding: var(--spacing-md);
+  }
+
+  .formActions {
+    flex-direction: column-reverse;
+  }
+
+  .formActions > button {
+    width: 100%;
+  }
+
+  .modalActions {
+    flex-direction: column-reverse;
+  }
+
+  .modalActions > button {
+    width: 100%;
   }
 }

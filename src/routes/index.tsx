@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Login, ForgotPassword, ResetPassword, SignUp } from '../pages/Auth';
 import { Calendar } from '../pages/Calendar';
 import { ContractsList, ContractDetails, ContractCreate } from '../pages/Contracts';
@@ -12,6 +12,11 @@ import { ProtectedRoute } from './ProtectedRoute';
 import { MainLayout } from '../components/layout';
 import { useAuthStore } from '../stores/authStore';
 import { usePermissions } from '../hooks/usePermissions';
+
+const HistoricTrackingRedirect = () => {
+  const { rideId } = useParams<{ rideId: string }>();
+  return <Navigate to={`/corridas/${rideId}/acompanhamento`} replace />;
+};
 
 export const AppRoutes = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -41,7 +46,7 @@ export const AppRoutes = () => {
           <Route path="/corridas/historico" element={<RideHistoryList />} />
           <Route path="/corridas/historico/:rideId" element={<RideDetails />} />
           <Route path="/corridas/:rideId/acompanhamento" element={<RideTracking />} />
-          <Route path="/corridas/historico/:rideId/acompanhamento" element={<Navigate to="/corridas/:rideId/acompanhamento" replace />} />
+          <Route path="/corridas/historico/:rideId/acompanhamento" element={<HistoricTrackingRedirect />} />
 
           <Route path="/terceiros" element={<Navigate to={isSupplier ? "/terceiros/motoristas" : "/terceiros/fornecedores"} replace />} />
           <Route path="/terceiros/fornecedores" element={<ProtectedRoute allowedProfiles={['admin-master', 'admin-filial']}><SuppliersList /></ProtectedRoute>} />

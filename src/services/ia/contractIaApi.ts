@@ -86,7 +86,20 @@ export const contractIaApi = {
 
     if (!response.ok) {
       let errorDetail = `Erro HTTP ${response.status}`;
-      const rawText = await response.text().catch(() => '');
+      let rawText = '';
+      if (typeof response.text === 'function') {
+        rawText = await response.text().catch(() => '');
+      }
+      if (!rawText && typeof response.json === 'function') {
+        try {
+          const jsonVal = await response.json().catch(() => null);
+          if (jsonVal) {
+            rawText = typeof jsonVal === 'string' ? jsonVal : JSON.stringify(jsonVal);
+          }
+        } catch {
+          // ignore
+        }
+      }
       if (rawText) {
         try {
           const errorData = JSON.parse(rawText);

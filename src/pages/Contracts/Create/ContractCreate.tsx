@@ -294,7 +294,7 @@ export const ContractCreate = () => {
             title: 'Contrato salvo como rascunho, mas as regras não foram gravadas',
             description: `${detalhe}. Confira as regras no detalhe do contrato antes de publicá-lo.`,
           });
-          navigate('/terceiros/contratos');
+          navigate(`/terceiros/contratos/${createdId}`);
           return;
         }
       }
@@ -317,7 +317,7 @@ export const ContractCreate = () => {
             title: 'Contrato salvo como rascunho, mas não foi publicado',
             description: `${detalhe}.`,
           });
-          navigate('/terceiros/contratos');
+          navigate(`/terceiros/contratos/${createdId}`);
           return;
         }
       }

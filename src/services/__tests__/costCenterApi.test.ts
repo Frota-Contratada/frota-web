@@ -41,6 +41,15 @@ describe('costCenterApi', () => {
     const result = await costCenterApi.list();
 
     expect(getSpy).toHaveBeenCalledWith('/centro-de-custo/filial', { query: undefined });
-    expect(result.response).toEqual(mockList.response);
+    expect(result.response).toEqual([
+      {
+        id: 101,
+        numero: 101,
+        filialId: 1,
+        nome: 'Operações',
+        ativo: true,
+        temAprovador: undefined,
+      },
+    ]);
   });
 });

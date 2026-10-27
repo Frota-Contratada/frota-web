@@ -736,6 +736,32 @@
   }
 }
 
+@media (max-width: 480px) {
+  .page {
+    padding: var(--spacing-sm);
+    gap: var(--spacing-sm);
+  }
+
+  .formActions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: var(--spacing-sm);
+  }
+
+  .formActions > button {
+    width: 100%;
+  }
+
+  .modalActions {
+    flex-direction: column-reverse;
+    gap: var(--spacing-sm);
+  }
+
+  .modalActions > button {
+    width: 100%;
+  }
+}
+
 .costCenterSection {
   grid-column: 1 / -1;
   display: flex;

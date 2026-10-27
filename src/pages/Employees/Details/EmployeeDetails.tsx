@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import CheckIcon from '../../../assets/icons/check.svg?react';
 import { Button, LoadingState, StatusBadge, useToast } from '../../../components/common';
-import { collaboratorApi, driverApi, extractListData, type ColaboradorDto, type MotoristaDto } from '../../../services';
+import { collaboratorApi, driverApi, type MotoristaDto } from '../../../services';
 import styles from './EmployeeDetails.module.css';
 
 const getInitials = (name: string) => name
@@ -107,16 +107,14 @@ export const EmployeeDetails = () => {
     }
 
     Promise.allSettled([
-      collaboratorApi.list(),
+      collaboratorApi.getById(numericId),
       collaboratorApi.getProfiles(numericId),
       driverApi.getById(numericId),
     ])
       .then(([collabsRes, profilesRes, driverRes]) => {
         if (!isMounted) return;
 
-        const collabs =
-          collabsRes.status === 'fulfilled' ? extractListData<ColaboradorDto>(collabsRes.value) : [];
-        const matchedCollab = collabs.find((c) => Number(c.id) === numericId);
+        const matchedCollab = collabsRes.status === 'fulfilled' && (collabsRes.value as any)?.response ? (collabsRes.value as any).response : null;
 
         let loadedProfiles: string[] = [];
         if (profilesRes.status === 'fulfilled' && profilesRes.value?.response?.perfis) {
@@ -125,7 +123,7 @@ export const EmployeeDetails = () => {
 
         if (matchedCollab) {
           if (loadedProfiles.length === 0 && matchedCollab.perfis && matchedCollab.perfis.length > 0) {
-            loadedProfiles = matchedCollab.perfis.map((p) => p.tipoPerfil);
+            loadedProfiles = matchedCollab.perfis.map((p: { tipoPerfil: string }) => p.tipoPerfil);
           }
 
           setEmployee({

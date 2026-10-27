@@ -26,7 +26,7 @@ describe('supplierApi', () => {
 
     const result = await supplierApi.create(payload);
 
-    expect(postSpy).toHaveBeenCalledWith('/fornecedor', payload);
+    expect(postSpy).toHaveBeenCalledWith('/fornecedor', { ...payload, empresaId: 1 });
     expect(result.response.id).toBe(101);
   });
 

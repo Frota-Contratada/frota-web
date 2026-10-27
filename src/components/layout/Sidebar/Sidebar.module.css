@@ -594,26 +594,69 @@
   background: var(--color-gray-400);
 }
 
-@media (max-width: 768px) {
+.mobileCloseButton {
+  display: none;
+}
+
+@media (max-width: 1024px) {
   .sidebar {
     transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 1050;
+    width: 280px !important;
+    box-shadow: none;
   }
 
-  .sidebar.open {
+  .sidebar.mobileOpen {
     transform: translateX(0);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
   }
 
   .sidebar.collapsed {
-    width: 280px;
+    width: 280px !important;
     transform: translateX(-100%);
+  }
+
+  .sidebar.collapsed.mobileOpen {
+    transform: translateX(0);
+  }
+
+  .collapseButton {
+    display: none;
+  }
+
+  .mobileCloseButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: var(--spacing-md);
+    right: var(--spacing-md);
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--border, #e5e7eb);
+    background-color: var(--surface-muted, #f9fafb);
+    color: var(--text-muted, #64748b);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .mobileCloseButton:hover {
+    background-color: var(--color-gray-100, #f3f4f6);
+    color: var(--text-primary, #0f172a);
   }
 
   .collapsed .menuLabel,
   .collapsed .chevron,
   .collapsed .subtitle,
   .collapsed .userDetails,
-  .collapsed .logoutLabel {
+  .collapsed .logoutLabel,
+  .collapsed .logos {
     opacity: 1;
+    visibility: visible;
     width: auto;
   }
 }

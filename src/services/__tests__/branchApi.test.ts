@@ -37,7 +37,7 @@ describe('branchApi', () => {
 
     const result = await branchApi.create(payload);
 
-    expect(postSpy).toHaveBeenCalledWith('/filial', payload);
+    expect(postSpy).toHaveBeenCalledWith('/filial', { ...payload, empresaId: 1 });
     expect(result.response.id).toBe(1);
   });
 
@@ -94,7 +94,7 @@ describe('branchApi', () => {
 
     const result = await branchApi.getById(5);
 
-    expect(getSpy).toHaveBeenCalledWith('/filial/5');
+    expect(getSpy).toHaveBeenCalledWith('/filial/5', { query: { empresaId: 1 } });
     expect(result.response.nome).toBe('CD Jundiaí');
   });
 
@@ -119,7 +119,7 @@ describe('branchApi', () => {
 
     const result = await branchApi.update(1, updateData);
 
-    expect(patchSpy).toHaveBeenCalledWith('/filial/1', updateData);
+    expect(patchSpy).toHaveBeenCalledWith('/filial/1', updateData, { query: { empresaId: 1 } });
     expect(result.response.nome).toBe('Seara Itajaí Novo');
   });
 
@@ -128,6 +128,6 @@ describe('branchApi', () => {
 
     await branchApi.substituirAdministradores(1, { administradorIds: [2, 3] });
 
-    expect(putSpy).toHaveBeenCalledWith('/filial/1/administradores', { administradorIds: [2, 3] });
+    expect(putSpy).toHaveBeenCalledWith('/filial/1/administradores', { administradorIds: [2, 3] }, { query: { empresaId: 1 } });
   });
 });

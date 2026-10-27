@@ -562,9 +562,59 @@
   margin-top: var(--spacing-lg);
 }
 
+.mobileMenuButton {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 10px;
+  background-color: var(--color-gray-50);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color var(--transition-base), border-color var(--transition-base);
+}
+
+.mobileMenuButton:hover {
+  background-color: white;
+  border-color: var(--color-primary-200);
+}
+
+.hamburgerLine {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background-color: var(--color-gray-700);
+  border-radius: 2px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.mobileMenuButtonActive .hamburgerLine:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
+}
+
+.mobileMenuButtonActive .hamburgerLine:nth-child(2) {
+  opacity: 0;
+}
+
+.mobileMenuButtonActive .hamburgerLine:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
+}
+
+@media (max-width: 1024px) {
+  .mobileMenuButton {
+    display: flex;
+  }
+}
+
 @media (max-width: 768px) {
   .container {
-    padding: var(--spacing-md) var(--spacing-lg);
+    padding: 0.75rem var(--spacing-md);
+    gap: var(--spacing-sm);
   }
 
   .pageTitle {
@@ -581,5 +631,64 @@
 
   .userButton {
     padding: 2px;
+  }
+
+  .actions {
+    gap: var(--spacing-sm);
+  }
+
+  .notificationsPanel {
+    position: fixed;
+    top: 60px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-width: 380px;
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0.625rem 0.75rem;
+  }
+
+  .pageTitle {
+    font-size: 1.15rem;
+  }
+
+  .breadcrumbList {
+    gap: 2px;
+  }
+
+  .breadcrumbItem {
+    font-size: 0.7rem;
+    gap: 4px;
+  }
+
+  .breadcrumbSeparator {
+    width: 10px;
+    height: 10px;
+  }
+
+  .breadcrumbItem:not(:last-child):not(:nth-last-child(2)) {
+    display: none;
+  }
+
+  .iconButton {
+    width: 36px;
+    height: 36px;
+  }
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.75rem;
+  }
+
+  .notificationsPanel {
+    left: 8px;
+    right: 8px;
+    max-width: none;
   }
 }

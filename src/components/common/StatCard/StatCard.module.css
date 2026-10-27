@@ -75,3 +75,18 @@
   color: var(--danger);
   transform: scaleY(-1);
 }
+
+@media (max-width: 640px) {
+  .card {
+    padding: 1rem 1.125rem;
+    gap: 0.35rem;
+  }
+
+  .value {
+    font-size: 1.5rem;
+  }
+
+  .trend {
+    font-size: var(--font-size-xs);
+  }
+}

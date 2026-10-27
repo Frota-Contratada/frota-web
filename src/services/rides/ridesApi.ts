@@ -566,9 +566,19 @@ export const ridesApi = {
   },
 
   aprovar(id: number, fornecedorId?: number): Promise<{ response: SolicitacaoDto }> {
-    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/aprovacao`, {
+    const payload: { decisao: 'APROVAR'; fornecedorId?: number } = {
       decisao: 'APROVAR',
-      fornecedorId,
+    };
+    if (fornecedorId != null) {
+      payload.fornecedorId = fornecedorId;
+    }
+    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/aprovacao`, payload).catch(async (err: any) => {
+      if (fornecedorId != null && (err?.status === 403 || err?.statusCode === 403 || err?.message?.toLowerCase().includes('autorizado'))) {
+        return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/aprovacao`, {
+          decisao: 'APROVAR',
+        });
+      }
+      throw err;
     });
   },
 
@@ -591,7 +601,7 @@ export const ridesApi = {
     return this.rejeitar(requestId, motivoRecusaId);
   },
 
-  async cancelar(id: number, data?: CancelarSolicitacaoParams | number) {
+  cancelar(id: number, data?: CancelarSolicitacaoParams | number) {
     const body = typeof data === 'number' ? { motivoCancelamentoId: data } : (data ?? { motivoCancelamentoId: 1 });
     const user = useAuthStore.getState().user;
     const profiles = getUserNormalizedProfiles(user);
@@ -600,14 +610,12 @@ export const ridesApi = {
       return apiClient.patch<{ response: any }>(`/corridas/${id}/cancelamento`, body);
     }
 
-    try {
-      return await apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/cancelamento`, body);
-    } catch (err: any) {
-      if (err?.status === 403 || err?.statusCode === 403 || err?.status === 404) {
-        return apiClient.patch<{ response: any }>(`/corridas/${id}/cancelamento`, body);
-      }
-      throw err;
-    }
+    return apiClient.patch<{ response: SolicitacaoDto }>(`/solicitacoes/${id}/cancelamento`, body);
+  },
+
+  cancelarCorrida(id: number, data?: CancelarSolicitacaoParams | number) {
+    const body = typeof data === 'number' ? { motivoCancelamentoId: data } : (data ?? { motivoCancelamentoId: 1 });
+    return apiClient.patch<{ response: any }>(`/corridas/${id}/cancelamento`, body);
   },
 
   listRequests(query?: ApiQueryParams) {
