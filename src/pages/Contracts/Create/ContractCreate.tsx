@@ -296,6 +296,28 @@ export const ContractCreate = () => {
           });
           navigate(`/terceiros/contratos/${createdId}`);
           return;
+        }
+      }
+
+      if (ignoradas.length > 0) {
+        showToast({
+          type: 'warning',
+          title: 'Algumas cláusulas não viram regra de preço',
+          description: `${[...new Set(ignoradas)].join('; ')}.`,
+        });
+      }
+
+      if (createdId && publicar) {
+        try {
+          await contractApi.publicar(createdId);
+        } catch (pubErr) {
+          const detalhe = pubErr instanceof Error ? pubErr.message : 'erro desconhecido';
+          showToast({
+            type: 'error',
+            title: 'Contrato salvo como rascunho, mas não foi publicado',
+            description: `${detalhe}.`,
+          });
+          navigate(`/terceiros/contratos/${createdId}`);
           return;
         }
       }
