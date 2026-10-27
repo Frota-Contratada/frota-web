@@ -1,6 +1,8 @@
 import { apiClient } from '../api/apiClient';
+import type { ListagemQueryParams } from '../../utils/apiHelpers';
 import { useAuthStore } from '../../stores/authStore';
 import { getUserNormalizedProfiles } from '../../types/profile.types';
+import type { RegraContratoPayload } from './contractRules';
 
 export interface ContratoVinculoDto {
   filialId: number;
@@ -18,6 +20,7 @@ export interface ContratoDto {
   caminhoArquivo?: string;
   usuarioCadastroId?: number;
   dataAlteracao?: string;
+  situacao?: 'rascunho' | 'publicado' | 'deletado';
 }
 
 export interface CriarContratoParams {
@@ -26,15 +29,19 @@ export interface CriarContratoParams {
   dataVigenciaFim?: string;
   dataInicioVigencia?: string;
   dataFimVigencia?: string;
+  empresaId: number;
+  filialId: number;
+  fornecedorId: number;
+  tipoCorridaIds: number[];
 }
 
-export interface BuscarContratosAdminQueryParams {
+export interface BuscarContratosAdminQueryParams extends ListagemQueryParams {
   fornecedorId?: number;
   filialId?: number;
   status?: string;
 }
 
-export interface BuscarContratosFilialQueryParams {
+export interface BuscarContratosFilialQueryParams extends ListagemQueryParams {
   fornecedorId?: number;
   status?: string;
 }
@@ -79,6 +86,11 @@ export const contractApi = {
     if (fim) {
       formData.append('dataVigenciaFim', fim);
     }
+
+    formData.append('empresaId', String(data.empresaId));
+    formData.append('filialId', String(data.filialId));
+    formData.append('fornecedorId', String(data.fornecedorId));
+    formData.append('tipoCorridaIds', data.tipoCorridaIds.join(','));
 
     return apiClient.post<ContratoResponse>('/contrato', formData);
   },
@@ -131,8 +143,12 @@ export const contractApi = {
       : new Blob([rawBlob], { type: 'application/pdf' });
   },
 
-  substituirRegras(id: number, regras: unknown[]) {
+  substituirRegras(id: number, regras: RegraContratoPayload[]) {
     return apiClient.put<void>(`/contrato/${id}/regras`, { regras });
+  },
+
+  publicar(id: number) {
+    return apiClient.patch<ContratoResponse>(`/contrato/${id}/publicacao`);
   },
 };
 

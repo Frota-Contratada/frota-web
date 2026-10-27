@@ -1,7 +1,7 @@
 import { apiClient } from '../api/apiClient';
 import { useAuthStore } from '../../stores/authStore';
 import { getUserNormalizedProfiles } from '../../types/profile.types';
-import { resolveEmpresaId } from '../../utils/apiHelpers';
+import { resolveEmpresaId, type ListagemQueryParams } from '../../utils/apiHelpers';
 
 export interface FornecedorDto {
   id: number;
@@ -30,7 +30,7 @@ export interface CriarFornecedorParams {
   filialId: number;
 }
 
-export interface BuscarFornecedoresQueryParams {
+export interface BuscarFornecedoresQueryParams extends ListagemQueryParams {
   nome?: string;
   cnpjCpf?: string;
   filialId?: number;

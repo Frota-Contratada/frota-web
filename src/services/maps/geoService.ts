@@ -79,6 +79,157 @@ interface PhotonFeature {
   };
 }
 
+// Ordem das fontes de sugestão: Photon e Nominatim são gratuitos; a TomTom
+// Search tem cota mensal pequena e fica como reserva.
+async function buscarSugestoesPhoton(consulta: string): Promise<SugestaoEndereco[]> {
+  try {
+    const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(
+      consulta
+    )}&limit=6&lang=default&bbox=-73.98,-33.75,-34.79,5.27`;
+
+    const photonRes = await fetch(photonUrl);
+    if (photonRes.ok) {
+      const data: { features?: PhotonFeature[] } = await photonRes.json();
+      if (data.features && data.features.length > 0) {
+        return data.features
+          .filter((f) => f.properties.country === 'Brazil' || f.properties.country === 'Brasil' || !f.properties.country)
+          .map((f) => {
+            const p = f.properties;
+            const street = p.street || p.name || '';
+            const number = p.housenumber ? `, ${p.housenumber}` : '';
+            const district = p.district ? ` - ${p.district}` : '';
+            const city = p.city || '';
+            const state = p.state ? ` - ${p.state}` : '';
+
+            const formattedDisplay = `${street}${number}${district}, ${city}${state}`.replace(/^,\s*/, '');
+
+            return {
+              displayName: formattedDisplay || street || 'Endereço encontrado',
+              latitude: f.geometry.coordinates[1],
+              longitude: f.geometry.coordinates[0],
+              logradouro: p.street || p.name,
+              bairro: p.district,
+              cidade: p.city,
+              uf: normalizeUf(p.state),
+              cep: p.postcode?.replace(/\D/g, ''),
+            };
+          });
+      }
+    }
+  } catch {
+    
+  }
+
+  return [];
+}
+
+async function buscarSugestoesNominatim(consulta: string): Promise<SugestaoEndereco[]> {
+  try {
+    const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+      consulta
+    )}&countrycodes=br&addressdetails=1&limit=6`;
+
+    const res = await fetch(nominatimUrl, {
+      headers: { 'Accept-Language': 'pt-BR,pt;q=0.9' },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        return data.map((item) => {
+          const addr = item.address || {};
+          const road = addr.road || addr.pedestrian || addr.street || '';
+          const num = addr.house_number ? `, ${addr.house_number}` : '';
+          const neighborhood =
+            addr.suburb || addr.neighbourhood || addr.city_district
+              ? ` - ${addr.suburb || addr.neighbourhood || addr.city_district}`
+              : '';
+          const city = addr.city || addr.town || addr.municipality || '';
+          const state = addr.state ? ` - ${addr.state}` : '';
+
+          const formatted = road
+            ? `${road}${num}${neighborhood}, ${city}${state}`
+            : item.display_name;
+
+          return {
+            displayName: formatted,
+            latitude: parseFloat(item.lat),
+            longitude: parseFloat(item.lon),
+            logradouro: road,
+            bairro: addr.suburb || addr.neighbourhood || addr.city_district,
+            cidade: city,
+            uf: normalizeUf(addr.state),
+            cep: addr.postcode?.replace(/\D/g, ''),
+          };
+        });
+      }
+    }
+  } catch {
+    
+  }
+
+  return [];
+}
+
+async function buscarSugestoesTomTom(consulta: string): Promise<SugestaoEndereco[]> {
+  if (TOMTOM_CONFIG.hasKey && !TOMTOM_CONFIG.isThrottled) {
+    try {
+      const tomtomUrl = TOMTOM_CONFIG.getSearchUrl(consulta, 6);
+      const res = await fetch(tomtomUrl);
+
+      if (res.status === 429) {
+        TOMTOM_CONFIG.markThrottled();
+      } else if (res.ok) {
+        const data: TomTomSearchResponse = await res.json();
+        if (data.results && Array.isArray(data.results) && data.results.length > 0) {
+          return data.results
+            .filter((item) => item.position && typeof item.position.lat === 'number')
+            .map((item) => {
+              const addr = item.address || {};
+              const road = addr.streetName || addr.freeformAddress?.split(',')[0] || '';
+              const num = addr.streetNumber ? `, ${addr.streetNumber}` : '';
+              const neighborhood = addr.municipalitySubdivision
+                ? ` - ${addr.municipalitySubdivision}`
+                : '';
+              const city = addr.municipality || addr.countrySecondarySubdivision || '';
+              const state = addr.countrySubdivision ? ` - ${addr.countrySubdivision}` : '';
+
+              const formatted =
+                addr.freeformAddress ||
+                (road ? `${road}${num}${neighborhood}, ${city}${state}` : 'Endereço encontrado');
+
+              return {
+                displayName: formatted,
+                latitude: item.position!.lat,
+                longitude: item.position!.lon,
+                logradouro: addr.streetName || road,
+                bairro: addr.municipalitySubdivision,
+                cidade: city,
+                uf: normalizeUf(addr.countrySubdivision),
+                cep: addr.postalCode?.replace(/\D/g, ''),
+              };
+            });
+        }
+      }
+    } catch {
+      
+    }
+  }
+
+  return [];
+}
+
+const LIMITE_CACHE_SUGESTOES = 100;
+const cacheSugestoes = new Map<string, SugestaoEndereco[]>();
+
+function guardarSugestoes(chave: string, sugestoes: SugestaoEndereco[]): void {
+  if (cacheSugestoes.size >= LIMITE_CACHE_SUGESTOES) {
+    const maisAntiga = cacheSugestoes.keys().next().value;
+    if (maisAntiga !== undefined) cacheSugestoes.delete(maisAntiga);
+  }
+  cacheSugestoes.set(chave, sugestoes);
+}
+
 export const geoService = {
   async buscarEnderecoPorCep(cep: string): Promise<EnderecoDetalhado | null> {
     const cleanCep = cep.replace(/\D/g, '');
@@ -118,7 +269,7 @@ export const geoService = {
   },
 
   async buscarSugestoesEndereco(query: string): Promise<SugestaoEndereco[]> {
-    if (!query || query.trim().length < 2) return [];
+    if (!query || query.trim().length < 3) return [];
 
     const cleanQuery = query.trim();
 
@@ -143,130 +294,20 @@ export const geoService = {
       }
     }
 
-    if (TOMTOM_CONFIG.hasKey && !TOMTOM_CONFIG.isThrottled) {
-      try {
-        const tomtomUrl = TOMTOM_CONFIG.getSearchUrl(cleanQuery, 6);
-        const res = await fetch(tomtomUrl);
+    const chave = cleanQuery.toLocaleLowerCase('pt-BR');
+    const emCache = cacheSugestoes.get(chave);
+    if (emCache) return emCache;
 
-        if (res.status === 429) {
-          TOMTOM_CONFIG.markThrottled();
-        } else if (res.ok) {
-          const data: TomTomSearchResponse = await res.json();
-          if (data.results && Array.isArray(data.results) && data.results.length > 0) {
-            return data.results
-              .filter((item) => item.position && typeof item.position.lat === 'number')
-              .map((item) => {
-                const addr = item.address || {};
-                const road = addr.streetName || addr.freeformAddress?.split(',')[0] || '';
-                const num = addr.streetNumber ? `, ${addr.streetNumber}` : '';
-                const neighborhood = addr.municipalitySubdivision
-                  ? ` - ${addr.municipalitySubdivision}`
-                  : '';
-                const city = addr.municipality || addr.countrySecondarySubdivision || '';
-                const state = addr.countrySubdivision ? ` - ${addr.countrySubdivision}` : '';
-
-                const formatted =
-                  addr.freeformAddress ||
-                  (road ? `${road}${num}${neighborhood}, ${city}${state}` : 'Endereço encontrado');
-
-                return {
-                  displayName: formatted,
-                  latitude: item.position!.lat,
-                  longitude: item.position!.lon,
-                  logradouro: addr.streetName || road,
-                  bairro: addr.municipalitySubdivision,
-                  cidade: city,
-                  uf: normalizeUf(addr.countrySubdivision),
-                  cep: addr.postalCode?.replace(/\D/g, ''),
-                };
-              });
-          }
-        }
-      } catch {
-        
+    for (const buscar of [
+      buscarSugestoesPhoton,
+      buscarSugestoesNominatim,
+      buscarSugestoesTomTom,
+    ]) {
+      const sugestoes = await buscar(cleanQuery);
+      if (sugestoes.length > 0) {
+        guardarSugestoes(chave, sugestoes);
+        return sugestoes;
       }
-    }
-
-    try {
-      const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-        cleanQuery
-      )}&countrycodes=br&addressdetails=1&limit=6`;
-
-      const res = await fetch(nominatimUrl, {
-        headers: { 'Accept-Language': 'pt-BR,pt;q=0.9' },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          return data.map((item) => {
-            const addr = item.address || {};
-            const road = addr.road || addr.pedestrian || addr.street || '';
-            const num = addr.house_number ? `, ${addr.house_number}` : '';
-            const neighborhood =
-              addr.suburb || addr.neighbourhood || addr.city_district
-                ? ` - ${addr.suburb || addr.neighbourhood || addr.city_district}`
-                : '';
-            const city = addr.city || addr.town || addr.municipality || '';
-            const state = addr.state ? ` - ${addr.state}` : '';
-
-            const formatted = road
-              ? `${road}${num}${neighborhood}, ${city}${state}`
-              : item.display_name;
-
-            return {
-              displayName: formatted,
-              latitude: parseFloat(item.lat),
-              longitude: parseFloat(item.lon),
-              logradouro: road,
-              bairro: addr.suburb || addr.neighbourhood || addr.city_district,
-              cidade: city,
-              uf: normalizeUf(addr.state),
-              cep: addr.postcode?.replace(/\D/g, ''),
-            };
-          });
-        }
-      }
-    } catch {
-      
-    }
-
-    try {
-      const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(
-        cleanQuery
-      )}&limit=6&lang=default&bbox=-73.98,-33.75,-34.79,5.27`;
-
-      const photonRes = await fetch(photonUrl);
-      if (photonRes.ok) {
-        const data: { features?: PhotonFeature[] } = await photonRes.json();
-        if (data.features && data.features.length > 0) {
-          return data.features
-            .filter((f) => f.properties.country === 'Brazil' || f.properties.country === 'Brasil' || !f.properties.country)
-            .map((f) => {
-              const p = f.properties;
-              const street = p.street || p.name || '';
-              const number = p.housenumber ? `, ${p.housenumber}` : '';
-              const district = p.district ? ` - ${p.district}` : '';
-              const city = p.city || '';
-              const state = p.state ? ` - ${p.state}` : '';
-
-              const formattedDisplay = `${street}${number}${district}, ${city}${state}`.replace(/^,\s*/, '');
-
-              return {
-                displayName: formattedDisplay || street || 'Endereço encontrado',
-                latitude: f.geometry.coordinates[1],
-                longitude: f.geometry.coordinates[0],
-                logradouro: p.street || p.name,
-                bairro: p.district,
-                cidade: p.city,
-                uf: normalizeUf(p.state),
-                cep: p.postcode?.replace(/\D/g, ''),
-              };
-            });
-        }
-      }
-    } catch {
-      
     }
 
     return [];

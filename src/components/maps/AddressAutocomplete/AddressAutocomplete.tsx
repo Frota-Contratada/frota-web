@@ -74,7 +74,7 @@ export const AddressAutocomplete = ({
       } finally {
         setIsLoading(false);
       }
-    }, 350);
+    }, 500);
   };
 
   const handleSelect = (suggestion: SugestaoEndereco) => {

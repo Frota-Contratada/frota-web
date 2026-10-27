@@ -1,17 +1,24 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select, type SelectOption, useToast } from '../../../components/common';
+import { MultiSelect, type MultiSelectOption } from '../../../components/common/MultiSelect/MultiSelect';
 import CheckIcon from '../../../assets/icons/check.svg?react';
 import {
   contractApi,
   contractIaApi,
   supplierApi,
   branchApi,
+  ridesApi,
   extractListData,
+  montarRegrasContrato,
+  QUALQUER_VEICULO,
   type ExtracaoResultadoIa,
   type FornecedorDto,
   type FilialDto,
+  type TipoCorridaDto,
+  type TipoVeiculoDto,
 } from '../../../services';
+import { resolveEmpresaId } from '../../../utils/apiHelpers';
 import styles from './ContractCreate.module.css';
 
 export interface EditableRegra {
@@ -30,16 +37,8 @@ const TIPO_REGRA_OPTIONS: SelectOption[] = [
   { value: 'VIAGEM_FIXA', label: 'Tarifa Fixa (R$)' },
   { value: 'ACRESCIMO_ZONA_RURAL', label: 'Acréscimo Zona Rural (%)' },
   { value: 'TEMPO_ESPERA', label: 'Hora de Espera (R$/h)' },
-  { value: 'PARADAS_ADICIONAIS', label: 'Parada Adicional (R$)' },
-  { value: 'PEDAGIO', label: 'Pedágio (R$)' },
-];
-
-const TIPO_VEICULO_OPTIONS: SelectOption[] = [
-  { value: 'Sedan Executivo', label: 'Sedan Executivo' },
-  { value: 'Sedan Convencional', label: 'Sedan Convencional' },
-  { value: 'Van / Minivan', label: 'Van / Minivan' },
-  { value: 'SUV', label: 'SUV' },
-  { value: 'Qualquer Veículo', label: 'Qualquer Veículo' },
+  { value: 'PARADAS_ADICIONAIS', label: 'Parada Adicional (não cobrada)' },
+  { value: 'PEDAGIO', label: 'Pedágio (lançado na corrida)' },
 ];
 
 export const ContractCreate = () => {
@@ -54,6 +53,9 @@ export const ContractCreate = () => {
   const [branchesList, setBranchesList] = useState<FilialDto[]>([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState('');
   const [selectedBranchId, setSelectedBranchId] = useState('');
+  const [tiposCorrida, setTiposCorrida] = useState<TipoCorridaDto[]>([]);
+  const [tiposVeiculo, setTiposVeiculo] = useState<TipoVeiculoDto[]>([]);
+  const [selectedTipoCorridaIds, setSelectedTipoCorridaIds] = useState<string[]>([]);
 
   const [form, setForm] = useState({
     inicio: new Date().toISOString().slice(0, 10),
@@ -65,8 +67,13 @@ export const ContractCreate = () => {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    Promise.allSettled([supplierApi.list(), branchApi.list()]).then(
-      ([supRes, branchRes]) => {
+    Promise.allSettled([
+      supplierApi.list(),
+      branchApi.list(),
+      ridesApi.getTiposCorrida(),
+      ridesApi.getTiposVeiculo(),
+    ]).then(
+      ([supRes, branchRes, tiposCorridaRes, tiposVeiculoRes]) => {
         if (supRes.status === 'fulfilled') {
           const list = extractListData<FornecedorDto>(supRes.value);
           setSuppliersList(list);
@@ -78,9 +85,36 @@ export const ContractCreate = () => {
             setSelectedBranchId(String(list[0].id));
           }
         }
+        if (tiposCorridaRes.status === 'fulfilled') {
+          const list = tiposCorridaRes.value?.response ?? [];
+          setTiposCorrida(list);
+          setSelectedTipoCorridaIds(list.map((tipo) => String(tipo.id)));
+        }
+        if (tiposVeiculoRes.status === 'fulfilled') {
+          setTiposVeiculo(tiposVeiculoRes.value?.response ?? []);
+        }
       }
     );
   }, []);
+
+  const tipoCorridaOptions = useMemo<MultiSelectOption[]>(
+    () => tiposCorrida.map((tipo) => ({ value: String(tipo.id), label: tipo.nome })),
+    [tiposCorrida]
+  );
+
+  const tipoVeiculoOptions = useMemo<SelectOption[]>(
+    () => [
+      { value: QUALQUER_VEICULO, label: QUALQUER_VEICULO },
+      ...tiposVeiculo.map((tipo) => ({ value: tipo.nome, label: tipo.nome })),
+    ],
+    [tiposVeiculo]
+  );
+
+  // A IA devolve o nome do veículo como está no PDF; sem correspondência no catálogo
+  // a regra vale para qualquer veículo.
+  const normalizarTipoVeiculo = (nome?: string | null): string =>
+    tiposVeiculo.find((tipo) => tipo.nome.toLowerCase() === (nome ?? '').trim().toLowerCase())
+      ?.nome ?? QUALQUER_VEICULO;
 
   const supplierOptions = useMemo<SelectOption[]>(() => {
     return suppliersList.map((s) => ({
@@ -106,6 +140,11 @@ export const ContractCreate = () => {
 
     if (!form.inicio) errors.inicio = 'Data de início da vigência é obrigatória';
     if (!selectedFile) errors.file = 'O arquivo PDF do contrato é obrigatório';
+    if (!selectedSupplierId) errors.fornecedor = 'Selecione o fornecedor contratado';
+    if (!selectedBranchId) errors.filial = 'Selecione a filial atendida';
+    if (selectedTipoCorridaIds.length === 0) {
+      errors.tiposCorrida = 'Selecione ao menos um tipo de corrida atendido';
+    }
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
@@ -154,7 +193,7 @@ export const ContractCreate = () => {
           id: `ia-${idx}-${Date.now()}`,
           nr_prioridade: r.nr_prioridade || idx + 1,
           nm_tipo_regra: r.nm_tipo_regra || 'VALOR_POR_KM',
-          nm_tipo_veiculo: r.nm_tipo_veiculo || 'Sedan Executivo',
+          nm_tipo_veiculo: normalizarTipoVeiculo(r.nm_tipo_veiculo),
           nr_valor_km: r.nr_valor_km ?? null,
           nr_valor_fixo: r.nr_valor_fixo ?? null,
           nr_percentual: r.nr_percentual ?? null,
@@ -187,7 +226,7 @@ export const ContractCreate = () => {
       id: `manual-${Date.now()}-${Math.random()}`,
       nr_prioridade: nextPriority,
       nm_tipo_regra: 'VALOR_POR_KM',
-      nm_tipo_veiculo: 'Sedan Executivo',
+      nm_tipo_veiculo: QUALQUER_VEICULO,
       nr_valor_km: 3.5,
       nr_valor_fixo: null,
       nr_percentual: null,
@@ -209,18 +248,26 @@ export const ContractCreate = () => {
     );
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const montagemRegras = useMemo(
+    () => montarRegrasContrato(regras, tiposVeiculo),
+    [regras, tiposVeiculo]
+  );
+
+  const salvar = async (publicar: boolean) => {
     if (!validate()) {
       showToast({
         type: 'error',
         title: 'Erro de validação',
-        description: 'Por favor, anexe o arquivo PDF e confira a data de início da vigência.',
+        description:
+          'Anexe o PDF e confira a vigência, o fornecedor, a filial e os tipos de corrida atendidos.',
       });
       return;
     }
 
     if (!selectedFile) return;
+
+    const filial = branchesList.find((b) => String(b.id) === selectedBranchId);
+    const { regras: regrasPayload, ignoradas } = montagemRegras;
 
     try {
       setIsLoading(true);
@@ -229,54 +276,36 @@ export const ContractCreate = () => {
         arquivo: selectedFile,
         dataVigenciaInicio: form.inicio,
         dataVigenciaFim: form.vencimento ? form.vencimento : undefined,
+        empresaId: resolveEmpresaId(filial?.empresaId),
+        filialId: Number(selectedBranchId),
+        fornecedorId: Number(selectedSupplierId),
+        tipoCorridaIds: selectedTipoCorridaIds.map(Number),
       });
 
       const createdId = createRes?.response?.id;
 
-      if (createdId && regras.length > 0) {
+      if (createdId && regrasPayload.length > 0) {
         try {
-          const regrasFormatadas = regras.map((r, index) => {
-            const tipoNormalizado =
-              r.nm_tipo_regra === 'VALOR_POR_KM'
-                ? 'VALOR_KM'
-                : r.nm_tipo_regra === 'ACRESCIMO_ZONA_RURAL'
-                ? 'PERCENTUAL'
-                : 'VALOR_FIXO';
-
-            return {
-              prioridade: r.nr_prioridade || index + 1,
-              tipo: tipoNormalizado,
-              ...(r.nr_valor_km != null ? { valorKm: Number(r.nr_valor_km) } : {}),
-              ...(r.nr_valor_fixo != null ? { valorFixo: Number(r.nr_valor_fixo) } : {}),
-              ...(r.nr_percentual != null ? { percentual: Number(r.nr_percentual) } : {}),
-              condicao: {
-                diasSemana: ['SEGUNDA', 'TERCA', 'QUARTA', 'QUINTA', 'SEXTA', 'SABADO', 'DOMINGO'],
-                periodos: ['MANHA', 'TARDE', 'NOITE'],
-                rotasFixas: [],
-                tipoVeiculoIds: [1],
-                tipoCorridaIds: [1],
-                outro: { pergunta: `Cláusula ${r.nm_tipo_regra} - ${r.nm_tipo_veiculo}` },
-              },
-            };
-          });
-
-          await contractApi.substituirRegras(createdId, regrasFormatadas);
+          await contractApi.substituirRegras(createdId, regrasPayload);
         } catch (ruleErr) {
-          console.warn('Aviso: regras editadas não puderam ser sincronizadas:', ruleErr);
+          const detalhe = ruleErr instanceof Error ? ruleErr.message : 'erro desconhecido';
           showToast({
-            type: 'warning',
-            title: 'Contrato criado com ressalvas',
-            description: 'O contrato foi salvo, mas algumas regras de precificação não puderam ser sincronizadas automaticamente. Revise as regras na edição.',
+            type: 'error',
+            title: 'Contrato salvo como rascunho, mas as regras não foram gravadas',
+            description: `${detalhe}. Confira as regras no detalhe do contrato antes de publicá-lo.`,
           });
           navigate(`/terceiros/contratos/${createdId}`);
+          return;
           return;
         }
       }
 
       showToast({
         type: 'success',
-        title: 'Contrato registrado com sucesso!',
-        description: `O arquivo ${selectedFile.name} foi arquivado com vigência e parâmetros definidos.`,
+        title: publicar ? 'Contrato publicado com sucesso!' : 'Contrato salvo como rascunho',
+        description: publicar
+          ? `O arquivo ${selectedFile.name} já vale para o cálculo das corridas.`
+          : `O arquivo ${selectedFile.name} só entra no cálculo das corridas depois de publicado.`,
       });
       navigate('/terceiros/contratos');
     } catch (err) {
@@ -285,6 +314,11 @@ export const ContractCreate = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    void salvar(false);
   };
 
   const selectedSupplierObj = suppliersList.find((s) => String(s.id) === selectedSupplierId);
@@ -423,23 +457,44 @@ export const ContractCreate = () => {
 
             <div className={styles.formGrid}>
               <Select
-                label="Fornecedor Vinculado"
+                label="Fornecedor Vinculado *"
                 placeholder="Selecione o fornecedor"
                 value={selectedSupplierId}
                 options={supplierOptions}
-                onChange={(val) => setSelectedSupplierId(val)}
+                onChange={(val) => {
+                  setSelectedSupplierId(val);
+                  setValidationErrors((current) => ({ ...current, fornecedor: '' }));
+                }}
+                error={validationErrors.fornecedor}
                 disabled={isLoading || isExtractingIa}
               />
 
               <Select
-                label="Filial de Vinculação"
+                label="Filial de Vinculação *"
                 placeholder="Selecione a filial"
                 value={selectedBranchId}
                 options={branchOptions}
-                onChange={(val) => setSelectedBranchId(val)}
+                onChange={(val) => {
+                  setSelectedBranchId(val);
+                  setValidationErrors((current) => ({ ...current, filial: '' }));
+                }}
+                error={validationErrors.filial}
                 disabled={isLoading || isExtractingIa}
               />
             </div>
+
+            <MultiSelect
+              label="Tipos de Corrida Atendidos *"
+              placeholder="Selecione os tipos de corrida"
+              values={selectedTipoCorridaIds}
+              options={tipoCorridaOptions}
+              onChange={(values) => {
+                setSelectedTipoCorridaIds(values);
+                setValidationErrors((current) => ({ ...current, tiposCorrida: '' }));
+              }}
+              error={validationErrors.tiposCorrida}
+              disabled={isLoading || isExtractingIa}
+            />
           </article>
 
           {/* Card 3: Cláusulas e Regras Tarifárias (Totalmente Editáveis) */}
@@ -539,7 +594,7 @@ export const ContractCreate = () => {
                                 }
                                 disabled={isLoading || isExtractingIa}
                               >
-                                {TIPO_VEICULO_OPTIONS.map((opt) => (
+                                {tipoVeiculoOptions.map((opt) => (
                                   <option key={opt.value} value={opt.value}>
                                     {opt.label}
                                   </option>
@@ -579,6 +634,26 @@ export const ContractCreate = () => {
                                   disabled={isLoading || isExtractingIa}
                                 />
                               </div>
+                              {isKm && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.35rem' }}>
+                                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Bandeirada R$</span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    className={styles.tableInput}
+                                    value={regra.nr_valor_fixo ?? ''}
+                                    placeholder="0.00"
+                                    aria-label="Bandeirada (valor fixo da regra por km)"
+                                    onChange={(e) =>
+                                      handleUpdateRegra(regra.id, {
+                                        nr_valor_fixo: e.target.value === '' ? null : Number(e.target.value),
+                                        origem: 'manual',
+                                      })
+                                    }
+                                    disabled={isLoading || isExtractingIa}
+                                  />
+                                </div>
+                              )}
                             </td>
                             <td>
                               <span
@@ -648,8 +723,21 @@ export const ContractCreate = () => {
             </div>
 
             <div className={styles.primaryActions}>
-              <Button type="submit" isLoading={isLoading} disabled={isExtractingIa}>
-                Salvar Contrato
+              <Button
+                type="button"
+                onClick={() => void salvar(true)}
+                isLoading={isLoading}
+                disabled={isExtractingIa || montagemRegras.regras.length === 0}
+                title={
+                  montagemRegras.regras.length === 0
+                    ? 'Cadastre ao menos uma regra de preço para publicar'
+                    : undefined
+                }
+              >
+                Salvar e Publicar
+              </Button>
+              <Button type="submit" variant="outline" isLoading={isLoading} disabled={isExtractingIa}>
+                Salvar como Rascunho
               </Button>
               <Button
                 type="button"

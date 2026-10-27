@@ -1,4 +1,5 @@
 import { apiClient } from '../api/apiClient';
+import type { ListagemQueryParams } from '../../utils/apiHelpers';
 import { useAuthStore } from '../../stores/authStore';
 import { getUserNormalizedProfiles } from '../../types/profile.types';
 
@@ -30,7 +31,7 @@ export interface ColaboradorDto {
   }>;
 }
 
-export interface ColaboradoresAdminQueryParams {
+export interface ColaboradoresAdminQueryParams extends ListagemQueryParams {
   nome?: string;
   cpf?: string;
   filialId?: number;
@@ -40,7 +41,7 @@ export interface ColaboradoresAdminQueryParams {
   limit?: number;
 }
 
-export interface ColaboradoresFilialQueryParams {
+export interface ColaboradoresFilialQueryParams extends ListagemQueryParams {
   nome?: string;
   cpf?: string;
   centroCustoId?: number;
@@ -94,7 +95,27 @@ export interface VincularCentroCustoBody {
   filialId?: number;
 }
 
+export interface BeneficiarioDto {
+  id: number;
+  nome: string;
+}
+
+export interface BeneficiariosListResponse {
+  response: {
+    totalCount: number;
+    hasNextPage: boolean;
+    data: BeneficiarioDto[];
+  };
+}
+
 export const collaboratorApi = {
+  /** Colegas da mesma filial, para solicitar corrida para outra pessoa (solicitante e aprovador). */
+  listBeneficiarios(query?: { nome?: string; page?: number; limit?: number }) {
+    return apiClient.get<BeneficiariosListResponse>('/usuario/colaborador/beneficiarios', {
+      query: { limit: 100, ...query },
+    });
+  },
+
   listAdmin(query?: ColaboradoresAdminQueryParams) {
     return apiClient.get<ColaboradoresListResponse>('/usuario/colaborador/admin', {
       query: query as Record<string, string | number | boolean | null | undefined>,

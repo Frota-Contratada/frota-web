@@ -1,5 +1,5 @@
 import { apiClient } from '../api/apiClient';
-import { resolveEmpresaId } from '../../utils/apiHelpers';
+import { resolveEmpresaId, type ListagemQueryParams } from '../../utils/apiHelpers';
 
 export interface EnderecoDto {
   cep: string;
@@ -35,7 +35,7 @@ export interface AtualizarFilialParams {
   endereco: EnderecoDto;
 }
 
-export interface BuscarFiliaisQueryParams {
+export interface BuscarFiliaisQueryParams extends ListagemQueryParams {
   nome?: string;
   cnpj?: string;
   endereco?: string;

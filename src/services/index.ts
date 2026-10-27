@@ -1,7 +1,7 @@
 export { apiClient, ApiError } from './api/apiClient';
 export type { ApiQueryParams, ApiRequestOptions, ApiQueryValue } from './api/apiClient';
-export { extractListData } from '../utils/apiHelpers';
-export type { PaginatedResponse } from '../utils/apiHelpers';
+export { extractListData, extractTotalCount } from '../utils/apiHelpers';
+export type { ListagemQueryParams, PaginatedResponse } from '../utils/apiHelpers';
 export { authApi } from './auth/authApi';
 export type { PinEnviarParams, PinConfirmarParams, PinConfirmarResponse, RefreshTokenParams, RedefinirSenhaParams, SignUpParams, PrimeiroAcessoResponse } from './auth/authApi';
 export { userApi } from './user/userApi';
@@ -15,13 +15,15 @@ export type { FilialDto, CriarFilialParams, AtualizarFilialParams, BuscarFiliais
 export { supplierApi } from './supplier/supplierApi';
 export type { FornecedorDto, CriarFornecedorParams, AtualizarFornecedorParams, BuscarFornecedoresQueryParams, FornecedorBigNumbers, FornecedorResponse, FornecedoresListResponse, FornecedorBigNumbersResponse } from './supplier/supplierApi';
 export { collaboratorApi } from './collaborator/collaboratorApi';
-export type { ColaboradorDto, ColaboradoresAdminQueryParams, ColaboradoresFilialQueryParams, ColaboradorBigNumbers, ColaboradoresListResponse, PerfisColaboradorResponse, VincularCentroCustoBody } from './collaborator/collaboratorApi';
+export type { BeneficiarioDto, ColaboradorDto, ColaboradoresAdminQueryParams, ColaboradoresFilialQueryParams, ColaboradorBigNumbers, ColaboradoresListResponse, PerfisColaboradorResponse, VincularCentroCustoBody } from './collaborator/collaboratorApi';
 export { contractApi } from './contract/contractApi';
+export { montarRegrasContrato, QUALQUER_VEICULO } from './contract/contractRules';
+export type { RegraContratoPayload, TipoRegraApi } from './contract/contractRules';
 export type { ContratoDto, CriarContratoParams, BuscarContratosAdminQueryParams, BuscarContratosFilialQueryParams, ContratoBigNumbers, ContratoResponse, ContratosListResponse, ContratoBigNumbersResponse } from './contract/contractApi';
 export { costCenterApi } from './costCenter/costCenterApi';
 export type { CentroCustoDto, CentroCustoAdminDto, CentrosCustoListResponse, VincularAprovadorParams, AprovadorCentroCustoDto, VincularAprovadorResponse } from './costCenter/costCenterApi';
 export { ridesApi, mapCorridaToSolicitacao } from './rides/ridesApi';
-export type { EnderecoSolicitacaoDto, MotivoSolicitacaoDto, TipoCorridaDto, TipoVeiculoDto, SimularSolicitacaoParams, SimulacaoSolicitacaoDto, CriarSolicitacaoParams, SolicitacaoDto, CancelarSolicitacaoParams, CorridaDto, CorridaPessoaDto, CorridaVeiculoDto } from './rides/ridesApi';
+export type { EnderecoSolicitacaoDto, FornecedorCandidatoDto, MotivoSolicitacaoDto, TipoCorridaDto, TipoVeiculoDto, SimularSolicitacaoParams, SimulacaoSolicitacaoDto, CriarSolicitacaoParams, SolicitacaoDto, CancelarSolicitacaoParams, CorridaDto, CorridaPessoaDto, CorridaVeiculoDto } from './rides/ridesApi';
 export { geoService } from './maps/geoService';
 export type { EnderecoDetalhado, SugestaoEndereco } from './maps/geoService';
 export { routingService } from './maps/routingService';
