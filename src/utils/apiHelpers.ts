@@ -50,6 +50,25 @@ export function extractListData<T>(response: unknown): T[] {
   return [];
 }
 
+/**
+ * Junta as páginas de uma listagem paginada até a última (ou até maxPaginas),
+ * para selects que precisam de todas as opções, como os centros de custo de
+ * uma filial.
+ */
+export async function fetchAllPages<T>(
+  fetchPage: (page: number) => Promise<unknown>,
+  maxPaginas = 10,
+): Promise<T[]> {
+  const itens: T[] = [];
+  for (let page = 1; page <= maxPaginas; page++) {
+    const res = await fetchPage(page);
+    itens.push(...extractListData<T>(res));
+    const hasNextPage = (res as { response?: { hasNextPage?: unknown } } | null)?.response?.hasNextPage;
+    if (hasNextPage !== true) break;
+  }
+  return itens;
+}
+
 export function resolveEmpresaId(explicitEmpresaId?: number): number {
   if (explicitEmpresaId && Number(explicitEmpresaId) > 0) {
     return Number(explicitEmpresaId);
