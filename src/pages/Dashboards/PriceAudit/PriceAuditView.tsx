@@ -26,6 +26,7 @@ import {
   ridesApi,
   dashboardApi,
   extractListData,
+  fetchAllPages,
   type FornecedorDto,
   type FilialDto,
   type CentroCustoDto,
@@ -114,8 +115,10 @@ export const PriceAuditView = () => {
     let isMounted = true;
     Promise.allSettled([
       supplierApi.list(),
-      branchApi.list(),
-      costCenterApi.list(selectedFilialId ? { filialId: selectedFilialId } : undefined),
+      fetchAllPages<FilialDto>((page) => branchApi.list({ page, limit: 100 }), 5),
+      selectedFilialId
+        ? fetchAllPages<CentroCustoDto>((page) => costCenterApi.list({ filialId: selectedFilialId, page, limit: 100 }))
+        : costCenterApi.list(),
     ]).then(([suppRes, branchRes, ccRes]) => {
       if (!isMounted) return;
       if (suppRes.status === 'fulfilled') {

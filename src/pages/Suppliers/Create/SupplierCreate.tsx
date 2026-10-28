@@ -1,7 +1,8 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input, Select, useToast } from '../../../components/common';
-import { branchApi, supplierApi, extractListData, type FilialDto } from '../../../services';
+import { Button, Input, SearchableSelect, useToast } from '../../../components/common';
+import { supplierApi } from '../../../services';
+import { branchSearchText, useBranches } from '../../../hooks/useSelectionLists';
 import { formatCnpj, cleanCnpj } from '../../../utils';
 import styles from '../../Rides/Review/RideReview.module.css';
 
@@ -9,7 +10,7 @@ export const SupplierCreate = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [branchesList, setBranchesList] = useState<FilialDto[]>([]);
+  const branchesList = useBranches();
 
   const [form, setForm] = useState({
     name: '',
@@ -17,17 +18,11 @@ export const SupplierCreate = () => {
     filialId: '',
   });
 
-  useEffect(() => {
-    branchApi.list().then((res) => {
-      const branches = extractListData<FilialDto>(res);
-      if (branches.length > 0) {
-        setBranchesList(branches);
-        setForm((prev) => ({ ...prev, filialId: prev.filialId || String(branches[0].id) }));
-      }
-    }).catch(() => {});
-  }, []);
-
-  const branchOptions = branchesList.map((b) => ({ label: `${b.nome} (${b.cnpj})`, value: String(b.id) }));
+  const branchOptions = branchesList.map((b) => ({
+    label: `${b.nome} (${b.cnpj})`,
+    value: String(b.id),
+    searchText: branchSearchText(b),
+  }));
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
@@ -126,17 +121,18 @@ export const SupplierCreate = () => {
               disabled={isLoading}
             />
 
-            {branchOptions.length > 0 && (
-              <Select
-                label="Filial de Vínculo *"
-                placeholder="Selecione a filial"
-                value={form.filialId}
-                options={branchOptions}
-                onChange={(val) => updateField('filialId', val)}
-                error={validationErrors.filialId}
-                required
-              />
-            )}
+            <SearchableSelect
+              label="Filial de Vínculo *"
+              placeholder="Selecione a filial"
+              searchPlaceholder="Digite o nome, o código, o CNPJ ou a cidade"
+              value={form.filialId}
+              options={branchOptions}
+              onChange={(val) => updateField('filialId', val)}
+              error={validationErrors.filialId}
+              disabled={isLoading || branchOptions.length === 0}
+              required
+            />
+
           </div>
         </article>
 

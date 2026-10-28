@@ -2,6 +2,8 @@ export { Button } from './Button/Button';
 export { Input } from './Input/Input';
 export { Select } from './Select/Select';
 export type { SelectOption } from './Select/Select';
+export { SearchableSelect } from './SearchableSelect/SearchableSelect';
+export type { SearchableSelectOption } from './SearchableSelect/SearchableSelect';
 export { Card } from './Card/Card';
 export { Table } from './Table/Table';
 export type { ColumnDef, TableAction, PaginationProps, SortState, SortDirection } from './Table/Table';

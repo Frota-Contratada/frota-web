@@ -67,6 +67,24 @@ export async function fetchAllPages<T>(
   return itens;
 }
 
+/**
+ * Fornecedor do admin de fornecedor, lido do token. Só serve para preencher
+ * o formulário: o backend usa sempre o fornecedor do usuário autenticado.
+ */
+export function resolveFornecedorIdDoToken(): number | undefined {
+  try {
+    const token = localStorage.getItem('auth_token');
+    const payload = token?.split('.')[1];
+    if (!payload) return undefined;
+    const { fornecedorId } = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))) as {
+      fornecedorId?: number;
+    };
+    return fornecedorId && Number(fornecedorId) > 0 ? Number(fornecedorId) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function resolveEmpresaId(explicitEmpresaId?: number): number {
   if (explicitEmpresaId && Number(explicitEmpresaId) > 0) {
     return Number(explicitEmpresaId);

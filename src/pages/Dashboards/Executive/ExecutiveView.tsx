@@ -30,6 +30,7 @@ import {
   branchApi,
   costCenterApi,
   extractListData,
+  fetchAllPages,
   type SolicitacaoDto,
   type FornecedorBigNumbers,
   type ContratoBigNumbers,
@@ -110,8 +111,10 @@ export const ExecutiveView = () => {
   useEffect(() => {
     let isMounted = true;
     Promise.allSettled([
-      branchApi.list(),
-      costCenterApi.list(selectedFilialId ? { filialId: selectedFilialId } : undefined),
+      fetchAllPages<FilialDto>((page) => branchApi.list({ page, limit: 100 }), 5),
+      selectedFilialId
+        ? fetchAllPages<CentroCustoDto>((page) => costCenterApi.list({ filialId: selectedFilialId, page, limit: 100 }))
+        : costCenterApi.list(),
       supplierApi.getBigNumbers(),
       contractApi.getBigNumbers(),
     ]).then(([branchRes, ccRes, suppRes, contRes]) => {

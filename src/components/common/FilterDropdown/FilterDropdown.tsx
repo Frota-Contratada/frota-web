@@ -75,6 +75,12 @@ const formatDisplayDate = (value: string) => {
   return `${day}/${month}/${year}`;
 };
 
+// Acima disso a seção mostra uma caixa de busca.
+const SEARCH_THRESHOLD = 10;
+
+const normalizeSearch = (text: string) =>
+  text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('pt-BR').trim();
+
 const buildCalendarDays = (monthDate: Date) => {
   const year = monthDate.getFullYear();
   const month = monthDate.getMonth();
@@ -105,6 +111,7 @@ export function FilterDropdown({
 
   const [isOpen, setIsOpen] = useState(false);
   const [activePanel, setActivePanel] = useState<ActivePanel>(initialPanel);
+  const [optionSearch, setOptionSearch] = useState('');
   const [visibleMonth, setVisibleMonth] = useState(new Date(initialMonth.getFullYear(), initialMonth.getMonth(), 1));
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
@@ -175,6 +182,12 @@ export function FilterDropdown({
     onDateRangeChange?.({ from: '', to: '' });
   };
 
+  // Seções longas (filiais, centros de custo) ganham uma busca; os marcados ficam sempre visíveis.
+  const query = normalizeSearch(optionSearch);
+  const visibleOptions = (activeSection?.options ?? []).filter(
+    (option) => !query || selectedValues.includes(option.value) || normalizeSearch(option.label).includes(query)
+  );
+
   const getSectionCount = (section: FilterSection) =>
     section.options.filter((option) => selectedValues.includes(option.value)).length;
 
@@ -235,7 +248,10 @@ export function FilterDropdown({
                     key={section.title}
                     type="button"
                     className={`${styles.tabButton} ${activePanel === section.title ? styles.tabActive : ''}`}
-                    onClick={() => setActivePanel(section.title)}
+                    onClick={() => {
+                      setActivePanel(section.title);
+                      setOptionSearch('');
+                    }}
                   >
                     <span>{section.title}</span>
                     {count > 0 && <span className={styles.tabBadge}>{count}</span>}
@@ -324,8 +340,19 @@ export function FilterDropdown({
                     </div>
                   </div>
 
+                  {activeSection.options.length > SEARCH_THRESHOLD && (
+                    <input
+                      type="search"
+                      className={styles.sectionSearch}
+                      placeholder={`Buscar ${activeSection.title.toLocaleLowerCase('pt-BR')}`}
+                      aria-label={`Buscar ${activeSection.title.toLocaleLowerCase('pt-BR')}`}
+                      value={optionSearch}
+                      onChange={(event) => setOptionSearch(event.target.value)}
+                    />
+                  )}
+
                   <div className={styles.options}>
-                    {activeSection.options.map((option) => (
+                    {visibleOptions.map((option) => (
                       <label key={option.value} className={styles.option}>
                         <input
                           type="checkbox"

@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input, Select, useToast } from '../../../components/common';
+import { Button, Input, SearchableSelect, Select, useToast } from '../../../components/common';
 import {
-  branchApi,
   collaboratorApi,
   costCenterApi,
   fetchAllPages,
@@ -11,6 +10,7 @@ import {
   type PerfilCadastroColaborador,
 } from '../../../services';
 import { usePermissions } from '../../../hooks/usePermissions';
+import { branchSearchText, useBranches } from '../../../hooks/useSelectionLists';
 import { cleanCpf } from '../../../utils';
 import styles from '../../Rides/Review/RideReview.module.css';
 import localStyles from './EmployeeCreate.module.css';
@@ -43,7 +43,8 @@ export const EmployeeCreate = () => {
   const { showToast } = useToast();
   const { isAdminMaster } = usePermissions();
   const [isLoading, setIsLoading] = useState(false);
-  const [branchesList, setBranchesList] = useState<FilialDto[]>([]);
+  // Só o admin master escolhe a filial; o admin de filial cadastra na própria.
+  const branchesList = useBranches(isAdminMaster);
   const [costCentersList, setCostCentersList] = useState<CentroCustoDto[]>([]);
 
   const [form, setForm] = useState({
@@ -57,22 +58,6 @@ export const EmployeeCreate = () => {
   });
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-
-  // Só o admin master escolhe a filial; o admin de filial cadastra na própria.
-  useEffect(() => {
-    if (!isAdminMaster) return;
-    let active = true;
-    fetchAllPages<FilialDto>((page) => branchApi.list({ page, limit: 100 }), 5)
-      .then((branches) => {
-        if (active) setBranchesList(branches);
-      })
-      .catch(() => {
-        if (active) setBranchesList([]);
-      });
-    return () => {
-      active = false;
-    };
-  }, [isAdminMaster]);
 
   // Carrega todos os centros de custo da filial, não só a primeira página.
   useEffect(() => {
@@ -96,7 +81,11 @@ export const EmployeeCreate = () => {
     };
   }, [isAdminMaster, form.branch]);
 
-  const branchOptions = branchesList.map((b) => ({ label: `${b.nome} (${b.cnpj})`, value: branchKey(b) }));
+  const branchOptions = branchesList.map((b) => ({
+    label: `${b.nome} (${b.cnpj})`,
+    value: branchKey(b),
+    searchText: branchSearchText(b),
+  }));
 
   // Centros de custo com aprovador primeiro: só neles o solicitante pode ser vinculado.
   const costCenterOptions = useMemo(() => {
@@ -269,7 +258,8 @@ export const EmployeeCreate = () => {
 
           <div className={styles.formGrid}>
             {isAdminMaster && (
-              <Select
+              <SearchableSelect
+                searchPlaceholder="Digite o nome, o código, o CNPJ ou a cidade"
                 label="Filial de vinculação *"
                 value={form.branch}
                 options={branchOptions}
@@ -280,7 +270,8 @@ export const EmployeeCreate = () => {
               />
             )}
 
-            <Select
+            <SearchableSelect
+              searchPlaceholder="Digite o nome ou o número"
               label="Centro de custo *"
               value={form.costCenterId}
               options={costCenterOptions}
