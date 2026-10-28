@@ -3,11 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select, useToast } from '../../../components/common';
 import {
   branchApi,
+  collaboratorApi,
   costCenterApi,
-  extractListData,
+  fetchAllPages,
   type FilialDto,
   type CentroCustoDto,
+  type PerfilCadastroColaborador,
 } from '../../../services';
+import { usePermissions } from '../../../hooks/usePermissions';
+import { cleanCpf } from '../../../utils';
 import styles from '../../Rides/Review/RideReview.module.css';
 import localStyles from './EmployeeCreate.module.css';
 
@@ -21,9 +25,23 @@ const roleOptions = [
   { label: 'Consultor', value: 'Consultor' },
 ];
 
+const profileOptions: { id: PerfilCadastroColaborador; title: string; desc: string }[] = [
+  { id: 'solicitante', title: 'Solicitante', desc: 'Pode solicitar viagens corporativas e consultar histórico de corridas.' },
+  { id: 'aprovador', title: 'Aprovador', desc: 'Permite gerenciar solicitações, aprovar viagens e auditar despesas.' },
+  { id: 'solicitante-emergencia', title: 'Solicitante de Emergência', desc: 'Permite solicitar viagens emergenciais de atendimento imediato.' },
+];
+
+// O código da filial se repete entre empresas: a opção guarda os dois.
+const branchKey = (branch: FilialDto) => `${branch.empresaId ?? ''}:${branch.id}`;
+const parseBranchKey = (key: string) => {
+  const [empresaId, filialId] = key.split(':').map(Number);
+  return { empresaId: empresaId || undefined, filialId: filialId || undefined };
+};
+
 export const EmployeeCreate = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { isAdminMaster } = usePermissions();
   const [isLoading, setIsLoading] = useState(false);
   const [branchesList, setBranchesList] = useState<FilialDto[]>([]);
   const [costCentersList, setCostCentersList] = useState<CentroCustoDto[]>([]);
@@ -31,66 +49,76 @@ export const EmployeeCreate = () => {
   const [form, setForm] = useState({
     name: '',
     email: '',
+    cpf: '',
     role: 'Analista',
     branch: '',
     costCenterId: '',
-    profiles: ['Solicitante'] as string[],
+    profiles: ['solicitante'] as PerfilCadastroColaborador[],
   });
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
+  // Só o admin master escolhe a filial; o admin de filial cadastra na própria.
   useEffect(() => {
-    Promise.allSettled([
-      branchApi.list(),
-      costCenterApi.list(),
-    ]).then(([branchesRes, ccRes]) => {
-      const branches = branchesRes.status === 'fulfilled' ? extractListData<FilialDto>(branchesRes.value) : [];
-      const costCenters = ccRes.status === 'fulfilled' ? extractListData<CentroCustoDto>(ccRes.value) : [];
+    if (!isAdminMaster) return;
+    let active = true;
+    fetchAllPages<FilialDto>((page) => branchApi.list({ page, limit: 100 }), 5)
+      .then((branches) => {
+        if (active) setBranchesList(branches);
+      })
+      .catch(() => {
+        if (active) setBranchesList([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isAdminMaster]);
 
-      setBranchesList(branches);
-      setCostCentersList(costCenters);
+  // Carrega todos os centros de custo da filial, não só a primeira página.
+  useEffect(() => {
+    const { empresaId, filialId } = parseBranchKey(form.branch);
+    if (isAdminMaster && (!empresaId || !filialId)) return;
 
-      const branchVal = branches[0]?.id ? String(branches[0].id) : '1';
-      const availableCcs = costCenters.filter((c) => String(c.filialId) === branchVal);
-      const firstCc = availableCcs[0]?.numero ?? availableCcs[0]?.id ?? costCenters[0]?.numero ?? costCenters[0]?.id;
-      const ccVal = firstCc ? String(firstCc) : '';
+    let active = true;
+    const load = isAdminMaster
+      ? fetchAllPages<CentroCustoDto>((page) => costCenterApi.listAdmin({ empresaId, filialId, page, limit: 100 }))
+      : fetchAllPages<CentroCustoDto>((page) => costCenterApi.listFilial({ page, limit: 100 }));
 
-      setForm((curr) => ({
-        ...curr,
-        branch: curr.branch || branchVal,
-        costCenterId: curr.costCenterId || ccVal,
-      }));
-    }).catch(() => {});
-  }, []);
+    load
+      .then((costCenters) => {
+        if (active) setCostCentersList(costCenters.filter((c) => c.ativo !== false));
+      })
+      .catch(() => {
+        if (active) setCostCentersList([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isAdminMaster, form.branch]);
 
-  const branchOptions = branchesList.map((b) => ({ label: `${b.nome} (${b.cnpj})`, value: String(b.id) }));
+  const branchOptions = branchesList.map((b) => ({ label: `${b.nome} (${b.cnpj})`, value: branchKey(b) }));
 
-  const selectedBranchId = Number(form.branch) || 1;
-  const filteredCostCenters = useMemo(() => {
-    const branchSpecific = costCentersList.filter((c) => Number(c.filialId) === selectedBranchId);
-    return branchSpecific.length > 0 ? branchSpecific : costCentersList;
-  }, [costCentersList, selectedBranchId]);
-
+  // Centros de custo com aprovador primeiro: só neles o solicitante pode ser vinculado.
   const costCenterOptions = useMemo(() => {
-    return filteredCostCenters.map((c) => ({
-      label: `${c.nome} (Nº ${c.numero})${c.temAprovador ? ' — Com Aprovador' : ' — Sem Aprovador'}`,
-      value: String(c.numero),
-    }));
-  }, [filteredCostCenters]);
+    return [...costCentersList]
+      .sort((a, b) => Number(Boolean(b.temAprovador)) - Number(Boolean(a.temAprovador)) || a.numero - b.numero)
+      .map((c) => ({
+        label: `${c.nome} (Nº ${c.numero})${c.temAprovador ? ' — Com Aprovador' : ' — Sem Aprovador'}`,
+        value: String(c.numero),
+      }));
+  }, [costCentersList]);
 
   const updateField = (field: keyof typeof form, value: unknown) => {
     if (field === 'branch') {
-      const newBranchId = Number(value);
-      const branchCcs = costCentersList.filter((c) => Number(c.filialId) === newBranchId);
-      const nextCc = branchCcs[0]?.numero ? String(branchCcs[0].numero) : '';
-      setForm((current) => ({ ...current, branch: String(value), costCenterId: nextCc }));
+      setCostCentersList([]);
+      setForm((current) => ({ ...current, branch: String(value), costCenterId: '' }));
     } else {
       setForm((current) => ({ ...current, [field]: value }));
     }
     setValidationErrors((current) => ({ ...current, [field]: '' }));
   };
 
-  const handleProfileToggle = (profile: string) => {
+  const handleProfileToggle = (profile: PerfilCadastroColaborador) => {
     setForm((current) => {
       const isSelected = current.profiles.includes(profile);
       const next = isSelected
@@ -113,12 +141,19 @@ export const EmployeeCreate = () => {
       errors.email = 'Email inválido';
     }
 
+    const rawCpf = cleanCpf(form.cpf);
+    if (rawCpf && rawCpf.length !== 11) errors.cpf = 'Informe um CPF com 11 dígitos';
+
     if (!form.role) errors.role = 'Cargo é obrigatório';
-    if (!form.branch) errors.branch = 'Selecione a filial de vinculação';
+    if (isAdminMaster && !form.branch) errors.branch = 'Selecione a filial de vinculação';
     if (!form.costCenterId) errors.costCenterId = 'Selecione o centro de custo';
 
     if (form.profiles.length === 0) {
       errors.profiles = 'Selecione pelo menos um perfil de acesso';
+    } else if (!form.profiles.includes('solicitante') && !form.profiles.includes('aprovador')) {
+      errors.profiles = 'Selecione o perfil de solicitante ou de aprovador';
+    } else if (form.profiles.includes('solicitante-emergencia') && !form.profiles.includes('solicitante')) {
+      errors.profiles = 'O perfil de emergência exige também o perfil de solicitante';
     }
 
     setValidationErrors(errors);
@@ -134,16 +169,28 @@ export const EmployeeCreate = () => {
 
     try {
       setIsLoading(true);
+      const { empresaId, filialId } = parseBranchKey(form.branch);
+      const rawCpf = cleanCpf(form.cpf);
+
+      await collaboratorApi.create({
+        nome: form.name.trim(),
+        email: form.email.trim(),
+        cpf: rawCpf || undefined,
+        cargo: form.role,
+        ...(isAdminMaster ? { empresaId, filialId } : {}),
+        centroCustoId: Number(form.costCenterId),
+        perfis: form.profiles,
+      });
 
       showToast({
         type: 'success',
         title: 'Colaborador cadastrado',
-        description: `O colaborador ${form.name} foi adicionado à plataforma com sucesso.`,
+        description: `${form.name.trim()} cria a senha no primeiro acesso, com o código enviado para ${form.email.trim()}.`,
       });
       navigate('/colaboradores');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao cadastrar colaborador';
-      showToast({ type: 'error', title: message });
+      showToast({ type: 'error', title: 'Erro ao cadastrar colaborador', description: message });
     } finally {
       setIsLoading(false);
     }
@@ -189,6 +236,15 @@ export const EmployeeCreate = () => {
               disabled={isLoading}
             />
 
+            <Input
+              label="CPF (opcional)"
+              placeholder="000.000.000-00"
+              value={form.cpf}
+              onChange={(e) => updateField('cpf', e.target.value)}
+              error={validationErrors.cpf}
+              disabled={isLoading}
+            />
+
             <Select
               label="Cargo"
               value={form.role}
@@ -203,32 +259,37 @@ export const EmployeeCreate = () => {
           <div className={styles.cardHeader} style={{ marginTop: '2rem' }}>
             <div>
               <h3>Alocação Operacional</h3>
-              <p>Defina a filial de lotação e o centro de custo responsável.</p>
+              <p>
+                {isAdminMaster
+                  ? 'Defina a filial de lotação e o centro de custo responsável.'
+                  : 'O colaborador é cadastrado na sua filial. Defina o centro de custo responsável.'}
+              </p>
             </div>
           </div>
 
           <div className={styles.formGrid}>
-            {branchOptions.length > 0 && (
+            {isAdminMaster && (
               <Select
                 label="Filial de vinculação *"
                 value={form.branch}
                 options={branchOptions}
                 onChange={(val) => updateField('branch', val)}
                 error={validationErrors.branch}
+                disabled={isLoading || branchOptions.length === 0}
                 required
               />
             )}
 
-            {costCenterOptions.length > 0 && (
-              <Select
-                label="Centro de custo *"
-                value={form.costCenterId}
-                options={costCenterOptions}
-                onChange={(val) => updateField('costCenterId', val)}
-                error={validationErrors.costCenterId}
-                required
-              />
-            )}
+            <Select
+              label="Centro de custo *"
+              value={form.costCenterId}
+              options={costCenterOptions}
+              onChange={(val) => updateField('costCenterId', val)}
+              error={validationErrors.costCenterId}
+              disabled={isLoading || costCenterOptions.length === 0}
+              helperText="O solicitante só pode ser vinculado a um centro de custo com aprovador."
+              required
+            />
           </div>
 
           <div className={localStyles.divider} />
@@ -242,11 +303,7 @@ export const EmployeeCreate = () => {
 
           <div className={localStyles.profilesSection}>
             <div className={localStyles.profilesGrid}>
-              {[
-                { id: 'Solicitante', title: 'Solicitante', desc: 'Pode solicitar viagens corporativas e consultar histórico de corridas.' },
-                { id: 'Aprovador', title: 'Aprovador', desc: 'Permite gerenciar solicitações, aprovar viagens e auditar despesas.' },
-                { id: 'Solicitante de Emergência', title: 'Solicitante de Emergência', desc: 'Permite solicitar viagens emergenciais de atendimento imediato.' },
-              ].map((p) => {
+              {profileOptions.map((p) => {
                 const isSelected = form.profiles.includes(p.id);
 
                 return (

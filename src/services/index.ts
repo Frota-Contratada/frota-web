@@ -1,6 +1,6 @@
 export { apiClient, ApiError } from './api/apiClient';
 export type { ApiQueryParams, ApiRequestOptions, ApiQueryValue } from './api/apiClient';
-export { extractListData, extractTotalCount } from '../utils/apiHelpers';
+export { extractListData, extractTotalCount, fetchAllPages } from '../utils/apiHelpers';
 export type { ListagemQueryParams, PaginatedResponse } from '../utils/apiHelpers';
 export { authApi } from './auth/authApi';
 export type { PinEnviarParams, PinConfirmarParams, PinConfirmarResponse, RefreshTokenParams, RedefinirSenhaParams, SignUpParams, PrimeiroAcessoResponse } from './auth/authApi';
@@ -15,7 +15,7 @@ export type { FilialDto, CriarFilialParams, AtualizarFilialParams, BuscarFiliais
 export { supplierApi } from './supplier/supplierApi';
 export type { FornecedorDto, CriarFornecedorParams, AtualizarFornecedorParams, BuscarFornecedoresQueryParams, FornecedorBigNumbers, FornecedorResponse, FornecedoresListResponse, FornecedorBigNumbersResponse } from './supplier/supplierApi';
 export { collaboratorApi } from './collaborator/collaboratorApi';
-export type { BeneficiarioDto, ColaboradorDto, ColaboradoresAdminQueryParams, ColaboradoresFilialQueryParams, ColaboradorBigNumbers, ColaboradoresListResponse, PerfisColaboradorResponse, VincularCentroCustoBody } from './collaborator/collaboratorApi';
+export type { BeneficiarioDto, ColaboradorDto, CriarColaboradorParams, PerfilCadastroColaborador, ColaboradoresAdminQueryParams, ColaboradoresFilialQueryParams, ColaboradorBigNumbers, ColaboradoresListResponse, PerfisColaboradorResponse, VincularCentroCustoBody } from './collaborator/collaboratorApi';
 export { contractApi } from './contract/contractApi';
 export { montarRegrasContrato, QUALQUER_VEICULO } from './contract/contractRules';
 export type { RegraContratoPayload, TipoRegraApi } from './contract/contractRules';
