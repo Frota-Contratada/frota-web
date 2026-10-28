@@ -108,8 +108,27 @@ export interface BeneficiariosListResponse {
   };
 }
 
-export const collaboratorApi = {
+export type PerfilCadastroColaborador = 'solicitante' | 'aprovador' | 'solicitante-emergencia';
 
+/** Cadastro sem senha: o colaborador define a senha no primeiro acesso, com o código enviado por e-mail. */
+export interface CriarColaboradorParams {
+  nome: string;
+  email: string;
+  cpf?: string;
+  cargo?: string;
+  /** Só o admin master informa; o admin de filial cadastra na própria filial. */
+  empresaId?: number;
+  filialId?: number;
+  centroCustoId: number;
+  perfis: PerfilCadastroColaborador[];
+}
+
+export const collaboratorApi = {
+  create(data: CriarColaboradorParams) {
+    return apiClient.post<{ response: ColaboradorDto }>('/usuario/colaborador', data);
+  },
+
+  /** Colegas da mesma filial, para solicitar corrida para outra pessoa (solicitante e aprovador). */
   listBeneficiarios(query?: { nome?: string; page?: number; limit?: number }) {
     return apiClient.get<BeneficiariosListResponse>('/usuario/colaborador/beneficiarios', {
       query: { limit: 100, ...query },
