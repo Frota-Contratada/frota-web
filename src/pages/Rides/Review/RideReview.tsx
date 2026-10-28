@@ -315,7 +315,7 @@ export const RideReview = () => {
 
   return (
     <div className={styles.page}>
-      <nav className={styles.stepper} aria-label="Etapas da revisão">
+      <nav className={styles.stepper} data-steps={reviewSteps.length} aria-label="Etapas da revisão">
         {reviewSteps.map((step) => {
           const isActive = step.id === currentStep;
           const isDone = step.id < currentStep;

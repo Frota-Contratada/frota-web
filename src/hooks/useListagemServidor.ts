@@ -21,21 +21,18 @@ export type BuscarPagina<T> = (consulta: ConsultaPagina) => Promise<PaginaListag
 type Filtrar<T> = (item: T, filtros: string[], busca: string) => boolean;
 
 interface OpcoesListagemServidor<T> {
-  /** Busca uma página no backend, já convertida em linhas da tabela. Use useCallback. */
+
   buscarPagina: BuscarPagina<T>;
-  /** Coluna da tabela → campo `ordenarPor` aceito pelo backend. */
+
   camposOrdenacao: Partial<Record<string, string>>;
   tamanhoPagina: number;
-  /** Filtros que o backend não aplica (campos calculados na tela). */
+
   filtrosLocais?: string[];
-  /** Aplica filtros locais e a busca na lista completa. Use useCallback. */
+
   filtrar?: Filtrar<T>;
-  /** Sem busca por texto no backend, a busca vira filtro local. */
+
   buscaNoServidor?: boolean;
-  /**
-   * Carrega a lista completa ao abrir a tela (para opções de filtro e totais).
-   * Desligado, ela só é buscada quando um filtro local ou a exportação precisam.
-   */
+
   carregarCompleta?: boolean;
 }
 
@@ -43,12 +40,11 @@ const LIMITE_POR_REQUISICAO = 100;
 const MAXIMO_PAGINAS = 50;
 const ESPERA_BUSCA_MS = 400;
 
-/** Máximo de registros da lista completa (filtros locais e exportação). */
 export const LIMITE_LISTA_COMPLETA = LIMITE_POR_REQUISICAO * MAXIMO_PAGINAS;
 
 export interface ListaCompleta<T> {
   itens: T[];
-  /** O backend tem mais registros do que o limite da lista completa. */
+
   parcial: boolean;
 }
 
@@ -90,13 +86,6 @@ function aplicarNaTela<T>(
   });
 }
 
-/**
- * Tabela paginada, buscada e ordenada no backend. Com filtro que só existe na
- * tela, busca sem suporte no backend ou ordenação por coluna calculada, usa a
- * lista completa (carregada em páginas de 100, até LIMITE_LISTA_COMPLETA) e
- * aplica tudo localmente. A lista completa também serve à exportação e, quando
- * carregada ao abrir, às opções de filtro e aos totais.
- */
 export function useListagemServidor<T>({
   buscarPagina,
   camposOrdenacao,
@@ -194,13 +183,11 @@ export function useListagemServidor<T>({
     [completaAtual, completa.lista.itens]
   );
 
-  // Lista completa com filtros, busca e ordenação aplicados na tela.
   const itensFiltrados = useMemo(
     () => aplicarNaTela(todas, filtrar, filtros, buscaAplicada, ordenacao),
     [todas, filtrar, filtros, buscaAplicada, ordenacao]
   );
 
-  /** Lista completa filtrada para exportar; busca no backend se ainda não estiver carregada. */
   const carregarFiltrados = useCallback(async (): Promise<ListaCompleta<T>> => {
     const lista = completaAtual ? completa.lista : await buscarTodasAsPaginas(buscarPagina);
     return {
@@ -224,7 +211,6 @@ export function useListagemServidor<T>({
     setPagina(1);
   }, []);
 
-  /** Busca de novo a página atual e a lista completa (por exemplo, após um cadastro). */
   const recarregar = useCallback(() => setVersao((atual) => atual + 1), []);
 
   return {

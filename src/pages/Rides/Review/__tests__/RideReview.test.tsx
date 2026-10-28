@@ -31,7 +31,7 @@ vi.mock('../../../../services', async (importOriginal) => {
     ...actual,
     ridesApi: {
       getById: vi.fn(),
-      // Sem a rota de candidatos (backend antigo), a tela usa a lista de fornecedores.
+
       getFornecedoresCandidatos: vi.fn().mockRejectedValue(new Error('Not Found')),
       aprovar: vi.fn(),
       reprovar: vi.fn(),

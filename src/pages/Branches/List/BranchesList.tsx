@@ -79,7 +79,6 @@ const columns: ColumnDef<Branch>[] = [
   { key: 'zipCode', header: 'CEP', sortable: true },
 ];
 
-// Colunas que o backend ordena; as demais são ordenadas na tela.
 const CAMPOS_ORDENACAO: Partial<Record<keyof Branch, string>> = {
   name: 'nome',
   cnpj: 'cnpj',
@@ -129,7 +128,6 @@ const mapBranch = (b: FilialDto, { costCenters, contracts, rides }: DadosAuxilia
   };
 };
 
-// A busca vai ao backend pelo nome da filial; aqui ela vale para filtros locais e exportação.
 const filtrarBranch = (branch: Branch, filters: string[], busca: string) => {
   const normalizedQuery = busca.toLocaleLowerCase('pt-BR');
   const valuesOf = (prefix: string) =>

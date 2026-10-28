@@ -35,7 +35,6 @@ const filterSections: FilterSection[] = [
   },
 ];
 
-// Colunas que o backend ordena; as demais são ordenadas na tela.
 const CAMPOS_ORDENACAO: Partial<Record<keyof MotoristaDto, string>> = {
   nome: 'nome',
   dataAtivacao: 'dataAtivacao',
@@ -46,7 +45,6 @@ const buscarPaginaMotoristas = async ({ page, limit, busca, ordenarPor, direcao 
   return { itens: extractListData<MotoristaDto>(res), total: extractTotalCount(res) };
 };
 
-// A busca vai ao backend pelo nome; aqui ela vale para filtros locais e exportação.
 const filtrarMotorista = (driver: MotoristaDto, filters: string[], busca: string) => {
   const q = busca.toLowerCase();
   const matchesQuery = !q || driver.nome.toLowerCase().includes(q);
@@ -143,10 +141,6 @@ export const DriversList = () => {
       ),
     },
   ];
-
-
-
-
 
   return (
     <div className={styles.page}>

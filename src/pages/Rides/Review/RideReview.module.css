@@ -33,12 +33,12 @@
   gap: var(--spacing-lg);
 }
 
-
 .stepper {
+  --step-count: 3;
   --progress: 0%;
   position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--step-count, 3), minmax(0, 1fr));
   align-items: start;
   width: 100%;
   padding: var(--spacing-lg) var(--spacing-xl);
@@ -48,13 +48,23 @@
   box-shadow: var(--shadow-sm);
 }
 
+.stepper[data-steps="2"],
+.stepper:has(> .stepItem:last-child:nth-child(2)) {
+  --step-count: 2;
+}
+
+.stepper[data-steps="3"],
+.stepper:has(> .stepItem:last-child:nth-child(3)) {
+  --step-count: 3;
+}
+
 .stepper::before,
 .stepper::after {
   content: '';
   position: absolute;
   top: calc(var(--spacing-lg) + 16px);
-  left: calc(var(--spacing-xl) + 16.66%);
-  right: calc(var(--spacing-xl) + 16.66%);
+  left: calc(var(--spacing-xl) + (100% - (var(--spacing-xl) * 2)) / (var(--step-count, 3) * 2));
+  right: calc(var(--spacing-xl) + (100% - (var(--spacing-xl) * 2)) / (var(--step-count, 3) * 2));
   height: 2px;
   border-radius: var(--radius-full);
 }
@@ -70,13 +80,25 @@
   transition: width var(--transition-base);
 }
 
-.stepper:has(.stepItem:nth-child(2).stepActive),
-.stepper:has(.stepItem:nth-child(3).stepDone) {
+.stepper[data-steps="2"]:has(.stepItem:nth-child(2).stepActive),
+.stepper[data-steps="2"]:has(.stepItem:nth-child(2).stepDone),
+.stepper:has(> .stepItem:last-child:nth-child(2)):has(.stepItem:nth-child(2).stepActive),
+.stepper:has(> .stepItem:last-child:nth-child(2)):has(.stepItem:nth-child(2).stepDone) {
   --progress: calc((100% - (var(--spacing-xl) * 2)) / 2);
 }
 
-.stepper:has(.stepItem:nth-child(3).stepActive) {
-  --progress: calc(100% - (var(--spacing-xl) * 2) - 33.33%);
+.stepper[data-steps="3"]:has(.stepItem:nth-child(2).stepActive),
+.stepper[data-steps="3"]:has(.stepItem:nth-child(3).stepDone),
+.stepper:has(> .stepItem:last-child:nth-child(3)):has(.stepItem:nth-child(2).stepActive),
+.stepper:has(> .stepItem:last-child:nth-child(3)):has(.stepItem:nth-child(2).stepDone) {
+  --progress: calc((100% - (var(--spacing-xl) * 2)) / 3);
+}
+
+.stepper[data-steps="3"]:has(.stepItem:nth-child(3).stepActive),
+.stepper[data-steps="3"]:has(.stepItem:nth-child(3).stepDone),
+.stepper:has(> .stepItem:last-child:nth-child(3)):has(.stepItem:nth-child(3).stepActive),
+.stepper:has(> .stepItem:last-child:nth-child(3)):has(.stepItem:nth-child(3).stepDone) {
+  --progress: calc((100% - (var(--spacing-xl) * 2)) * 2 / 3);
 }
 
 .stepItem {
@@ -771,6 +793,88 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background-color: var(--surface-muted);
+}
+
+.costCenterSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-top: 0.25rem;
+}
+
+.costCenterBreakdownCard {
+  background: var(--surface-muted, #f8fafc);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.875rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  transition: all var(--transition-base);
+}
+
+.breakdownHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.breakdownTitleWrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.breakdownBadge {
+  background-color: var(--brand-primary-lightest, #ebebf7);
+  color: var(--brand-primary-strong, #3434b1);
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.breakdownRateioPercent {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.breakdownEstimatedPerCc {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.breakdownEstimatedPerCc strong {
+  color: var(--brand-primary, #3434b1);
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.noApproverAlert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background-color: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: var(--radius-md);
+  color: #92400e;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.noApproverAlertIcon {
+  flex-shrink: 0;
+  color: #d97706;
+  margin-top: 1px;
 }
 
 .costCenterHeader {

@@ -20,3 +20,6 @@ export { Skeleton } from './Skeleton/Skeleton';
 export type { SkeletonProps } from './Skeleton/Skeleton';
 export { LoadingState } from './LoadingState/LoadingState';
 export type { LoadingStateProps } from './LoadingState/LoadingState';
+export { MultiSelect } from './MultiSelect/MultiSelect';
+export type { MultiSelectOption, MultiSelectProps } from './MultiSelect/MultiSelect';
+

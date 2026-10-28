@@ -25,7 +25,6 @@ export interface TipoVeiculoCatalogo {
 
 export const QUALQUER_VEICULO = 'Qualquer veículo';
 
-/** Tipos da tela (os mesmos da extração por IA) que o backend ainda não cobra como regra. */
 const TIPOS_SEM_REGRA: Record<string, string> = {
   PARADAS_ADICIONAIS: 'Parada adicional',
   PEDAGIO: 'Pedágio (lançado na corrida pelo motorista ou fornecedor)',
@@ -34,10 +33,6 @@ const TIPOS_SEM_REGRA: Record<string, string> = {
 const numero = (valor?: number | null) =>
   valor == null || Number.isNaN(Number(valor)) ? undefined : Number(valor);
 
-/**
- * Converte as regras editadas na tela para o contrato de `PUT /contrato/:id/regras`.
- * Regras de km aceitam bandeirada (valor fixo); "Qualquer veículo" não restringe a regra.
- */
 export function montarRegrasContrato(
   regras: RegraEditavel[],
   tiposVeiculo: TipoVeiculoCatalogo[],

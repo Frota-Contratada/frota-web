@@ -15,7 +15,6 @@ const BASE: Linha[] = Array.from({ length: 12 }, (_, i) => ({
   uf: i % 2 === 0 ? 'SC' : 'PR',
 }));
 
-// Simula o backend: busca por nome, ordenação por nome e paginação.
 const criarBackend = () =>
   vi.fn(async ({ page, limit, busca, ordenarPor, direcao }: ConsultaPagina) => {
     let lista = BASE.filter((l) => !busca || l.nome.toLowerCase().includes(busca.toLowerCase()));

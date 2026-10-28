@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import CheckIcon from '../../../assets/icons/check.svg?react';
 import ErroIcon from '../../../assets/icons/erro.svg?react';
 import SetaSmIcon from '../../../assets/icons/seta-sm.svg?react';
-import { Button, Input, Select, useToast } from '../../../components/common';
+import { Button, Input, MultiSelect, type MultiSelectOption, Select, useToast } from '../../../components/common';
 import { RouteMap, AddressAutocomplete } from '../../../components/maps';
 import type { RoutePoint, RouteResult } from '../../../services/maps/routingService';
 import type { SugestaoEndereco } from '../../../services/maps/geoService';
@@ -110,7 +110,6 @@ export const RideRequestCreate = () => {
   const [simulatedValue, setSimulatedValue] = useState<number | null>(null);
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
 
-  const [costCenterSearch, setCostCenterSearch] = useState<string>('');
 
   const [form, setForm] = useState({
     requester: userName,
@@ -171,7 +170,6 @@ export const RideRequestCreate = () => {
       if (collabs.length > 0) {
         setCollaboratorsList(collabs);
       } else {
-        // Solicitante e aprovador não acessam as listagens de administrador.
         collaboratorApi
           .listBeneficiarios()
           .then((res) => setBeneficiarios(res?.response?.data ?? []))
@@ -256,28 +254,32 @@ export const RideRequestCreate = () => {
     ? backendMotivos.map((m) => ({ label: m.nome, value: m.nome }))
     : defaultReasonOptions;
 
-  const toggleCostCenter = (ccNumero: string) => {
-    setForm((current) => {
-      const exists = current.costCenterIds.includes(ccNumero);
-      if (exists) {
-        if (current.costCenterIds.length === 1) {
-          showToast({
-            type: 'warning',
-            title: 'Centro de custo',
-            description: 'Pelo menos um centro de custo deve permanecer selecionado.',
-          });
-          return current;
-        }
-        return {
-          ...current,
-          costCenterIds: current.costCenterIds.filter((id) => id !== ccNumero),
-        };
-      }
+  const costCenterOptions = useMemo<MultiSelectOption[]>(() => {
+    return backendCentrosCusto.map((cc) => {
+      const ccNum = String(cc.numero ?? cc.id);
+      const hasNoApprover = cc.temAprovador === false;
       return {
-        ...current,
-        costCenterIds: [...current.costCenterIds, ccNumero],
+        value: ccNum,
+        label: `CC-${ccNum} • ${cc.nome}`,
+        description: cc.filialId ? `Filial #${cc.filialId}` : undefined,
+        badge: hasNoApprover ? 'Sem aprovador' : undefined,
       };
     });
+  }, [backendCentrosCusto]);
+
+  const handleCostCenterChange = (newValues: string[]) => {
+    if (newValues.length === 0) {
+      showToast({
+        type: 'warning',
+        title: 'Centro de custo obrigatório',
+        description: 'Pelo menos um centro de custo deve permanecer selecionado para rateio da corrida.',
+      });
+      return;
+    }
+    setForm((current) => ({
+      ...current,
+      costCenterIds: newValues,
+    }));
   };
 
   const requesterEmployee = collaboratorsList.find((c) => c.nome === form.requester);
@@ -286,7 +288,6 @@ export const RideRequestCreate = () => {
   const selectedBeneficiaryId = isRideForSelf
     ? undefined
     : selectedBeneficiary?.id ?? beneficiarios.find((b) => b.nome === form.beneficiaryName)?.id;
-  // Com beneficiário escolhido na lista, o backend usa o CPF do cadastro dele.
   const usesRegisteredCpf = selectedBeneficiaryId != null;
   const selectedBeneficiaryCpf = isRideForSelf
     ? selectedBeneficiary?.cpf ?? currentUser?.cpf ?? ''
@@ -503,14 +504,16 @@ export const RideRequestCreate = () => {
     }
   };
 
-  const selectedCcObjects = backendCentrosCusto.filter((c) => form.costCenterIds.includes(String(c.numero)));
+  const selectedCcObjects = backendCentrosCusto.filter((c) =>
+    form.costCenterIds.includes(String(c.numero ?? c.id))
+  );
   const costCenterSummaryLabel = selectedCcObjects.length > 0
-    ? selectedCcObjects.map((cc) => `${cc.nome} (Nº ${cc.numero})`).join(', ')
+    ? selectedCcObjects.map((cc) => `${cc.nome} (Nº ${cc.numero ?? cc.id})`).join(', ')
     : form.costCenterIds.map((id) => `CC-${id}`).join(', ') || 'Nenhum';
 
   return (
     <div className={styles.page}>
-      <nav className={styles.stepper} aria-label="Etapas da solicitação">
+      <nav className={styles.stepper} data-steps={steps.length} aria-label="Etapas da solicitação">
         {steps.map((step) => {
           const isActive = step.id === currentStep;
           const isDone = step.id < currentStep;
@@ -568,52 +571,54 @@ export const RideRequestCreate = () => {
                 <Select label="Motivo" value={form.reason} options={reasonOptions} onChange={(value) => updateField('reason', value)} required />
 
                 <div className={styles.costCenterSection}>
-                  <div className={styles.costCenterHeader}>
-                    <strong>Centros de custo *</strong>
-                    <span>{form.costCenterIds.length} selecionado{form.costCenterIds.length === 1 ? '' : 's'} (rateio igual)</span>
-                  </div>
-                  {backendCentrosCusto.length > 5 && (
-                    <div style={{ marginBottom: '0.75rem' }}>
-                      <Input
-                        placeholder="Buscar centro de custo por nome ou número..."
-                        value={costCenterSearch}
-                        onChange={(e) => setCostCenterSearch(e.target.value)}
-                      />
+                  <MultiSelect
+                    label="Centros de custo para rateio"
+                    placeholder="Selecione um ou mais centros de custo..."
+                    searchPlaceholder="Buscar por código ou nome (ex: CC-101, Operações)..."
+                    options={costCenterOptions}
+                    values={form.costCenterIds}
+                    onChange={handleCostCenterChange}
+                    required
+                    showSelectAll={false}
+                    maxDisplayedChips={4}
+                    helperText={
+                      form.costCenterIds.length > 1
+                        ? `Rateio igual: ${(100 / form.costCenterIds.length).toFixed(form.costCenterIds.length > 2 ? 1 : 0)}% para cada um dos ${form.costCenterIds.length} centros de custo.`
+                        : '100% dos custos serão debitados neste centro de custo.'
+                    }
+                  />
+
+                  {form.costCenterIds.length > 0 && (
+                    <div className={styles.costCenterBreakdownCard}>
+                      <div className={styles.breakdownHeader}>
+                        <div className={styles.breakdownTitleWrapper}>
+                          <span className={styles.breakdownBadge}>
+                            {form.costCenterIds.length} {form.costCenterIds.length === 1 ? 'Centro de Custo' : 'Centros de Custo'}
+                          </span>
+                          <span className={styles.breakdownRateioPercent}>
+                            {(100 / form.costCenterIds.length).toFixed(form.costCenterIds.length > 2 ? 1 : 0)}% cada
+                          </span>
+                        </div>
+                        {simulatedValue !== null && simulatedValue > 0 && (
+                          <div className={styles.breakdownEstimatedPerCc}>
+                            <span>Estimativa por centro:</span>
+                            <strong>
+                              {`R$ ${(simulatedValue / form.costCenterIds.length).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                            </strong>
+                          </div>
+                        )}
+                      </div>
+
+                      {selectedCcObjects.some((c) => c.temAprovador === false) && (
+                        <div className={styles.noApproverAlert}>
+                          <ErroIcon width={16} height={16} className={styles.noApproverAlertIcon} />
+                          <span>
+                            Atenção: Ao menos um centro de custo selecionado não possui aprovador cadastrado e poderá necessitar de aprovação extraordinária.
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
-                  <div className={styles.costCenterChips} role="group" aria-label="Centros de custo">
-                    {backendCentrosCusto
-                      .filter((cc) => {
-                        if (!costCenterSearch.trim()) return true;
-                        const q = costCenterSearch.trim().toLocaleLowerCase('pt-BR');
-                        const ccNum = String(cc.numero ?? cc.id ?? '');
-                        return cc.nome.toLocaleLowerCase('pt-BR').includes(q) || ccNum.includes(q);
-                      })
-                      .map((cc) => {
-                        const ccNum = String(cc.numero ?? cc.id);
-                        const isSelected = form.costCenterIds.includes(ccNum);
-                        const hasNoApprover = cc.temAprovador === false;
-                        return (
-                          <button
-                            key={ccNum}
-                            type="button"
-                            className={`${styles.costCenterChip} ${isSelected ? styles.costCenterChipActive : ''}`}
-                            onClick={() => toggleCostCenter(ccNum)}
-                            aria-pressed={isSelected}
-                            title={hasNoApprover ? 'Este centro de custo não possui aprovador vigente' : undefined}
-                          >
-                            {isSelected && (
-                              <span className={styles.costCenterCheckIcon}>
-                                <CheckIcon width={12} height={12} />
-                              </span>
-                            )}
-                            <span>
-                              {cc.nome} (Nº {ccNum}){hasNoApprover ? ' — Sem aprovador' : ''}
-                            </span>
-                          </button>
-                        );
-                      })}
-                  </div>
                 </div>
               </div>
 

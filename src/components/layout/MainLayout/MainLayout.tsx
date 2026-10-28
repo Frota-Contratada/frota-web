@@ -9,7 +9,6 @@ export const MainLayout = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const location = useLocation();
 
-  // Close mobile sidebar on route change
   useEffect(() => {
     setIsMobileSidebarOpen(false);
   }, [location.pathname]);
