@@ -145,65 +145,67 @@ export const SearchableSelect = ({
         </span>
       )}
 
-      <button
-        type="button"
-        className={`${selectStyles.trigger} ${isOpen ? selectStyles.open : ''} ${!triggerLabel ? selectStyles.placeholder : ''} ${hasError ? selectStyles.error : ''}`}
-        onClick={() => (isOpen ? setIsOpen(false) : open())}
-        disabled={disabled}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        aria-controls={listboxId}
-        aria-invalid={hasError}
-      >
-        <span>{triggerLabel ?? placeholder}</span>
-        <SetaDireitaIcon className={selectStyles.chevron} width={14} height={14} aria-hidden="true" />
-      </button>
+      <div className={selectStyles.anchor}>
+        <button
+          type="button"
+          className={`${selectStyles.trigger} ${isOpen ? selectStyles.open : ''} ${!triggerLabel ? selectStyles.placeholder : ''} ${hasError ? selectStyles.error : ''}`}
+          onClick={() => (isOpen ? setIsOpen(false) : open())}
+          disabled={disabled}
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
+          aria-controls={listboxId}
+          aria-invalid={hasError}
+        >
+          <span>{triggerLabel ?? placeholder}</span>
+          <SetaDireitaIcon className={selectStyles.chevron} width={14} height={14} aria-hidden="true" />
+        </button>
 
-      {isOpen && (
-        <div className={`${selectStyles.dropdown} ${styles.dropdown}`}>
-          <input
-            className={styles.search}
-            type="text"
-            role="combobox"
-            aria-label={label ? `Buscar ${label.replace(/\s*\*$/, '').toLocaleLowerCase('pt-BR')}` : 'Buscar'}
-            aria-controls={listboxId}
-            aria-expanded="true"
-            aria-autocomplete="list"
-            aria-activedescendant={visible[highlighted] ? `${listboxId}-${highlighted}` : undefined}
-            placeholder={searchPlaceholder}
-            value={term}
-            onChange={(event) => {
-              setTerm(event.target.value);
-              setHighlighted(0);
-            }}
-            onKeyDown={handleKeyDown}
-            autoFocus
-          />
+        {isOpen && (
+          <div className={`${selectStyles.dropdown} ${styles.dropdown}`}>
+            <input
+              className={styles.search}
+              type="text"
+              role="combobox"
+              aria-label={label ? `Buscar ${label.replace(/\s*\*$/, '').toLocaleLowerCase('pt-BR')}` : 'Buscar'}
+              aria-controls={listboxId}
+              aria-expanded="true"
+              aria-autocomplete="list"
+              aria-activedescendant={visible[highlighted] ? `${listboxId}-${highlighted}` : undefined}
+              placeholder={searchPlaceholder}
+              value={term}
+              onChange={(event) => {
+                setTerm(event.target.value);
+                setHighlighted(0);
+              }}
+              onKeyDown={handleKeyDown}
+              autoFocus
+            />
 
-          <div className={styles.options} role="listbox" id={listboxId} tabIndex={-1}>
-            {visible.map((option, index) => {
-              const isSelected = option.value === value;
+            <div className={styles.options} role="listbox" id={listboxId} tabIndex={-1}>
+              {visible.map((option, index) => {
+                const isSelected = option.value === value;
 
-              return (
-                <button
-                  key={`${option.value}-${index}`}
-                  id={`${listboxId}-${index}`}
-                  type="button"
-                  className={`${selectStyles.option} ${isSelected ? selectStyles.selected : ''} ${index === highlighted ? styles.highlighted : ''}`}
-                  role="option"
-                  aria-selected={isSelected}
-                  onMouseEnter={() => setHighlighted(index)}
-                  onClick={() => handleSelect(option.value)}
-                >
-                  {option.label}
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    key={`${option.value}-${index}`}
+                    id={`${listboxId}-${index}`}
+                    type="button"
+                    className={`${selectStyles.option} ${isSelected ? selectStyles.selected : ''} ${index === highlighted ? styles.highlighted : ''}`}
+                    role="option"
+                    aria-selected={isSelected}
+                    onMouseEnter={() => setHighlighted(index)}
+                    onClick={() => handleSelect(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {statusMessage && <p className={styles.status}>{statusMessage}</p>}
           </div>
-
-          {statusMessage && <p className={styles.status}>{statusMessage}</p>}
-        </div>
-      )}
+        )}
+      </div>
 
       {error && (
         <span className={selectStyles.errorText} role="alert">

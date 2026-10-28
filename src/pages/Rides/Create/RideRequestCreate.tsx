@@ -19,7 +19,7 @@ import {
   type BeneficiarioDto,
 } from '../../../services';
 import { useAuthStore } from '../../../stores/authStore';
-import { cleanCpf, normalizeUf } from '../../../utils';
+import { cleanCpf, formatCpf, normalizeUf } from '../../../utils';
 import styles from '../Review/RideReview.module.css';
 
 type RequestStep = 1 | 2;
@@ -694,7 +694,7 @@ export const RideRequestCreate = () => {
                       return (
                         <div className={styles.passengerCpfItem} key={`summary-cpf-${index}`}>
                           <span>Passageiro {index + 1}</span>
-                          <strong>{cpf || 'CPF não informado'}</strong>
+                          <strong>{cpf ? formatCpf(cpf) : 'CPF não informado'}</strong>
                         </div>
                       );
                     })}

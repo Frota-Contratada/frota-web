@@ -102,7 +102,7 @@ export const SupplierCreate = () => {
 
           <div className={styles.formGrid}>
             <Input
-              label="Razão Social / Nome Fantasia *"
+              label="Razão Social / Nome Fantasia"
               placeholder="Ex: Mobilidade Prime LTDA"
               value={form.name}
               onChange={(e) => updateField('name', e.target.value)}
@@ -112,7 +112,7 @@ export const SupplierCreate = () => {
             />
 
             <Input
-              label="CNPJ *"
+              label="CNPJ"
               mask="cnpj"
               value={form.document}
               onChange={(e) => handleDocumentChange(e.target.value)}
@@ -122,7 +122,7 @@ export const SupplierCreate = () => {
             />
 
             <SearchableSelect
-              label="Filial de Vínculo *"
+              label="Filial de Vínculo"
               placeholder="Selecione a filial"
               searchPlaceholder="Digite o nome, o código, o CNPJ ou a cidade"
               value={form.filialId}

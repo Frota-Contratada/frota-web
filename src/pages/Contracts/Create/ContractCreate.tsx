@@ -464,7 +464,7 @@ export const ContractCreate = () => {
 
             <div className={styles.formGrid}>
               <Input
-                label="Data de Início da Vigência *"
+                label="Data de Início da Vigência"
                 type="date"
                 value={form.inicio}
                 onChange={(e) => updateField('inicio', e.target.value)}
