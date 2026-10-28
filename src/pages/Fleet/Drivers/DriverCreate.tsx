@@ -1,41 +1,45 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input, Select, useToast } from '../../../components/common';
-import { driverApi, supplierApi, type FornecedorDto } from '../../../services';
+import { Button, Input, SearchableSelect, useToast } from '../../../components/common';
+import { driverApi, type FornecedorDto } from '../../../services';
+import { usePermissions } from '../../../hooks/usePermissions';
+import { supplierToOption, useSupplierSearch } from '../../../hooks/useSelectionLists';
 import { cleanCpf, cleanPhone } from '../../../utils';
+import { resolveFornecedorIdDoToken } from '../../../utils/apiHelpers';
 import styles from '../Fleet.module.css';
 
 export const DriverCreate = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { isSupplier, isAdmin } = usePermissions();
+  // O admin de fornecedor cadastra sempre no próprio fornecedor: não escolhe.
+  const escolheFornecedor = isAdmin || !isSupplier;
 
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
   const [email, setEmail] = useState('');
   const [telefone, setTelefone] = useState('');
-  const [fornecedorId, setFornecedorId] = useState('');
-  const [fornecedores, setFornecedores] = useState<FornecedorDto[]>([]);
+  const [fornecedor, setFornecedor] = useState<FornecedorDto | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    supplierApi.list().then((res) => {
-      if (Array.isArray(res.response)) {
-        setFornecedores(res.response);
-        if (res.response.length > 0) setFornecedorId(String(res.response[0].id));
-      } else if (res.response && Array.isArray(res.response.data)) {
-        setFornecedores(res.response.data);
-        if (res.response.data.length > 0) setFornecedorId(String(res.response.data[0].id));
-      }
-    }).catch(() => {});
-  }, []);
+  const {
+    suppliers: fornecedores,
+    search: buscarFornecedores,
+    isRemote: buscaFornecedorNoServidor,
+    isLoading: buscandoFornecedores,
+  } = useSupplierSearch(escolheFornecedor);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const rawCpf = cleanCpf(cpf);
+    const fornecedorId = escolheFornecedor ? fornecedor?.id : resolveFornecedorIdDoToken();
 
     if (!nome.trim() || !rawCpf || !email.trim() || !fornecedorId) {
-      showToast({ type: 'warning', title: 'Campos obrigatórios', description: 'Preencha nome, CPF, e-mail e fornecedor.' });
+      showToast({
+        type: 'warning',
+        title: 'Campos obrigatórios',
+        description: escolheFornecedor ? 'Preencha nome, CPF, e-mail e fornecedor.' : 'Preencha nome, CPF e e-mail.',
+      });
       return;
     }
 
@@ -51,7 +55,7 @@ export const DriverCreate = () => {
         cpf: rawCpf,
         email: email.trim(),
         telefone: cleanPhone(telefone) || undefined,
-        fornecedorId: Number(fornecedorId),
+        fornecedorId,
       });
 
       showToast({
@@ -67,11 +71,6 @@ export const DriverCreate = () => {
       setIsSubmitting(false);
     }
   };
-
-  const supplierOptions = fornecedores.map((f) => ({
-    value: String(f.id),
-    label: f.nome || `Fornecedor #${f.id}`,
-  }));
 
   return (
     <div className={styles.page}>
@@ -123,15 +122,23 @@ export const DriverCreate = () => {
               />
             </div>
 
-            <div className={styles.fullWidth}>
-              <Select
-                label="Fornecedor homologado *"
-                options={supplierOptions.length > 0 ? supplierOptions : [{ value: '1', label: 'Fornecedor Padrão' }]}
-                value={fornecedorId}
-                onChange={(val) => setFornecedorId(val)}
-                disabled={isSubmitting}
-              />
-            </div>
+            {escolheFornecedor && (
+              <div className={styles.fullWidth}>
+                <SearchableSelect
+                  label="Fornecedor homologado *"
+                  placeholder="Selecione o fornecedor"
+                  searchPlaceholder={buscaFornecedorNoServidor ? 'Digite o nome ou o CNPJ/CPF' : 'Digite para buscar'}
+                  options={fornecedores.map(supplierToOption)}
+                  value={fornecedor ? String(fornecedor.id) : ''}
+                  onSearch={buscarFornecedores}
+                  isLoading={buscandoFornecedores}
+                  selectedLabel={fornecedor ? supplierToOption(fornecedor).label : undefined}
+                  onChange={(val) => setFornecedor(fornecedores.find((f) => String(f.id) === val) ?? null)}
+                  disabled={isSubmitting}
+                  required
+                />
+              </div>
+            )}
           </div>
 
           <div className={styles.formActions}>

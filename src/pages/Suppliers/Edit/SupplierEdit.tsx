@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Input, LoadingState, Select, useToast } from '../../../components/common';
-import { branchApi, supplierApi, extractListData, type FilialDto } from '../../../services';
+import { Button, Input, LoadingState, SearchableSelect, Select, useToast } from '../../../components/common';
+import { supplierApi } from '../../../services';
+import { branchSearchText, useBranches } from '../../../hooks/useSelectionLists';
 import { formatCnpj, cleanCnpj } from '../../../utils';
 import styles from '../../Rides/Review/RideReview.module.css';
 
@@ -19,7 +20,7 @@ export const SupplierEdit = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [branchesList, setBranchesList] = useState<FilialDto[]>([]);
+  const branchesList = useBranches();
   const [form, setForm] = useState({
     name: '',
     document: '',
@@ -32,12 +33,6 @@ export const SupplierEdit = () => {
 
   useEffect(() => {
     setIsInitialLoading(true);
-    branchApi.list().then((res) => {
-      const branches = extractListData<FilialDto>(res);
-      if (branches.length > 0) {
-        setBranchesList(branches);
-      }
-    }).catch(() => {});
 
     if (supplierId && !isNaN(Number(supplierId))) {
       supplierApi.getById(Number(supplierId)).then((res) => {
@@ -63,7 +58,11 @@ export const SupplierEdit = () => {
     }
   }, [supplierId, navigate, showToast]);
 
-  const branchOptions = branchesList.map((b) => ({ label: `${b.nome} (${b.cnpj})`, value: String(b.id) }));
+  const branchOptions = branchesList.map((b) => ({
+    label: `${b.nome} (${b.cnpj})`,
+    value: String(b.id),
+    searchText: branchSearchText(b),
+  }));
 
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -182,9 +181,10 @@ export const SupplierEdit = () => {
             />
 
             {branchOptions.length > 0 && (
-              <Select
+              <SearchableSelect
                 label="Filial Principal"
                 placeholder="Selecione a filial"
+                searchPlaceholder="Digite o nome, o código, o CNPJ ou a cidade"
                 value={form.linkedBranch}
                 options={branchOptions}
                 onChange={(val) => updateField('linkedBranch', val)}

@@ -25,6 +25,7 @@ import {
   ridesApi,
   dashboardApi,
   extractListData,
+  fetchAllPages,
   type CentroCustoDto,
   type FilialDto,
   type SolicitacaoDto,
@@ -90,8 +91,10 @@ export const ExpensesView = () => {
   useEffect(() => {
     let isMounted = true;
     Promise.allSettled([
-      branchApi.list(),
-      costCenterApi.list(selectedFilialId ? { filialId: selectedFilialId } : undefined),
+      fetchAllPages<FilialDto>((page) => branchApi.list({ page, limit: 100 }), 5),
+      selectedFilialId
+        ? fetchAllPages<CentroCustoDto>((page) => costCenterApi.list({ filialId: selectedFilialId, page, limit: 100 }))
+        : costCenterApi.list(),
     ]).then(([branchRes, ccRes]) => {
       if (!isMounted) return;
       if (branchRes.status === 'fulfilled') {

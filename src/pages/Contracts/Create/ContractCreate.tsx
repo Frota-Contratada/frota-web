@@ -1,23 +1,27 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input, Select, type SelectOption, useToast } from '../../../components/common';
+import {
+  Button,
+  Input,
+  SearchableSelect,
+  type SearchableSelectOption,
+  type SelectOption,
+  useToast,
+} from '../../../components/common';
 import { MultiSelect, type MultiSelectOption } from '../../../components/common/MultiSelect/MultiSelect';
 import CheckIcon from '../../../assets/icons/check.svg?react';
 import {
   contractApi,
   contractIaApi,
-  supplierApi,
-  branchApi,
   ridesApi,
-  extractListData,
   montarRegrasContrato,
   QUALQUER_VEICULO,
   type ExtracaoResultadoIa,
   type FornecedorDto,
-  type FilialDto,
   type TipoCorridaDto,
   type TipoVeiculoDto,
 } from '../../../services';
+import { branchSearchText, supplierToOption, useBranches, useSupplierSearch } from '../../../hooks/useSelectionLists';
 import { resolveEmpresaId } from '../../../utils/apiHelpers';
 import styles from './ContractCreate.module.css';
 
@@ -49,9 +53,17 @@ export const ContractCreate = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [iaResult, setIaResult] = useState<ExtracaoResultadoIa | null>(null);
 
-  const [suppliersList, setSuppliersList] = useState<FornecedorDto[]>([]);
-  const [branchesList, setBranchesList] = useState<FilialDto[]>([]);
-  const [selectedSupplierId, setSelectedSupplierId] = useState('');
+  const {
+    suppliers: suppliersList,
+    setSuppliers: setSuppliersList,
+    search: searchSuppliers,
+    findSuppliers,
+    isRemote: isSupplierSearchRemote,
+    isLoading: isSearchingSuppliers,
+  } = useSupplierSearch();
+  const branchesList = useBranches();
+  const [selectedSupplier, setSelectedSupplier] = useState<FornecedorDto | null>(null);
+  const selectedSupplierId = selectedSupplier ? String(selectedSupplier.id) : '';
   const [selectedBranchId, setSelectedBranchId] = useState('');
   const [tiposCorrida, setTiposCorrida] = useState<TipoCorridaDto[]>([]);
   const [tiposVeiculo, setTiposVeiculo] = useState<TipoVeiculoDto[]>([]);
@@ -67,24 +79,12 @@ export const ContractCreate = () => {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    // Filiais e fornecedores vêm de useBranches e useSupplierSearch.
     Promise.allSettled([
-      supplierApi.list(),
-      branchApi.list(),
       ridesApi.getTiposCorrida(),
       ridesApi.getTiposVeiculo(),
     ]).then(
-      ([supRes, branchRes, tiposCorridaRes, tiposVeiculoRes]) => {
-        if (supRes.status === 'fulfilled') {
-          const list = extractListData<FornecedorDto>(supRes.value);
-          setSuppliersList(list);
-        }
-        if (branchRes.status === 'fulfilled') {
-          const list = extractListData<FilialDto>(branchRes.value);
-          setBranchesList(list);
-          if (list.length > 0 && !selectedBranchId) {
-            setSelectedBranchId(String(list[0].id));
-          }
-        }
+      ([tiposCorridaRes, tiposVeiculoRes]) => {
         if (tiposCorridaRes.status === 'fulfilled') {
           const list = tiposCorridaRes.value?.response ?? [];
           setTiposCorrida(list);
@@ -116,19 +116,20 @@ export const ContractCreate = () => {
     tiposVeiculo.find((tipo) => tipo.nome.toLowerCase() === (nome ?? '').trim().toLowerCase())
       ?.nome ?? QUALQUER_VEICULO;
 
-  const supplierOptions = useMemo<SelectOption[]>(() => {
-    return suppliersList.map((s) => ({
-      value: String(s.id),
-      label: `${s.nome}${s.cnpjCpf ? ` (${s.cnpjCpf})` : ''}`,
-    }));
-  }, [suppliersList]);
+  const supplierOptions = useMemo<SearchableSelectOption[]>(
+    () => suppliersList.map(supplierToOption),
+    [suppliersList]
+  );
 
-  const branchOptions = useMemo<SelectOption[]>(() => {
+  // O código da filial se repete entre empresas: a opção guarda os dois.
+  const branchOptions = useMemo<SearchableSelectOption[]>(() => {
     return branchesList.map((b) => ({
-      value: String(b.id),
+      value: `${b.empresaId ?? ''}:${b.id}`,
       label: `${b.nome}${b.cnpj ? ` - CNPJ: ${b.cnpj}` : ''}`,
+      searchText: branchSearchText(b),
     }));
   }, [branchesList]);
+  const selectedBranch = branchesList.find((b) => `${b.empresaId ?? ''}:${b.id}` === selectedBranchId);
 
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -176,7 +177,12 @@ export const ContractCreate = () => {
         const docCnpj = resultado.fornecedor.cnpj_cpf?.replace(/\D/g, '') || '';
         const docNome = (resultado.fornecedor.nm_fornecedor || '').toLowerCase();
 
-        const match = suppliersList.find((s) => {
+        // Para o admin master a lista não vem carregada: busca o fornecedor do PDF no servidor.
+        const candidatos = isSupplierSearchRemote
+          ? await findSuppliers(docCnpj || resultado.fornecedor.nm_fornecedor || '').catch(() => [])
+          : suppliersList;
+
+        const match = candidatos.find((s) => {
           const sCnpj = (s.cnpjCpf || '').replace(/\D/g, '');
           if (docCnpj && sCnpj && sCnpj === docCnpj) return true;
           if (docNome && s.nome && s.nome.toLowerCase().includes(docNome)) return true;
@@ -184,7 +190,8 @@ export const ContractCreate = () => {
         });
 
         if (match) {
-          setSelectedSupplierId(String(match.id));
+          if (isSupplierSearchRemote) setSuppliersList(candidatos);
+          setSelectedSupplier(match);
         }
       }
 
@@ -266,7 +273,7 @@ export const ContractCreate = () => {
 
     if (!selectedFile) return;
 
-    const filial = branchesList.find((b) => String(b.id) === selectedBranchId);
+    const filial = selectedBranch;
     const { regras: regrasPayload, ignoradas } = montagemRegras;
 
     try {
@@ -277,7 +284,7 @@ export const ContractCreate = () => {
         dataVigenciaInicio: form.inicio,
         dataVigenciaFim: form.vencimento ? form.vencimento : undefined,
         empresaId: resolveEmpresaId(filial?.empresaId),
-        filialId: Number(selectedBranchId),
+        filialId: Number(filial?.id),
         fornecedorId: Number(selectedSupplierId),
         tipoCorridaIds: selectedTipoCorridaIds.map(Number),
       });
@@ -343,7 +350,7 @@ export const ContractCreate = () => {
     void salvar(false);
   };
 
-  const selectedSupplierObj = suppliersList.find((s) => String(s.id) === selectedSupplierId);
+  const selectedSupplierObj = selectedSupplier;
 
   return (
     <div className={styles.page}>
@@ -478,22 +485,27 @@ export const ContractCreate = () => {
             </div>
 
             <div className={styles.formGrid}>
-              <Select
+              <SearchableSelect
                 label="Fornecedor Vinculado *"
                 placeholder="Selecione o fornecedor"
+                searchPlaceholder={isSupplierSearchRemote ? 'Digite o nome ou o CNPJ/CPF' : 'Digite para buscar'}
                 value={selectedSupplierId}
                 options={supplierOptions}
+                onSearch={searchSuppliers}
+                isLoading={isSearchingSuppliers}
+                selectedLabel={selectedSupplier ? supplierToOption(selectedSupplier).label : undefined}
                 onChange={(val) => {
-                  setSelectedSupplierId(val);
+                  setSelectedSupplier(suppliersList.find((s) => String(s.id) === val) ?? null);
                   setValidationErrors((current) => ({ ...current, fornecedor: '' }));
                 }}
                 error={validationErrors.fornecedor}
                 disabled={isLoading || isExtractingIa}
               />
 
-              <Select
+              <SearchableSelect
                 label="Filial de Vinculação *"
                 placeholder="Selecione a filial"
+                searchPlaceholder="Digite o nome, o código, o CNPJ ou a cidade"
                 value={selectedBranchId}
                 options={branchOptions}
                 onChange={(val) => {

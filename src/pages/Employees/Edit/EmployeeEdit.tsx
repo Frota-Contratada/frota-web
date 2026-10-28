@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Input, LoadingState, Select, useToast } from '../../../components/common';
+import { Button, Input, LoadingState, SearchableSelect, useToast } from '../../../components/common';
 import {
   collaboratorApi,
   branchApi,
   costCenterApi,
   extractListData,
+  fetchAllPages,
   type FilialDto,
   type CentroCustoDto,
   type ColaboradorDto,
 } from '../../../services';
+import { branchSearchText } from '../../../hooks/useSelectionLists';
 import styles from '../../Rides/Review/RideReview.module.css';
 import localStyles from './EmployeeEdit.module.css';
 
@@ -52,8 +54,9 @@ export const EmployeeEdit = () => {
     const numericId = Number(employeeId);
 
     Promise.allSettled([
-      branchApi.list({ limit: 100 }),
-      costCenterApi.list({ limit: 100 }),
+      fetchAllPages<FilialDto>((page) => branchApi.list({ page, limit: 100 }), 5),
+      // Os centros de custo vêm completos por filial, logo abaixo.
+      Promise.resolve<CentroCustoDto[]>([]),
       collaboratorApi.list({ limit: 100 }),
       !isNaN(numericId) ? collaboratorApi.getProfiles(numericId) : Promise.reject(),
     ]).then(async ([branchesRes, ccRes, collabsRes, profilesRes]) => {
@@ -84,8 +87,9 @@ export const EmployeeEdit = () => {
         let availableCcs = costCenters.filter((c) => String(c.filialId) === branchVal);
         if (availableCcs.length === 0 && resolvedFilialId) {
           try {
-            const branchCcRes = await costCenterApi.list({ filialId: Number(resolvedFilialId), limit: 100 });
-            const branchCcs = extractListData<CentroCustoDto>(branchCcRes);
+            const branchCcs = await fetchAllPages<CentroCustoDto>((page) =>
+              costCenterApi.list({ filialId: Number(resolvedFilialId), page, limit: 100 })
+            );
             if (branchCcs.length > 0) {
               availableCcs = branchCcs;
               const existingKeys = new Set(costCenters.map((c) => `${c.filialId}-${c.numero ?? c.id}`));
@@ -138,7 +142,11 @@ export const EmployeeEdit = () => {
     };
   }, [employeeId, navigate, showToast]);
 
-  const branchOptions = branchesList.map((b) => ({ label: `${b.nome} (${b.cnpj})`, value: String(b.id) }));
+  const branchOptions = branchesList.map((b) => ({
+    label: `${b.nome} (${b.cnpj})`,
+    value: String(b.id),
+    searchText: branchSearchText(b),
+  }));
 
   const selectedBranchId = Number(form.branch) || 1;
   const filteredCostCenters = useMemo(() => {
@@ -164,8 +172,7 @@ export const EmployeeEdit = () => {
       const nextCc = firstCc ? String(firstCc) : '';
       setForm((current) => ({ ...current, branch: String(value), costCenterId: nextCc }));
       if (branchCcs.length === 0 && newBranchId > 0) {
-        costCenterApi.list({ filialId: newBranchId, limit: 100 }).then((res) => {
-          const fetched = extractListData<CentroCustoDto>(res);
+        fetchAllPages<CentroCustoDto>((page) => costCenterApi.list({ filialId: newBranchId, page, limit: 100 })).then((fetched) => {
           if (fetched.length > 0) {
             setCostCentersList((prev) => {
               const existingKeys = new Set(prev.map((c) => `${c.filialId}-${c.numero ?? c.id}`));
@@ -349,7 +356,8 @@ export const EmployeeEdit = () => {
 
           <div className={styles.formGrid}>
             {branchOptions.length > 0 && (
-              <Select
+              <SearchableSelect
+                searchPlaceholder="Digite o nome, o código, o CNPJ ou a cidade"
                 label="Filial de vinculação"
                 value={form.branch}
                 options={branchOptions}
@@ -358,7 +366,8 @@ export const EmployeeEdit = () => {
               />
             )}
 
-            <Select
+            <SearchableSelect
+              searchPlaceholder="Digite o nome ou o número"
               label="Centro de custo"
               value={form.costCenterId}
               options={costCenterOptions}

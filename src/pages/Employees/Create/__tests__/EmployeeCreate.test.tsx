@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { EmployeeCreate } from '../EmployeeCreate';
@@ -30,9 +30,10 @@ const renderizar = () =>
     </ToastProvider>
   );
 
+// Preenche direto em vez de digitar letra a letra, que deixava o teste lento sob carga.
 const preencherDados = async () => {
-  await userEvent.type(screen.getByLabelText(/nome completo/i), 'Visitante da Feira');
-  await userEvent.type(screen.getByLabelText(/email corporativo/i), 'visitante@exemplo.com');
+  fireEvent.change(screen.getByLabelText(/nome completo/i), { target: { value: 'Visitante da Feira' } });
+  fireEvent.change(screen.getByLabelText(/email corporativo/i), { target: { value: 'visitante@exemplo.com' } });
 };
 
 describe('EmployeeCreate', () => {
