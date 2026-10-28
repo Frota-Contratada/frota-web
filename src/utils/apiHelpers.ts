@@ -8,7 +8,6 @@ export interface ApiEnvelope<T> {
   response: T;
 }
 
-/** Parâmetros de paginação e ordenação aceitos pelas listagens do backend. */
 export interface ListagemQueryParams {
   page?: number;
   limit?: number;
@@ -16,7 +15,6 @@ export interface ListagemQueryParams {
   direcao?: 'asc' | 'desc';
 }
 
-/** Total de registros de uma resposta paginada; sem paginação, o tamanho da lista. */
 export function extractTotalCount(response: unknown): number {
   const nested = (response as { response?: { totalCount?: unknown } } | null)?.response;
   if (nested && typeof nested.totalCount === 'number') return nested.totalCount;

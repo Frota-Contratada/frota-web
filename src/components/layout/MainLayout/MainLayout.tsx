@@ -13,7 +13,6 @@ export const MainLayout = () => {
   const location = useLocation();
   const updateUser = useAuthStore((state) => state.updateUser);
 
-  // Close mobile sidebar on route change
   useEffect(() => {
     setIsMobileSidebarOpen(false);
   }, [location.pathname]);

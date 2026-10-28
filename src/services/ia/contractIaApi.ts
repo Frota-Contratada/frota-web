@@ -97,7 +97,7 @@ export const contractIaApi = {
             rawText = typeof jsonVal === 'string' ? jsonVal : JSON.stringify(jsonVal);
           }
         } catch {
-          // ignore
+
         }
       }
       if (rawText) {

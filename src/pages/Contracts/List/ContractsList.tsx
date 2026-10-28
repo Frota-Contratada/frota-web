@@ -43,7 +43,6 @@ const columns: ColumnDef<Contract>[] = [
   },
 ];
 
-// Colunas que o backend ordena; as demais são ordenadas na tela.
 const CAMPOS_ORDENACAO: Partial<Record<keyof Contract, string>> = {
   codigo: 'id',
   inicio: 'dataVigenciaInicio',
@@ -77,7 +76,6 @@ const buscarPaginaContratos = async ({ page, limit, ordenarPor, direcao }: Consu
   return { itens: extractListData<ContratoDto>(res).map(mapContract), total: extractTotalCount(res) };
 };
 
-// O backend não busca contratos por texto: a busca é aplicada na tela.
 const filtrarContract = (contract: Contract, filters: string[], busca: string) => {
   const normalizedQuery = busca.toLocaleLowerCase('pt-BR');
   const valuesOf = (prefix: string) =>
@@ -284,7 +282,6 @@ export const ContractsList = () => {
           isLoading={lista.isLoading}
         />
       </section>
-
 
     </div>
   );

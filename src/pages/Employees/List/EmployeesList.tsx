@@ -67,7 +67,6 @@ const columns: ColumnDef<Employee>[] = [
   },
 ];
 
-// Colunas que o backend ordena.
 const CAMPOS_ORDENACAO: Partial<Record<keyof Employee, string>> = {
   name: 'nome',
   role: 'cargo',
@@ -94,7 +93,6 @@ const buscarPaginaColaboradores = async ({ page, limit, busca, ordenarPor, direc
   return { itens: extractListData<ColaboradorDto>(res).map(mapEmployee), total: extractTotalCount(res) };
 };
 
-// A busca vai ao backend pelo nome; aqui ela vale para filtros locais e exportação.
 const filtrarEmployee = (employee: Employee, filters: string[], busca: string) => {
   const normalizedQuery = busca.toLocaleLowerCase('pt-BR');
   const valuesOf = (prefix: string) =>

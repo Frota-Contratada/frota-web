@@ -109,7 +109,7 @@ export interface BeneficiariosListResponse {
 }
 
 export const collaboratorApi = {
-  /** Colegas da mesma filial, para solicitar corrida para outra pessoa (solicitante e aprovador). */
+
   listBeneficiarios(query?: { nome?: string; page?: number; limit?: number }) {
     return apiClient.get<BeneficiariosListResponse>('/usuario/colaborador/beneficiarios', {
       query: { limit: 100, ...query },

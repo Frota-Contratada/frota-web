@@ -79,8 +79,6 @@ interface PhotonFeature {
   };
 }
 
-// Ordem das fontes de sugestão: Photon e Nominatim são gratuitos; a TomTom
-// Search tem cota mensal pequena e fica como reserva.
 async function buscarSugestoesPhoton(consulta: string): Promise<SugestaoEndereco[]> {
   try {
     const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(
@@ -117,7 +115,7 @@ async function buscarSugestoesPhoton(consulta: string): Promise<SugestaoEndereco
       }
     }
   } catch {
-    
+
   }
 
   return [];
@@ -165,7 +163,7 @@ async function buscarSugestoesNominatim(consulta: string): Promise<SugestaoEnder
       }
     }
   } catch {
-    
+
   }
 
   return [];
@@ -212,7 +210,7 @@ async function buscarSugestoesTomTom(consulta: string): Promise<SugestaoEndereco
         }
       }
     } catch {
-      
+
     }
   }
 
@@ -348,7 +346,7 @@ export const geoService = {
           }
         }
       } catch {
-        
+
       }
     }
 
@@ -385,7 +383,7 @@ export const geoService = {
         }
       }
     } catch {
-      
+
     }
 
     return null;
@@ -420,7 +418,7 @@ export const geoService = {
           }
         }
       } catch {
-        
+
       }
     }
 

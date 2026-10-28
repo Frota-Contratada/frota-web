@@ -110,8 +110,6 @@ export const ContractCreate = () => {
     [tiposVeiculo]
   );
 
-  // A IA devolve o nome do veículo como está no PDF; sem correspondência no catálogo
-  // a regra vale para qualquer veículo.
   const normalizarTipoVeiculo = (nome?: string | null): string =>
     tiposVeiculo.find((tipo) => tipo.nome.toLowerCase() === (nome ?? '').trim().toLowerCase())
       ?.nome ?? QUALQUER_VEICULO;

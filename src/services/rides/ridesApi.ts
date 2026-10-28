@@ -36,7 +36,7 @@ export interface FornecedorCandidatoDto {
   fornecedorNome: string;
   contratoId: number;
   valorEstimado: number;
-  /** Fornecedor já gravado na solicitação (o de menor valor na criação). */
+
   selecionado: boolean;
 }
 export type TipoCorridaDto = CatalogoItemDto;
@@ -80,7 +80,7 @@ export interface CriarSolicitacaoParams {
   destino: EnderecoSolicitacaoDto;
   paradas?: EnderecoSolicitacaoDto[];
   centrosCustoIds: number[];
-  /** Colaborador da mesma filial que vai usar a corrida; o CPF vem do cadastro dele. */
+
   beneficiarioId?: number;
   passageiros?: { nome: string; cpf?: string; solicitante?: boolean }[];
   cpfsAcompanhantes?: string[];
