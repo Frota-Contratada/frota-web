@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { LoadingState } from '../components/common';
 import { Login, ForgotPassword, ResetPassword, SignUp } from '../pages/Auth';
 import { Calendar } from '../pages/Calendar';
 import { ContractsList, ContractDetails, ContractCreate } from '../pages/Contracts';
@@ -20,7 +22,18 @@ const HistoricTrackingRedirect = () => {
 
 export const AppRoutes = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isRestoring = useAuthStore((state) => state.isRestoring);
+  const restoreSession = useAuthStore((state) => state.restoreSession);
   const { defaultRoute, isSupplier } = usePermissions();
+
+  // Ao recarregar a página, confirma o token na API antes de montar as rotas.
+  useEffect(() => {
+    void restoreSession();
+  }, [restoreSession]);
+
+  if (isRestoring) {
+    return <LoadingState variant="fullscreen" message="Carregando sessão..." />;
+  }
 
   return (
     <BrowserRouter>
