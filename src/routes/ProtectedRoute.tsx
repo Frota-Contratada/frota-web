@@ -19,9 +19,9 @@ export const ProtectedRoute = ({
   const { isAuthenticated, user } = useAuthStore();
   const { hasProfile, can, defaultRoute } = usePermissions();
 
-  const token = localStorage.getItem('auth_token');
-
-  if (!isAuthenticated && !token && !user) {
+  // Só libera com o usuário confirmado pela API nesta sessão (login ou
+  // /usuario/info/me); nada salvo no navegador basta.
+  if (!isAuthenticated || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
