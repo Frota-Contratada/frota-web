@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button, Select, useToast } from '../../../components/common';
 import { driverApi, vehicleApi, ridesApi, type MotoristaDto, type VeiculoDto } from '../../../services';
+import { formatCpf } from '../../../utils';
 import styles from '../Fleet.module.css';
 
 interface RideAllocationModalProps {
@@ -114,7 +115,7 @@ export const RideAllocationModal = ({
 
   const driverOptions = drivers.map((d) => ({
     value: String(d.id),
-    label: `${d.nome} (CPF: ${d.cpf})`,
+    label: d.cpf ? `${d.nome} (CPF: ${formatCpf(d.cpf)})` : d.nome,
   }));
 
   const vehicleOptions = vehicles.map((v) => ({

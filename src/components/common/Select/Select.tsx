@@ -62,40 +62,42 @@ export const Select = ({
         </span>
       )}
 
-      <button
-        type="button"
-        className={`${styles.trigger} ${isOpen ? styles.open : ''} ${!selectedOption ? styles.placeholder : ''} ${hasError ? styles.error : ''}`}
-        onClick={() => !disabled && setIsOpen((current) => !current)}
-        disabled={disabled}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        aria-controls={listboxId}
-        aria-invalid={hasError}
-      >
-        <span>{selectedOption?.label ?? placeholder}</span>
-        <SetaDireitaIcon className={styles.chevron} width={14} height={14} aria-hidden="true" />
-      </button>
+      <div className={styles.anchor}>
+        <button
+          type="button"
+          className={`${styles.trigger} ${isOpen ? styles.open : ''} ${!selectedOption ? styles.placeholder : ''} ${hasError ? styles.error : ''}`}
+          onClick={() => !disabled && setIsOpen((current) => !current)}
+          disabled={disabled}
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
+          aria-controls={listboxId}
+          aria-invalid={hasError}
+        >
+          <span>{selectedOption?.label ?? placeholder}</span>
+          <SetaDireitaIcon className={styles.chevron} width={14} height={14} aria-hidden="true" />
+        </button>
 
-      {isOpen && (
-        <div className={styles.dropdown} role="listbox" id={listboxId} tabIndex={-1}>
-          {options.map((option) => {
-            const isSelected = option.value === value;
+        {isOpen && (
+          <div className={styles.dropdown} role="listbox" id={listboxId} tabIndex={-1}>
+            {options.map((option) => {
+              const isSelected = option.value === value;
 
-            return (
-              <button
-                key={option.value}
-                type="button"
-                className={`${styles.option} ${isSelected ? styles.selected : ''}`}
-                role="option"
-                aria-selected={isSelected}
-                onClick={() => handleSelect(option.value)}
-              >
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`${styles.option} ${isSelected ? styles.selected : ''}`}
+                  role="option"
+                  aria-selected={isSelected}
+                  onClick={() => handleSelect(option.value)}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {error && (
         <span className={styles.errorText} role="alert">

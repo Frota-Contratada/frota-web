@@ -84,7 +84,7 @@ export const DriverCreate = () => {
           <div className={styles.formGrid}>
             <div className={styles.fullWidth}>
               <Input
-                label="Nome completo *"
+                label="Nome completo"
                 placeholder="Ex: Carlos Eduardo de Oliveira"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
@@ -94,7 +94,7 @@ export const DriverCreate = () => {
             </div>
 
             <Input
-              label="CPF (11 caracteres) *"
+              label="CPF"
               mask="cpf"
               value={cpf}
               onChange={(e) => setCpf(e.target.value)}
@@ -112,7 +112,7 @@ export const DriverCreate = () => {
 
             <div className={styles.fullWidth}>
               <Input
-                label="E-mail *"
+                label="E-mail"
                 type="email"
                 placeholder="motorista@empresa.com"
                 value={email}
@@ -125,7 +125,7 @@ export const DriverCreate = () => {
             {escolheFornecedor && (
               <div className={styles.fullWidth}>
                 <SearchableSelect
-                  label="Fornecedor homologado *"
+                  label="Fornecedor homologado"
                   placeholder="Selecione o fornecedor"
                   searchPlaceholder={buscaFornecedorNoServidor ? 'Digite o nome ou o CNPJ/CPF' : 'Digite para buscar'}
                   options={fornecedores.map(supplierToOption)}

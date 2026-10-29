@@ -67,6 +67,24 @@ describe('EmployeeCreate', () => {
     expect(await screen.findByText('Lista de colaboradores')).toBeInTheDocument();
   });
 
+  it('formata o CPF na tela e envia só os dígitos', async () => {
+    entrarComo('admin-filial');
+    vi.spyOn(costCenterApi, 'listFilial').mockResolvedValue(pagina([centroComAprovador]) as never);
+    const create = vi.spyOn(collaboratorApi, 'create').mockResolvedValue({ response: { id: 9200 } } as never);
+
+    renderizar();
+    await preencherDados();
+    const cpf = screen.getByLabelText(/cpf/i);
+    fireEvent.change(cpf, { target: { value: '52998224725' } });
+    expect(cpf).toHaveValue('529.982.247-25');
+
+    await userEvent.click(await screen.findByRole('button', { name: /selecione/i }));
+    await userEvent.click(await screen.findByRole('option', { name: /4704/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar Colaborador' }));
+
+    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ cpf: '52998224725' })));
+  });
+
   it('envia a filial escolhida pelo admin master e busca os centros de custo dela', async () => {
     entrarComo('admin-master');
     vi.spyOn(branchApi, 'list').mockResolvedValue(

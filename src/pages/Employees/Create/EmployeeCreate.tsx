@@ -227,7 +227,7 @@ export const EmployeeCreate = () => {
 
             <Input
               label="CPF (opcional)"
-              placeholder="000.000.000-00"
+              mask="cpf"
               value={form.cpf}
               onChange={(e) => updateField('cpf', e.target.value)}
               error={validationErrors.cpf}
@@ -260,7 +260,7 @@ export const EmployeeCreate = () => {
             {isAdminMaster && (
               <SearchableSelect
                 searchPlaceholder="Digite o nome, o código, o CNPJ ou a cidade"
-                label="Filial de vinculação *"
+                label="Filial de vinculação"
                 value={form.branch}
                 options={branchOptions}
                 onChange={(val) => updateField('branch', val)}
@@ -272,13 +272,13 @@ export const EmployeeCreate = () => {
 
             <SearchableSelect
               searchPlaceholder="Digite o nome ou o número"
-              label="Centro de custo *"
+              label="Centro de custo"
               value={form.costCenterId}
               options={costCenterOptions}
               onChange={(val) => updateField('costCenterId', val)}
               error={validationErrors.costCenterId}
               disabled={isLoading || costCenterOptions.length === 0}
-              helperText="O solicitante só pode ser vinculado a um centro de custo com aprovador."
+              helperText="Em centro de custo sem aprovador, marque também o perfil Aprovador: o colaborador passa a ser o aprovador dele."
               required
             />
           </div>
